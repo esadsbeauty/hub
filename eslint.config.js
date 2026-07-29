@@ -1,0 +1,1 @@
+const js = require('@eslint/js');const hooks = require('eslint-plugin-react-hooks');const refresh = require('eslint-plugin-react-refresh');module.exports=[js.configs.recommended,{files:['**/*.{ts,tsx}'],plugins:{'react-hooks':hooks,'react-refresh':refresh},rules:{...hooks.configs.recommended.rules,'react-refresh/only-export-components':'warn'}}];
