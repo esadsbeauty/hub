@@ -1,0 +1,15 @@
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { companySchema, type CompanyFormData } from '../schema';
+import { PIPELINE, type Company } from '../types';
+
+const defaults: CompanyFormData = { fantasyName: '', legalName: '', cnpj: '', phone: '', whatsapp: '', instagram: '', facebook: '', website: '', email: '', zipCode: '', address: '', number: '', complement: '', district: '', city: '', state: '', responsibleName: '', responsibleRole: '', employees: 0, businessArea: '', leadSource: '', owner: 'Administrador', temperature: 'morno', priority: 'media', status: 'novo_lead', estimatedValue: 0, notes: '', tags: '' };
+export function CompanyForm({ company, onSubmit, onCancel }: { company?: Company; onSubmit: (data: CompanyFormData) => Promise<void> | void; onCancel: () => void }) {
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<CompanyFormData>({ resolver: zodResolver(companySchema), defaultValues: company ? { ...company, tags: company.tags.join(', ') } : defaults });
+  const fields = [['fantasyName','Nome fantasia'],['legalName','Razão social'],['cnpj','CNPJ'],['phone','Telefone'],['whatsapp','WhatsApp'],['instagram','Instagram'],['facebook','Facebook'],['website','Site'],['email','Email'],['zipCode','CEP'],['address','Endereço'],['number','Número'],['complement','Complemento'],['district','Bairro'],['city','Cidade'],['state','Estado'],['responsibleName','Responsável'],['responsibleRole','Cargo'],['employees','Funcionários'],['businessArea','Área de atuação'],['leadSource','Origem'],['owner','Responsável interno'],['estimatedValue','Valor estimado'],['tags','Tags separadas por vírgula']] as const;
+  return <form onSubmit={handleSubmit(onSubmit)} className="space-y-5"><div className="grid gap-3 md:grid-cols-3">{fields.map(([name, label]) => <Input key={name} type={name === 'employees' || name === 'estimatedValue' ? 'number' : 'text'} placeholder={label} {...register(name)} />)}<Select {...register('temperature')}><option value="frio">Frio</option><option value="morno">Morno</option><option value="quente">Quente</option></Select><Select {...register('priority')}><option value="baixa">Baixa</option><option value="media">Média</option><option value="alta">Alta</option></Select><Select {...register('status')}>{PIPELINE.map((stage) => <option key={stage.id} value={stage.id}>{stage.label}</option>)}</Select></div><Textarea placeholder="Observações" {...register('notes')} />{errors.fantasyName && <p className="text-sm text-red-600">{errors.fantasyName.message}</p>}<div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button><Button disabled={isSubmitting}>{company ? 'Salvar empresa' : 'Cadastrar empresa'}</Button></div></form>;
+}

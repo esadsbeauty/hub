@@ -1,0 +1,19 @@
+import { cn } from '@/lib/utils';
+
+export function PageContainer({ className, children }: { className?: string; children: React.ReactNode }) {
+  return <div className={cn('mx-auto w-full max-w-[88rem] space-y-6', className)}>{children}</div>;
+}
+
+export function Section({ title, description, actions, children }: { title?: string; description?: string; actions?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="space-y-4">
+      {(title || description || actions) && (
+        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-end">
+          <div>{title && <h2 className="text-xl font-bold tracking-tight">{title}</h2>}{description && <p className="text-sm text-muted-foreground">{description}</p>}</div>
+          {actions}
+        </div>
+      )}
+      {children}
+    </section>
+  );
+}

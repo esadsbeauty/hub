@@ -1,0 +1,5 @@
+import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+type Toast = { id: string; title: string; description?: string };
+const ToastContext = createContext<{ notify: (toast: Omit<Toast, 'id'>) => void } | null>(null);
+export function ToastProvider({ children }: { children: React.ReactNode }) { const [toasts, setToasts] = useState<Toast[]>([]); const notify = useCallback((toast: Omit<Toast, 'id'>) => { const id = crypto.randomUUID(); setToasts((current) => [...current, { ...toast, id }]); setTimeout(() => setToasts((current) => current.filter((item) => item.id !== id)), 3500); }, []); const value = useMemo(() => ({ notify }), [notify]); return <ToastContext.Provider value={value}>{children}<div className="fixed right-4 top-4 z-[60] space-y-2">{toasts.map((toast) => <div key={toast.id} className="glass w-80 rounded-2xl p-4"><b>{toast.title}</b>{toast.description && <p className="text-sm text-muted-foreground">{toast.description}</p>}</div>)}</div></ToastContext.Provider>; }
+export function useToast() { const value = useContext(ToastContext); if (!value) throw new Error('useToast must be used inside ToastProvider'); return value; }
