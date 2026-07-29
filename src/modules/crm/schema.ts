@@ -1,17 +1,82 @@
 import { z } from 'zod';
-import { PIPELINE } from './types';
-import type { LeadStatus } from '@/shared/types/database';
+import { leadStatusOptions } from './types';
+
+const optionalText = z.string().trim().optional();
+const optionalEmail = z.string().trim().email('Email inválido').optional().or(z.literal(''));
 
 export const companySchema = z.object({
-  fantasyName: z.string().min(2, 'Informe o nome fantasia'), legalName: z.string().optional(), cnpj: z.string().optional(), phone: z.string().optional(), whatsapp: z.string().optional(), instagram: z.string().optional(), facebook: z.string().optional(), website: z.string().optional(), email: z.string().email('Email inválido').optional().or(z.literal('')),
-  zipCode: z.string().optional(), address: z.string().optional(), number: z.string().optional(), complement: z.string().optional(), district: z.string().optional(), city: z.string().optional(), state: z.string().max(2).optional(),
-  responsibleName: z.string().optional(), responsibleRole: z.string().optional(), employees: z.coerce.number().min(0).optional(), businessArea: z.string().optional(), leadSource: z.string().optional(), owner: z.string().optional(),
-  temperature: z.enum(['frio', 'morno', 'quente']), priority: z.enum(['baixa', 'media', 'alta']), status: z.enum(PIPELINE.map((stage) => stage.id) as [LeadStatus, ...LeadStatus[]]), estimatedValue: z.coerce.number().min(0), notes: z.string().optional(), tags: z.string().optional(),
+  fantasyName: z.string().trim().min(2, 'Informe o nome fantasia'),
+  legalName: optionalText,
+  cnpj: optionalText,
+  phone: optionalText,
+  whatsapp: optionalText,
+  instagram: optionalText,
+  facebook: optionalText,
+  website: optionalText,
+  email: optionalEmail,
+  zipCode: optionalText,
+  address: optionalText,
+  number: optionalText,
+  complement: optionalText,
+  district: optionalText,
+  city: optionalText,
+  state: z.string().trim().max(2).optional(),
+  responsibleName: optionalText,
+  responsibleRole: optionalText,
+  employees: z.number().min(0).optional(),
+  businessArea: optionalText,
+  leadSource: optionalText,
+  owner: optionalText,
+  temperature: z.enum(['frio', 'morno', 'quente']),
+  priority: z.enum(['baixa', 'media', 'alta']),
+  status: z.enum(leadStatusOptions),
+  estimatedValue: z.number().min(0),
+  notes: optionalText,
+  tags: optionalText,
 });
 export type CompanyFormData = z.infer<typeof companySchema>;
-export const contactSchema = z.object({ name: z.string().min(2), role: z.string().optional(), phone: z.string().optional(), whatsapp: z.string().optional(), email: z.string().email().optional().or(z.literal('')), instagram: z.string().optional(), linkedin: z.string().optional(), birthDate: z.string().optional(), notes: z.string().optional(), isPrimary: z.boolean().default(false), isFinancial: z.boolean().default(false), isCommercial: z.boolean().default(false), status: z.enum(['ativo', 'inativo']).default('ativo') });
+
+export const contactSchema = z.object({
+  name: z.string().trim().min(2, 'Informe o nome'),
+  role: optionalText,
+  phone: optionalText,
+  whatsapp: optionalText,
+  email: optionalEmail,
+  instagram: optionalText,
+  linkedin: optionalText,
+  birthDate: optionalText,
+  notes: optionalText,
+  isPrimary: z.boolean(),
+  isFinancial: z.boolean(),
+  isCommercial: z.boolean(),
+  status: z.enum(['ativo', 'inativo']),
+});
 export type ContactFormData = z.infer<typeof contactSchema>;
-export const followUpSchema = z.object({ title: z.string().min(2), description: z.string().optional(), date: z.string().min(1), time: z.string().min(1), owner: z.string().min(2), priority: z.enum(['baixa', 'media', 'alta']), type: z.enum(['ligacao', 'whatsapp', 'email', 'reuniao', 'proposta', 'outro']), status: z.enum(['pendente', 'concluido', 'reagendado', 'cancelado']).default('pendente'), notes: z.string().optional() });
+
+export const followUpSchema = z.object({
+  title: z.string().trim().min(2, 'Informe o título'),
+  description: optionalText,
+  date: z.string().min(1, 'Informe a data'),
+  time: z.string().min(1, 'Informe a hora'),
+  owner: z.string().trim().min(2, 'Informe o responsável'),
+  priority: z.enum(['baixa', 'media', 'alta']),
+  type: z.enum(['ligacao', 'whatsapp', 'email', 'reuniao', 'proposta', 'outro']),
+  status: z.enum(['pendente', 'concluido', 'reagendado', 'cancelado']),
+  notes: optionalText,
+});
 export type FollowUpFormData = z.infer<typeof followUpSchema>;
-export const activitySchema = z.object({ title: z.string().min(2), description: z.string().optional(), contactId: z.string().optional(), type: z.enum(['ligacao', 'whatsapp', 'reuniao', 'visita', 'videochamada', 'apresentacao', 'retorno']), owner: z.string().min(2), date: z.string().min(1), time: z.string().min(1), durationMinutes: z.coerce.number().min(5), location: z.string().optional(), status: z.enum(['agendado', 'realizado', 'cancelado']).default('agendado'), notes: z.string().optional() });
+
+export const activitySchema = z.object({
+  title: z.string().trim().min(2, 'Informe o título'),
+  description: optionalText,
+  contactId: optionalText,
+  type: z.enum(['ligacao', 'whatsapp', 'reuniao', 'visita', 'videochamada', 'apresentacao', 'retorno']),
+  owner: z.string().trim().min(2, 'Informe o responsável'),
+  date: z.string().min(1, 'Informe a data'),
+  time: z.string().min(1, 'Informe a hora'),
+  durationMinutes: z.number().min(5),
+  location: optionalText,
+  status: z.enum(['agendado', 'realizado', 'cancelado']),
+  notes: optionalText,
+});
 export type ActivityFormData = z.infer<typeof activitySchema>;

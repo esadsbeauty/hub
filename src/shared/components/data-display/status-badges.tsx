@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge';
-import type { LeadStatus } from '@/shared/types/database';
+import type { LeadStatus } from '@/modules/crm/types';
 import { pipelineLabel } from '@/modules/crm/utils/formatters';
 
 export function StatusBadge({ status }: { status: LeadStatus }) {

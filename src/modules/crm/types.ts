@@ -1,8 +1,18 @@
-import type { LeadStatus } from '@/shared/types/database';
+export const leadStatusOptions = ['novo_lead', 'pesquisado', 'primeiro_contato', 'aguardando_resposta', 'em_conversa', 'reuniao_agendada', 'proposta_enviada', 'negociacao', 'cliente_fechado', 'perdido'] as const;
+export type LeadStatus = typeof leadStatusOptions[number];
 
 export const PIPELINE: { id: LeadStatus; label: string }[] = [
-  ['novo_lead', 'Novo Lead'], ['pesquisado', 'Pesquisado'], ['primeiro_contato', 'Primeiro Contato'], ['aguardando_resposta', 'Aguardando Resposta'], ['em_conversa', 'Em Conversa'], ['reuniao_agendada', 'Reunião Agendada'], ['proposta_enviada', 'Proposta Enviada'], ['negociacao', 'Negociação'], ['cliente_fechado', 'Cliente Fechado'], ['perdido', 'Perdido'],
-].map(([id, label]) => ({ id: id as LeadStatus, label }));
+  { id: 'novo_lead', label: 'Novo Lead' },
+  { id: 'pesquisado', label: 'Pesquisado' },
+  { id: 'primeiro_contato', label: 'Primeiro Contato' },
+  { id: 'aguardando_resposta', label: 'Aguardando Resposta' },
+  { id: 'em_conversa', label: 'Em Conversa' },
+  { id: 'reuniao_agendada', label: 'Reunião Agendada' },
+  { id: 'proposta_enviada', label: 'Proposta Enviada' },
+  { id: 'negociacao', label: 'Negociação' },
+  { id: 'cliente_fechado', label: 'Cliente Fechado' },
+  { id: 'perdido', label: 'Perdido' },
+];
 
 export type Priority = 'baixa' | 'media' | 'alta';
 export type Temperature = 'frio' | 'morno' | 'quente';
