@@ -1,37 +1,28 @@
-export const leadStatusOptions = ['novo_lead', 'pesquisado', 'primeiro_contato', 'aguardando_resposta', 'em_conversa', 'reuniao_agendada', 'proposta_enviada', 'negociacao', 'cliente_fechado', 'perdido'] as const;
-export type LeadStatus = typeof leadStatusOptions[number];
-
-export const PIPELINE: { id: LeadStatus; label: string }[] = [
-  { id: 'novo_lead', label: 'Novo Lead' },
-  { id: 'pesquisado', label: 'Pesquisado' },
-  { id: 'primeiro_contato', label: 'Primeiro Contato' },
-  { id: 'aguardando_resposta', label: 'Aguardando Resposta' },
-  { id: 'em_conversa', label: 'Em Conversa' },
-  { id: 'reuniao_agendada', label: 'Reunião Agendada' },
-  { id: 'proposta_enviada', label: 'Proposta Enviada' },
-  { id: 'negociacao', label: 'Negociação' },
-  { id: 'cliente_fechado', label: 'Cliente Fechado' },
-  { id: 'perdido', label: 'Perdido' },
-];
-
 export type Priority = 'baixa' | 'media' | 'alta';
 export type Temperature = 'frio' | 'morno' | 'quente';
 export type ContactStatus = 'ativo' | 'inativo';
-export type FollowUpStatus = 'pendente' | 'concluido' | 'reagendado' | 'cancelado';
-export type ActivityStatus = 'agendado' | 'realizado' | 'cancelado';
-export type ActivityType = 'ligacao' | 'whatsapp' | 'reuniao' | 'visita' | 'videochamada' | 'apresentacao' | 'retorno';
+export type OpportunityStatus = 'open' | 'won' | 'lost' | 'archived';
+export type TaskStatus = 'pending' | 'completed' | 'cancelled';
+export type TaskType = 'follow_up' | 'call' | 'whatsapp' | 'email' | 'meeting' | 'task';
+export type ActivityType = 'company_created' | 'company_updated' | 'contact_created' | 'opportunity_created' | 'stage_changed' | 'followup_created' | 'followup_completed' | 'meeting_scheduled' | 'task_created' | 'task_completed' | 'note_created' | 'deal_won' | 'deal_lost';
+
+export type Organization = { id: string; name: string; slug: string; createdAt: string; updatedAt: string };
+export type Profile = { id: string; organizationId: string; name: string; email: string; role: 'admin' | 'manager' | 'sales' | 'financial' | 'member'; avatarUrl?: string; createdAt: string; updatedAt: string };
+export type Pipeline = { id: string; organizationId: string; name: string; description?: string; isDefault: boolean; createdAt: string; updatedAt: string };
+export type PipelineStage = { id: string; pipelineId: string; name: string; slug: string; position: number; probability: number; isWon: boolean; isLost: boolean; createdAt: string; updatedAt: string };
 
 export type Company = {
-  id: string; fantasyName: string; legalName?: string; cnpj?: string; phone?: string; whatsapp?: string; instagram?: string; facebook?: string; website?: string; email?: string;
-  zipCode?: string; address?: string; number?: string; complement?: string; district?: string; city?: string; state?: string;
-  responsibleName?: string; responsibleRole?: string; employees?: number; businessArea?: string; leadSource?: string; owner?: string;
-  temperature: Temperature; priority: Priority; status: LeadStatus; estimatedValue: number; notes?: string; tags: string[];
-  createdAt: string; updatedAt: string; lastInteractionAt?: string; nextFollowUpAt?: string; nextMeetingAt?: string; deletedAt?: string | null;
+  id: string; organizationId: string; fantasyName: string; legalName?: string; cnpj?: string; phone?: string; whatsapp?: string; instagram?: string; facebook?: string; website?: string; email?: string;
+  zipCode?: string; address?: string; number?: string; complement?: string; district?: string; city?: string; state?: string; responsibleName?: string; responsibleRole?: string;
+  employees?: number; businessArea?: string; leadSource?: string; ownerId?: string; owner?: string; temperature: Temperature; priority: Priority; notes?: string; tags: string[];
+  lifecycleStage: 'lead' | 'customer' | 'inactive'; createdBy: string; createdAt: string; updatedAt: string; lastInteractionAt?: string; deletedAt?: string | null;
 };
-export type CompanyContact = { id: string; companyId: string; name: string; role?: string; phone?: string; whatsapp?: string; email?: string; instagram?: string; linkedin?: string; birthDate?: string; notes?: string; isPrimary: boolean; isFinancial: boolean; isCommercial: boolean; status: ContactStatus; createdAt: string; updatedAt: string };
-export type TimelineEvent = { id: string; companyId: string; user: string; type: string; description: string; createdAt: string };
-export type FollowUp = { id: string; companyId: string; title: string; description?: string; date: string; time: string; owner: string; priority: Priority; type: 'ligacao' | 'whatsapp' | 'email' | 'reuniao' | 'proposta' | 'outro'; status: FollowUpStatus; notes?: string; createdAt: string; updatedAt: string };
-export type CommercialActivity = { id: string; companyId: string; contactId?: string; title: string; description?: string; type: ActivityType; owner: string; date: string; time: string; durationMinutes: number; location?: string; status: ActivityStatus; notes?: string; createdAt: string; updatedAt: string };
-export type CompanyFile = { id: string; companyId: string; name: string; category: 'contrato' | 'pdf' | 'imagem' | 'planilha' | 'apresentacao' | 'outro'; type: string; size: string; user: string; createdAt: string };
-export type CompanyNote = { id: string; companyId: string; text: string; author: string; createdAt: string; updatedAt: string };
-export type CrmData = { companies: Company[]; contacts: CompanyContact[]; events: TimelineEvent[]; followUps: FollowUp[]; activities: CommercialActivity[]; files: CompanyFile[]; notes: CompanyNote[] };
+export type Opportunity = { id: string; organizationId: string; companyId: string; pipelineId: string; stageId: string; title: string; description?: string; value: number; probability: number; expectedCloseDate?: string; ownerId?: string; owner?: string; source?: string; status: OpportunityStatus; lostReason?: string; wonAt?: string; lostAt?: string; createdBy: string; createdAt: string; updatedAt: string; stageEnteredAt: string; deletedAt?: string | null };
+export type CompanyContact = { id: string; organizationId: string; companyId: string; name: string; role?: string; phone?: string; whatsapp?: string; email?: string; instagram?: string; linkedin?: string; birthDate?: string; notes?: string; isPrimary: boolean; isFinancial: boolean; isCommercial: boolean; status: ContactStatus; createdAt: string; updatedAt: string; deletedAt?: string | null };
+export type TimelineEvent = { id: string; organizationId: string; companyId?: string; opportunityId?: string; userId: string; user: string; type: ActivityType; title: string; description?: string; metadata: Record<string, string | number | boolean | null>; createdAt: string };
+export type Task = { id: string; organizationId: string; companyId?: string; opportunityId?: string; assignedTo: string; createdBy: string; title: string; description?: string; type: TaskType; status: TaskStatus; priority: Priority; dueDate: string; completedAt?: string; createdAt: string; updatedAt: string; deletedAt?: string | null };
+export type FollowUp = Task;
+export type CommercialActivity = { id: string; organizationId: string; companyId: string; opportunityId?: string; contactId?: string; title: string; description?: string; type: 'ligacao' | 'whatsapp' | 'reuniao' | 'visita' | 'videochamada' | 'apresentacao' | 'retorno'; owner: string; date: string; time: string; durationMinutes: number; location?: string; status: 'agendado' | 'realizado' | 'cancelado'; notes?: string; createdAt: string; updatedAt: string };
+export type CompanyFile = { id: string; organizationId: string; companyId: string; name: string; category: 'contrato' | 'pdf' | 'imagem' | 'planilha' | 'apresentacao' | 'outro'; type: string; size: string; user: string; createdAt: string };
+export type CompanyNote = { id: string; organizationId: string; companyId: string; text: string; author: string; createdAt: string; updatedAt: string };
+export type CrmData = { organization: Organization; profile: Profile; companies: Company[]; contacts: CompanyContact[]; pipelines: Pipeline[]; stages: PipelineStage[]; opportunities: Opportunity[]; events: TimelineEvent[]; tasks: Task[]; activities: CommercialActivity[]; files: CompanyFile[]; notes: CompanyNote[] };
