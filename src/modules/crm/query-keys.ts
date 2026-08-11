@@ -10,10 +10,12 @@ export const crmKeys = {
     [...crmKeys.company(companyId), "activities"] as const,
   tasks: (companyId: string) =>
     [...crmKeys.company(companyId), "tasks"] as const,
+  taskOperations: () => [...crmKeys.all, "tasks"] as const,
+  taskRanges: () => [...crmKeys.taskOperations(), "range"] as const,
   tasksRange: (from: string, to: string, assigneeId?: string) =>
-    [...crmKeys.all, "tasks", "range", from, to, assigneeId ?? "all"] as const,
+    [...crmKeys.taskRanges(), from, to, assigneeId ?? "all"] as const,
   tasksOverdue: (until: string) =>
-    [...crmKeys.all, "tasks", "overdue", until] as const,
+    [...crmKeys.taskOperations(), "overdue", until] as const,
   activitiesCompany: (companyId: string, pageSize: number) =>
     [...crmKeys.all, "activities", "company", companyId, pageSize] as const,
   activitiesOpportunity: (opportunityId: string, pageSize: number) =>

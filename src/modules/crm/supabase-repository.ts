@@ -23,6 +23,7 @@ import type {
   TimelineEvent,
 } from "./types";
 import { localDateTimeToUtc } from "./utils/formatters";
+import { defineCrmRepository } from "./repository-contract";
 
 type Tables = Database["public"]["Tables"];
 type OrganizationRow = Tables["organizations"]["Row"];
@@ -469,7 +470,7 @@ function companyPayload(input: Partial<CompanyFormData>) {
   };
 }
 
-export const supabaseCrmRepository = {
+export const supabaseCrmRepository = defineCrmRepository({
   list,
   async listTasksRange(from: string, to: string) {
     const profile = await context();
@@ -963,4 +964,4 @@ export const supabaseCrmRepository = {
     if (result.error) throw friendlyError(result.error);
     return input;
   },
-};
+});

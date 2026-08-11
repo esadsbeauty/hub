@@ -23,6 +23,7 @@ import type {
   TimelineEvent,
 } from "./types";
 import { localDateTimeToUtc } from "./utils/formatters";
+import { defineCrmRepository } from "./repository-contract";
 
 const STORAGE = "esads_crm_data_v3";
 const ORGANIZATION_ID = "esads-beauty";
@@ -268,7 +269,7 @@ function companyInput(input: CompanyFormData) {
   return { ...company, tags: tags(tagList) };
 }
 
-export const crmRepository = {
+export const crmRepository = defineCrmRepository({
   async list() {
     return read();
   },
@@ -790,6 +791,9 @@ export const crmRepository = {
       ),
     );
     write(data);
+    const updated = data.tasks.find((item) => item.id === taskId);
+    if (!updated) throw new Error("Tarefa atualizada não encontrada");
+    return updated;
   },
   async rescheduleTask(taskId: string, dueAt: string) {
     const data = read();
@@ -810,6 +814,9 @@ export const crmRepository = {
       ),
     );
     write(data);
+    const updated = data.tasks.find((item) => item.id === taskId);
+    if (!updated) throw new Error("Tarefa atualizada não encontrada");
+    return updated;
   },
   async cancelTask(taskId: string) {
     const data = read();
@@ -832,6 +839,9 @@ export const crmRepository = {
       ),
     );
     write(data);
+    const updated = data.tasks.find((item) => item.id === taskId);
+    if (!updated) throw new Error("Tarefa atualizada não encontrada");
+    return updated;
   },
   async addNote(companyId: string, text: string, opportunityId?: string) {
     const data = read();
@@ -878,7 +888,7 @@ export const crmRepository = {
     write(data);
     return item;
   },
-};
+});
 
 // Domain-facing repositories keep hooks independent from the preview storage implementation.
 export const companyRepository = {

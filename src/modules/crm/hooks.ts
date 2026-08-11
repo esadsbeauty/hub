@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryKey,
+} from "@tanstack/react-query";
 import { useToast } from "@/shared/components/feedback/toast";
 import { crmDataSource } from "./data-source";
 import { crmKeys } from "./query-keys";
@@ -14,6 +19,19 @@ import type {
 import type { CompanyFile, CrmData, Task } from "./types";
 
 type WithCompany<T> = { companyId: string; data: T; opportunityId?: string };
+type CompleteTaskContext = {
+  previous?: CrmData;
+  previousTaskRanges: [QueryKey, Task[] | undefined][];
+};
+function optimisticCompletedTask(
+  task: Task,
+  taskId: string,
+  completedAt: string,
+): Task {
+  return task.id === taskId
+    ? { ...task, status: "completed", completedAt }
+    : task;
+}
 export function useCrmData() {
   return useQuery({ queryKey: crmKeys.all, queryFn: crmDataSource.list });
 }
@@ -48,6 +66,10 @@ export function useCrmActions() {
     });
   const refresh = () =>
     client.invalidateQueries({ queryKey: crmKeys.all, exact: true });
+  const refreshTasks = async () => {
+    await client.invalidateQueries({ queryKey: crmKeys.taskOperations() });
+    await refresh();
+  };
   return {
     createCompany: useMutation({
       mutationFn: crmDataSource.createCompany,
@@ -168,10 +190,7 @@ export function useCrmActions() {
     }),
     createTask: useMutation({
       mutationFn: (data: TaskFormData) => crmDataSource.createTask(data),
-      onSuccess: async () => {
-        await client.invalidateQueries({ queryKey: [...crmKeys.all, "tasks"] });
-        await refresh();
-      },
+      onSuccess: refreshTasks,
       onError,
     }),
     createFollowUp: useMutation({
@@ -181,7 +200,7 @@ export function useCrmActions() {
         opportunityId,
       }: WithCompany<FollowUpFormData>) =>
         crmDataSource.createFollowUp(companyId, data, opportunityId),
-      onSuccess: refresh,
+      onSuccess: refreshTasks,
       onError,
     }),
     updateFollowUp: useMutation({
@@ -192,67 +211,53 @@ export function useCrmActions() {
         id: string;
         data: Partial<FollowUpFormData>;
       }) => crmDataSource.updateFollowUp(id, data),
-      onSuccess: refresh,
+      onSuccess: refreshTasks,
       onError,
     }),
-    completeTask: useMutation({
-      mutationFn: crmDataSource.completeTask,
+    completeTask: useMutation<Task, Error, string, CompleteTaskContext>({
+      mutationFn: (taskId) => crmDataSource.completeTask(taskId),
       onMutate: async (taskId) => {
-        await client.cancelQueries({ queryKey: [...crmKeys.all, "tasks"] });
+        await client.cancelQueries({ queryKey: crmKeys.taskOperations() });
         const previous = client.getQueryData<CrmData>(crmKeys.all);
+        const previousTaskRanges = client.getQueriesData<Task[]>({
+          queryKey: crmKeys.taskRanges(),
+        });
+        const completedAt = new Date().toISOString();
         if (previous)
           client.setQueryData<CrmData>(crmKeys.all, {
             ...previous,
             tasks: previous.tasks.map((task) =>
-              task.id === taskId
-                ? {
-                    ...task,
-                    status: "completed",
-                    completedAt: new Date().toISOString(),
-                  }
-                : task,
+              optimisticCompletedTask(task, taskId, completedAt),
             ),
           });
         client.setQueriesData<Task[]>(
-          { queryKey: [...crmKeys.all, "tasks", "range"] },
+          { queryKey: crmKeys.taskRanges() },
           (tasks) =>
             tasks?.map((task) =>
-              task.id === taskId
-                ? {
-                    ...task,
-                    status: "completed",
-                    completedAt: new Date().toISOString(),
-                  }
-                : task,
+              optimisticCompletedTask(task, taskId, completedAt),
             ),
         );
-        return { previous };
+        return { previous, previousTaskRanges };
       },
       onError: (error, _taskId, context) => {
         if (context?.previous)
           client.setQueryData(crmKeys.all, context.previous);
+        context?.previousTaskRanges.forEach(([queryKey, tasks]) =>
+          client.setQueryData(queryKey, tasks),
+        );
         onError(error);
       },
-      onSettled: async () => {
-        await client.invalidateQueries({ queryKey: [...crmKeys.all, "tasks"] });
-        await refresh();
-      },
+      onSettled: refreshTasks,
     }),
-    rescheduleTask: useMutation({
+    rescheduleTask: useMutation<Task, Error, { id: string; dueAt: string }>({
       mutationFn: ({ id, dueAt }: { id: string; dueAt: string }) =>
         crmDataSource.rescheduleTask(id, dueAt),
-      onSuccess: async () => {
-        await client.invalidateQueries({ queryKey: [...crmKeys.all, "tasks"] });
-        await refresh();
-      },
+      onSuccess: refreshTasks,
       onError,
     }),
-    cancelTask: useMutation({
-      mutationFn: crmDataSource.cancelTask,
-      onSuccess: async () => {
-        await client.invalidateQueries({ queryKey: [...crmKeys.all, "tasks"] });
-        await refresh();
-      },
+    cancelTask: useMutation<Task, Error, string>({
+      mutationFn: (taskId) => crmDataSource.cancelTask(taskId),
+      onSuccess: refreshTasks,
       onError,
     }),
     createActivity: useMutation({

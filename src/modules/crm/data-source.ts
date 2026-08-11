@@ -1,6 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import { crmRepository } from "./repository";
 import { supabaseCrmRepository } from "./supabase-repository";
+import type { FollowUpFormData, TaskFormData } from "./schema";
+import type { Task } from "./types";
 
 const source = supabase ? supabaseCrmRepository : crmRepository;
 
@@ -40,21 +42,20 @@ export const crmDataSource = {
     input: Parameters<typeof source.updateContact>[1],
   ) => source.updateContact(id, input),
   deleteContact: (id: string) => source.deleteContact(id),
-  createTask: (input: Parameters<typeof source.createTask>[0]) =>
-    source.createTask(input),
+  createTask: (input: TaskFormData): Promise<Task> => source.createTask(input),
   createFollowUp: (
     companyId: string,
-    input: Parameters<typeof source.createFollowUp>[1],
+    input: FollowUpFormData,
     opportunityId?: string,
-  ) => source.createFollowUp(companyId, input, opportunityId),
+  ): Promise<Task> => source.createFollowUp(companyId, input, opportunityId),
   updateFollowUp: (
     id: string,
-    input: Parameters<typeof source.updateFollowUp>[1],
-  ) => source.updateFollowUp(id, input),
-  completeTask: (id: string) => source.completeTask(id),
-  rescheduleTask: (id: string, dueAt: string) =>
+    input: Partial<FollowUpFormData>,
+  ): Promise<void> => source.updateFollowUp(id, input),
+  completeTask: (id: string): Promise<Task> => source.completeTask(id),
+  rescheduleTask: (id: string, dueAt: string): Promise<Task> =>
     source.rescheduleTask(id, dueAt),
-  cancelTask: (id: string) => source.cancelTask(id),
+  cancelTask: (id: string): Promise<Task> => source.cancelTask(id),
   addNote: (companyId: string, text: string, opportunityId?: string) =>
     source.addNote(companyId, text, opportunityId),
   createActivity: (
