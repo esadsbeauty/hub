@@ -1,27 +1,238 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { type SubmitHandler, useForm } from 'react-hook-form';
-import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { activitySchema, contactSchema, followUpSchema, type ActivityFormData, type ContactFormData, type FollowUpFormData } from '../schema';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { type SubmitHandler, useForm } from "react-hook-form";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  activitySchema,
+  contactSchema,
+  followUpSchema,
+  type ActivityFormData,
+  type ContactFormData,
+  type FollowUpFormData,
+} from "../schema";
+import type { CompanyContact } from "../types";
 
-const contactDefaults: ContactFormData = { name: '', role: '', phone: '', whatsapp: '', email: '', instagram: '', linkedin: '', birthDate: '', notes: '', isPrimary: false, isFinancial: false, isCommercial: true, status: 'ativo' };
-const followUpDefaults: FollowUpFormData = { title: '', description: '', date: new Date().toISOString().slice(0, 10), time: '09:00', owner: 'Administrador', priority: 'media', type: 'ligacao', status: 'pendente', notes: '' };
-const activityDefaults: ActivityFormData = { title: '', description: '', contactId: '', type: 'reuniao', owner: 'Administrador', date: new Date().toISOString().slice(0, 10), time: '10:00', durationMinutes: 60, location: '', status: 'agendado', notes: '' };
+const contactDefaults: ContactFormData = {
+  name: "",
+  role: "",
+  phone: "",
+  whatsapp: "",
+  email: "",
+  instagram: "",
+  linkedin: "",
+  birthDate: "",
+  notes: "",
+  isPrimary: false,
+  isFinancial: false,
+  isCommercial: true,
+  status: "ativo",
+};
+const followUpDefaults: FollowUpFormData = {
+  title: "",
+  description: "",
+  date: new Date().toISOString().slice(0, 10),
+  time: "09:00",
+  owner: "Administrador",
+  priority: "media",
+  type: "ligacao",
+  status: "pendente",
+  notes: "",
+};
+const activityDefaults: ActivityFormData = {
+  title: "",
+  description: "",
+  contactId: "",
+  type: "reuniao",
+  owner: "Administrador",
+  date: new Date().toISOString().slice(0, 10),
+  time: "10:00",
+  durationMinutes: 60,
+  location: "",
+  status: "agendado",
+  notes: "",
+};
 
-export function ContactQuickForm({ onSubmit }: { onSubmit: SubmitHandler<ContactFormData> }) {
-  const { register, handleSubmit, formState: { errors } } = useForm<ContactFormData>({ resolver: zodResolver(contactSchema), defaultValues: contactDefaults });
-  return <form onSubmit={handleSubmit(onSubmit)} className="grid gap-3 md:grid-cols-2"><Input placeholder="Nome" {...register('name')} /><Input placeholder="Cargo" {...register('role')} /><Input placeholder="Telefone" {...register('phone')} /><Input placeholder="WhatsApp" {...register('whatsapp')} /><Input placeholder="Email" {...register('email')} /><Input placeholder="Instagram" {...register('instagram')} /><Input placeholder="LinkedIn" {...register('linkedin')} /><Input type="date" {...register('birthDate')} /><label className="flex items-center gap-2 text-sm"><Checkbox {...register('isPrimary')} /> Principal</label><label className="flex items-center gap-2 text-sm"><Checkbox {...register('isFinancial')} /> Financeiro</label><label className="flex items-center gap-2 text-sm"><Checkbox {...register('isCommercial')} /> Comercial</label><Select {...register('status')}><option value="ativo">Ativo</option><option value="inativo">Inativo</option></Select><Textarea className="md:col-span-2" placeholder="Observações" {...register('notes')} />{errors.name && <p className="text-sm text-red-600">{errors.name.message}</p>}<Button className="md:col-span-2">Adicionar contato</Button></form>;
+export function ContactQuickForm({
+  contact,
+  onSubmit,
+}: {
+  contact?: CompanyContact;
+  onSubmit: SubmitHandler<ContactFormData>;
+}) {
+  const defaultValues: ContactFormData = contact
+    ? {
+        name: contact.name,
+        role: contact.role ?? "",
+        phone: contact.phone ?? "",
+        whatsapp: contact.whatsapp ?? "",
+        email: contact.email ?? "",
+        instagram: contact.instagram ?? "",
+        linkedin: contact.linkedin ?? "",
+        birthDate: contact.birthDate ?? "",
+        notes: contact.notes ?? "",
+        isPrimary: contact.isPrimary,
+        isFinancial: contact.isFinancial,
+        isCommercial: contact.isCommercial,
+        status: contact.status,
+      }
+    : contactDefaults;
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<ContactFormData>({
+    resolver: zodResolver(contactSchema),
+    defaultValues,
+  });
+  return (
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="grid gap-3 md:grid-cols-2"
+    >
+      <Input placeholder="Nome" {...register("name")} />
+      <Input placeholder="Cargo" {...register("role")} />
+      <Input placeholder="Telefone" {...register("phone")} />
+      <Input placeholder="WhatsApp" {...register("whatsapp")} />
+      <Input placeholder="Email" {...register("email")} />
+      <Input placeholder="Instagram" {...register("instagram")} />
+      <Input placeholder="LinkedIn" {...register("linkedin")} />
+      <Input type="date" {...register("birthDate")} />
+      <label className="flex items-center gap-2 text-sm">
+        <Checkbox {...register("isPrimary")} /> Principal
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <Checkbox {...register("isFinancial")} /> Financeiro
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <Checkbox {...register("isCommercial")} /> Comercial
+      </label>
+      <Select {...register("status")}>
+        <option value="ativo">Ativo</option>
+        <option value="inativo">Inativo</option>
+      </Select>
+      <Textarea
+        className="md:col-span-2"
+        placeholder="Observações"
+        {...register("notes")}
+      />
+      {errors.name && (
+        <p className="text-sm text-red-600">{errors.name.message}</p>
+      )}
+      <Button className="md:col-span-2">
+        {contact ? "Salvar contato" : "Adicionar contato"}
+      </Button>
+    </form>
+  );
 }
 
-export function FollowUpQuickForm({ onSubmit }: { onSubmit: SubmitHandler<FollowUpFormData> }) {
-  const { register, handleSubmit, formState: { errors } } = useForm<FollowUpFormData>({ resolver: zodResolver(followUpSchema), defaultValues: followUpDefaults });
-  return <form onSubmit={handleSubmit(onSubmit)} className="grid gap-3 md:grid-cols-2"><Input placeholder="Título" {...register('title')} /><Input type="date" {...register('date')} /><Input type="time" {...register('time')} /><Input placeholder="Responsável" {...register('owner')} /><Select {...register('priority')}><option value="baixa">Baixa</option><option value="media">Média</option><option value="alta">Alta</option></Select><Select {...register('type')}><option value="ligacao">Ligação</option><option value="whatsapp">WhatsApp</option><option value="email">Email</option><option value="reuniao">Reunião</option><option value="proposta">Proposta</option><option value="outro">Outro</option></Select><Select {...register('status')}><option value="pendente">Pendente</option><option value="concluido">Concluído</option><option value="reagendado">Reagendado</option><option value="cancelado">Cancelado</option></Select><Textarea className="md:col-span-2" placeholder="Descrição" {...register('description')} />{errors.title && <p className="text-sm text-red-600">{errors.title.message}</p>}<Button className="md:col-span-2">Criar follow-up</Button></form>;
+export function FollowUpQuickForm({
+  onSubmit,
+}: {
+  onSubmit: SubmitHandler<FollowUpFormData>;
+}) {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FollowUpFormData>({
+    resolver: zodResolver(followUpSchema),
+    defaultValues: followUpDefaults,
+  });
+  return (
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="grid gap-3 md:grid-cols-2"
+    >
+      <Input placeholder="Título" {...register("title")} />
+      <Input type="date" {...register("date")} />
+      <Input type="time" {...register("time")} />
+      <Input placeholder="Responsável" {...register("owner")} />
+      <Select {...register("priority")}>
+        <option value="baixa">Baixa</option>
+        <option value="media">Média</option>
+        <option value="alta">Alta</option>
+      </Select>
+      <Select {...register("type")}>
+        <option value="ligacao">Ligação</option>
+        <option value="whatsapp">WhatsApp</option>
+        <option value="email">Email</option>
+        <option value="reuniao">Reunião</option>
+        <option value="follow_up">Follow-up</option>
+        <option value="task">Tarefa</option>
+      </Select>
+      <Select {...register("status")}>
+        <option value="pendente">Pendente</option>
+        <option value="concluido">Concluído</option>
+        <option value="reagendado">Reagendado</option>
+        <option value="cancelado">Cancelado</option>
+      </Select>
+      <Textarea
+        className="md:col-span-2"
+        placeholder="Descrição"
+        {...register("description")}
+      />
+      {errors.title && (
+        <p className="text-sm text-red-600">{errors.title.message}</p>
+      )}
+      <Button className="md:col-span-2">Criar follow-up</Button>
+    </form>
+  );
 }
 
-export function ActivityQuickForm({ onSubmit }: { onSubmit: SubmitHandler<ActivityFormData> }) {
-  const { register, handleSubmit, formState: { errors } } = useForm<ActivityFormData>({ resolver: zodResolver(activitySchema), defaultValues: activityDefaults });
-  return <form onSubmit={handleSubmit(onSubmit)} className="grid gap-3 md:grid-cols-2"><Input placeholder="Título" {...register('title')} /><Select {...register('type')}><option value="ligacao">Ligação</option><option value="whatsapp">WhatsApp</option><option value="reuniao">Reunião</option><option value="visita">Visita</option><option value="videochamada">Videochamada</option><option value="apresentacao">Apresentação</option><option value="retorno">Retorno</option></Select><Input type="date" {...register('date')} /><Input type="time" {...register('time')} /><Input placeholder="Responsável" {...register('owner')} /><Input placeholder="Local" {...register('location')} /><Input type="number" placeholder="Duração" {...register('durationMinutes', { valueAsNumber: true })} /><Select {...register('status')}><option value="agendado">Agendado</option><option value="realizado">Realizado</option><option value="cancelado">Cancelado</option></Select><Textarea className="md:col-span-2" placeholder="Descrição" {...register('description')} />{errors.title && <p className="text-sm text-red-600">{errors.title.message}</p>}<Button className="md:col-span-2">Agendar</Button></form>;
+export function ActivityQuickForm({
+  onSubmit,
+}: {
+  onSubmit: SubmitHandler<ActivityFormData>;
+}) {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<ActivityFormData>({
+    resolver: zodResolver(activitySchema),
+    defaultValues: activityDefaults,
+  });
+  return (
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="grid gap-3 md:grid-cols-2"
+    >
+      <Input placeholder="Título" {...register("title")} />
+      <Select {...register("type")}>
+        <option value="ligacao">Ligação</option>
+        <option value="whatsapp">WhatsApp</option>
+        <option value="reuniao">Reunião</option>
+        <option value="visita">Visita</option>
+        <option value="videochamada">Videochamada</option>
+        <option value="apresentacao">Apresentação</option>
+        <option value="retorno">Retorno</option>
+      </Select>
+      <Input type="date" {...register("date")} />
+      <Input type="time" {...register("time")} />
+      <Input placeholder="Responsável" {...register("owner")} />
+      <Input placeholder="Local" {...register("location")} />
+      <Input
+        type="number"
+        placeholder="Duração"
+        {...register("durationMinutes", { valueAsNumber: true })}
+      />
+      <Select {...register("status")}>
+        <option value="agendado">Agendado</option>
+        <option value="realizado">Realizado</option>
+        <option value="cancelado">Cancelado</option>
+      </Select>
+      <Textarea
+        className="md:col-span-2"
+        placeholder="Descrição"
+        {...register("description")}
+      />
+      {errors.title && (
+        <p className="text-sm text-red-600">{errors.title.message}</p>
+      )}
+      <Button className="md:col-span-2">Agendar</Button>
+    </form>
+  );
 }

@@ -20,4 +20,6 @@ O CRM é o módulo principal e contém empresas, contatos, timeline, follow-ups,
 2. Rode a migration em `supabase/migrations`.
 3. Execute `npm install` e `npm run dev`.
 
-Sem variáveis Supabase, o app libera um modo preview local com `localStorage`; autenticação real usa Supabase Auth.
+Com as duas variáveis Supabase configuradas, autenticação e CRM utilizam os repositórios PostgreSQL protegidos por RLS. Sem credenciais, o app libera o `localStorage` exclusivamente como modo de preview.
+
+As migrations devem ser aplicadas em ordem. Todas as evoluções do CRM são incrementais e preservam os registros existentes.

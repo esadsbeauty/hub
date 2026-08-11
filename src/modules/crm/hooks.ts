@@ -1,19 +1,215 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { activityRepository, companyRepository, contactRepository, crmRepository, fileRepository, opportunityRepository, taskRepository } from './repository';
-import { crmKeys } from './query-keys';
-import type { ActivityFormData, CompanyFormData, ContactFormData, FollowUpFormData, LostOpportunityFormData, OpportunityFormData } from './schema';
-import type { CompanyFile, CrmData } from './types';
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/shared/components/feedback/toast";
+import { crmDataSource } from "./data-source";
+import { crmKeys } from "./query-keys";
+import type {
+  ActivityFormData,
+  CompanyFormData,
+  ContactFormData,
+  FollowUpFormData,
+  LostOpportunityFormData,
+  OpportunityFormData,
+} from "./schema";
+import type { CompanyFile, CrmData } from "./types";
 
 type WithCompany<T> = { companyId: string; data: T; opportunityId?: string };
-export function useCrmData() { return useQuery({ queryKey: crmKeys.all, queryFn: crmRepository.list }); }
-export function useCompany(companyId: string) { const query = useCrmData(); return { ...query, data: query.data?.companies.find((item) => item.id === companyId && !item.deletedAt) }; }
-export function useCrmActions() {
-  const client = useQueryClient(); const refresh = () => client.invalidateQueries({ queryKey: crmKeys.all });
+export function useCrmData() {
+  return useQuery({ queryKey: crmKeys.all, queryFn: crmDataSource.list });
+}
+export function useCompany(companyId: string) {
+  const query = useCrmData();
   return {
-    createCompany: useMutation({ mutationFn: companyRepository.create, onSuccess: refresh }), updateCompany: useMutation({ mutationFn: ({ id, data }: { id: string; data: Partial<CompanyFormData> }) => companyRepository.update(id, data), onSuccess: refresh }), deleteCompany: useMutation({ mutationFn: companyRepository.archive, onSuccess: refresh }), duplicateCompany: useMutation({ mutationFn: companyRepository.duplicate, onSuccess: refresh }),
-    createOpportunity: useMutation({ mutationFn: opportunityRepository.create, onSuccess: refresh }), updateOpportunity: useMutation({ mutationFn: ({ id, data }: { id: string; data: Partial<OpportunityFormData> }) => opportunityRepository.update(id, data), onSuccess: refresh }), duplicateOpportunity: useMutation({ mutationFn: opportunityRepository.duplicate, onSuccess: refresh }), archiveOpportunity: useMutation({ mutationFn: opportunityRepository.archive, onSuccess: refresh }), markOpportunityWon: useMutation({ mutationFn: opportunityRepository.markWon, onSuccess: refresh }), markOpportunityLost: useMutation({ mutationFn: ({ id, data }: { id: string; data: LostOpportunityFormData }) => opportunityRepository.markLost(id, data), onSuccess: refresh }),
-    moveOpportunity: useMutation({ mutationFn: ({ opportunityId, stageId }: { opportunityId: string; stageId: string }) => opportunityRepository.move(opportunityId, stageId), onMutate: async ({ opportunityId, stageId }) => { await client.cancelQueries({ queryKey: crmKeys.all }); const previous = client.getQueryData<CrmData>(crmKeys.all); if (previous) client.setQueryData<CrmData>(crmKeys.all, { ...previous, opportunities: previous.opportunities.map((item) => item.id === opportunityId ? { ...item, stageId } : item) }); return { previous }; }, onError: (_error, _variables, context) => { if (context?.previous) client.setQueryData(crmKeys.all, context.previous); }, onSettled: refresh }),
-    createContact: useMutation({ mutationFn: ({ companyId, data }: WithCompany<ContactFormData>) => contactRepository.create(companyId, data), onSuccess: refresh }), updateContact: useMutation({ mutationFn: ({ id, data }: { id: string; data: Partial<ContactFormData> }) => contactRepository.update(id, data), onSuccess: refresh }), deleteContact: useMutation({ mutationFn: contactRepository.archive, onSuccess: refresh }),
-    createFollowUp: useMutation({ mutationFn: ({ companyId, data, opportunityId }: WithCompany<FollowUpFormData>) => taskRepository.create(companyId, data, opportunityId), onSuccess: refresh }), updateFollowUp: useMutation({ mutationFn: ({ id, data }: { id: string; data: Partial<FollowUpFormData> }) => taskRepository.update(id, data), onSuccess: refresh }), completeTask: useMutation({ mutationFn: taskRepository.complete, onSuccess: refresh }), createActivity: useMutation({ mutationFn: ({ companyId, data }: WithCompany<ActivityFormData>) => activityRepository.create(companyId, data), onSuccess: refresh }), addNote: useMutation({ mutationFn: ({ companyId, text, opportunityId }: { companyId: string; text: string; opportunityId?: string }) => activityRepository.addNote(companyId, text, opportunityId), onSuccess: refresh }), addFile: useMutation({ mutationFn: ({ companyId, file }: { companyId: string; file: Omit<CompanyFile, 'id' | 'organizationId' | 'companyId' | 'user' | 'createdAt'> }) => fileRepository.add(companyId, file), onSuccess: refresh }),
+    ...query,
+    data: query.data?.companies.find(
+      (item) => item.id === companyId && !item.deletedAt,
+    ),
+  };
+}
+export function useCrmActions() {
+  const client = useQueryClient();
+  const { notify } = useToast();
+  const onError = (error: Error) =>
+    notify({
+      title: "Não foi possível concluir",
+      description: error.message || "Tente novamente em alguns instantes.",
+    });
+  const refresh = () => client.invalidateQueries({ queryKey: crmKeys.all });
+  return {
+    createCompany: useMutation({
+      mutationFn: crmDataSource.createCompany,
+      onSuccess: refresh,
+      onError,
+    }),
+    updateCompany: useMutation({
+      mutationFn: ({
+        id,
+        data,
+      }: {
+        id: string;
+        data: Partial<CompanyFormData>;
+      }) => crmDataSource.updateCompany(id, data),
+      onSuccess: refresh,
+      onError,
+    }),
+    deleteCompany: useMutation({
+      mutationFn: crmDataSource.deleteCompany,
+      onSuccess: refresh,
+      onError,
+    }),
+    duplicateCompany: useMutation({
+      mutationFn: crmDataSource.duplicateCompany,
+      onSuccess: refresh,
+      onError,
+    }),
+    createOpportunity: useMutation({
+      mutationFn: crmDataSource.createOpportunity,
+      onSuccess: refresh,
+      onError,
+    }),
+    updateOpportunity: useMutation({
+      mutationFn: ({
+        id,
+        data,
+      }: {
+        id: string;
+        data: Partial<OpportunityFormData>;
+      }) => crmDataSource.updateOpportunity(id, data),
+      onSuccess: refresh,
+      onError,
+    }),
+    duplicateOpportunity: useMutation({
+      mutationFn: crmDataSource.duplicateOpportunity,
+      onSuccess: refresh,
+      onError,
+    }),
+    archiveOpportunity: useMutation({
+      mutationFn: crmDataSource.archiveOpportunity,
+      onSuccess: refresh,
+      onError,
+    }),
+    markOpportunityWon: useMutation({
+      mutationFn: crmDataSource.markOpportunityWon,
+      onSuccess: refresh,
+      onError,
+    }),
+    markOpportunityLost: useMutation({
+      mutationFn: ({
+        id,
+        data,
+      }: {
+        id: string;
+        data: LostOpportunityFormData;
+      }) => crmDataSource.markOpportunityLost(id, data),
+      onSuccess: refresh,
+      onError,
+    }),
+    moveOpportunity: useMutation({
+      mutationFn: ({
+        opportunityId,
+        stageId,
+      }: {
+        opportunityId: string;
+        stageId: string;
+      }) => crmDataSource.moveOpportunity(opportunityId, stageId),
+      onMutate: async ({ opportunityId, stageId }) => {
+        await client.cancelQueries({ queryKey: crmKeys.all });
+        const previous = client.getQueryData<CrmData>(crmKeys.all);
+        if (previous)
+          client.setQueryData<CrmData>(crmKeys.all, {
+            ...previous,
+            opportunities: previous.opportunities.map((item) =>
+              item.id === opportunityId ? { ...item, stageId } : item,
+            ),
+          });
+        return { previous };
+      },
+      onError: (error, _variables, context) => {
+        if (context?.previous)
+          client.setQueryData(crmKeys.all, context.previous);
+        onError(error);
+      },
+      onSettled: refresh,
+    }),
+    createContact: useMutation({
+      mutationFn: ({ companyId, data }: WithCompany<ContactFormData>) =>
+        crmDataSource.createContact(companyId, data),
+      onSuccess: refresh,
+      onError,
+    }),
+    updateContact: useMutation({
+      mutationFn: ({
+        id,
+        data,
+      }: {
+        id: string;
+        data: Partial<ContactFormData>;
+      }) => crmDataSource.updateContact(id, data),
+      onSuccess: refresh,
+      onError,
+    }),
+    deleteContact: useMutation({
+      mutationFn: crmDataSource.deleteContact,
+      onSuccess: refresh,
+      onError,
+    }),
+    createFollowUp: useMutation({
+      mutationFn: ({
+        companyId,
+        data,
+        opportunityId,
+      }: WithCompany<FollowUpFormData>) =>
+        crmDataSource.createFollowUp(companyId, data, opportunityId),
+      onSuccess: refresh,
+      onError,
+    }),
+    updateFollowUp: useMutation({
+      mutationFn: ({
+        id,
+        data,
+      }: {
+        id: string;
+        data: Partial<FollowUpFormData>;
+      }) => crmDataSource.updateFollowUp(id, data),
+      onSuccess: refresh,
+      onError,
+    }),
+    completeTask: useMutation({
+      mutationFn: crmDataSource.completeTask,
+      onSuccess: refresh,
+      onError,
+    }),
+    createActivity: useMutation({
+      mutationFn: ({ companyId, data }: WithCompany<ActivityFormData>) =>
+        crmDataSource.createActivity(companyId, data),
+      onSuccess: refresh,
+      onError,
+    }),
+    addNote: useMutation({
+      mutationFn: ({
+        companyId,
+        text,
+        opportunityId,
+      }: {
+        companyId: string;
+        text: string;
+        opportunityId?: string;
+      }) => crmDataSource.addNote(companyId, text, opportunityId),
+      onSuccess: refresh,
+      onError,
+    }),
+    addFile: useMutation({
+      mutationFn: ({
+        companyId,
+        file,
+      }: {
+        companyId: string;
+        file: Omit<
+          CompanyFile,
+          "id" | "organizationId" | "companyId" | "user" | "createdAt"
+        >;
+      }) => crmDataSource.addFile(companyId, file),
+      onSuccess: refresh,
+      onError,
+    }),
   };
 }
