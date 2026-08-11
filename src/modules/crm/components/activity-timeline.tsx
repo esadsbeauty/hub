@@ -26,6 +26,7 @@ type Filter =
   | "stages"
   | "deals"
   | "customers"
+  | "finance"
   | "communications";
 const filters: { value: Filter; label: string }[] = [
   { value: "all", label: "Todas" },
@@ -36,6 +37,7 @@ const filters: { value: Filter; label: string }[] = [
   { value: "stages", label: "Etapas" },
   { value: "deals", label: "Negócios" },
   { value: "customers", label: "Clientes" },
+  { value: "finance", label: "Financeiro" },
   { value: "communications", label: "Comunicações" },
 ];
 const activityLabels: Record<ActivityType, string> = {
@@ -74,6 +76,16 @@ const activityLabels: Record<ActivityType, string> = {
   contract_signed: "Contrato assinado",
   contract_expiring: "Contrato próximo do vencimento",
   contract_cancelled: "Contrato cancelado",
+  receivable_created: "Cobrança criada",
+  receivable_paid: "Cobrança recebida",
+  receivable_partially_paid: "Pagamento parcial recebido",
+  receivable_cancelled: "Cobrança cancelada",
+  payment_received: "Pagamento recebido",
+  payable_created: "Despesa criada",
+  payable_paid: "Despesa paga",
+  transaction_reversed: "Movimentação estornada",
+  recurrence_created: "Recorrência criada",
+  recurrence_cancelled: "Recorrência cancelada",
 };
 function category(type: ActivityType): Filter {
   if (type === "note_created") return "notes";
@@ -81,6 +93,14 @@ function category(type: ActivityType): Filter {
   if (type.startsWith("meeting")) return "meetings";
   if (type === "stage_changed") return "stages";
   if (type === "deal_won" || type === "deal_lost") return "deals";
+  if (
+    type.startsWith("receivable_") ||
+    type.startsWith("payable_") ||
+    type.startsWith("payment_") ||
+    type.startsWith("transaction_") ||
+    type.startsWith("recurrence_")
+  )
+    return "finance";
   if (
     type.startsWith("customer_") ||
     type.startsWith("service_") ||
@@ -124,6 +144,14 @@ function ActivityIcon({ type }: { type: ActivityType }) {
   if (type.startsWith("service_")) return <PackageCheck {...props} />;
   if (type.startsWith("onboarding_")) return <CheckSquare {...props} />;
   if (type.startsWith("contract_")) return <FileText {...props} />;
+  if (
+    type.startsWith("receivable_") ||
+    type.startsWith("payable_") ||
+    type.startsWith("payment_") ||
+    type.startsWith("transaction_") ||
+    type.startsWith("recurrence_")
+  )
+    return <BriefcaseBusiness {...props} />;
   return <Clock3 {...props} />;
 }
 export function ActivityTimeline({

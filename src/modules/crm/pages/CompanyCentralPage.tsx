@@ -30,10 +30,12 @@ import {
 import type { CompanyContact, Opportunity } from "../types";
 import { formatDateTime } from "../utils/formatters";
 import { CustomerWorkspace } from "@/modules/customers/components/customer-workspace";
-type Tab = "overview" | "customer" | "opportunities" | "activities" | "contacts" | "tasks";
+import { CustomerFinancePanel } from "@/modules/finance/CustomerFinancePanel";
+type Tab = "overview" | "customer" | "finance" | "opportunities" | "activities" | "contacts" | "tasks";
 const tabs: { value: Tab; label: string }[] = [
   { value: "overview", label: "Visão geral" },
   { value: "customer", label: "Pós-venda" },
+  { value: "finance", label: "Financeiro" },
   { value: "opportunities", label: "Oportunidades" },
   { value: "activities", label: "Atividades" },
   { value: "contacts", label: "Contatos" },
@@ -193,6 +195,7 @@ export function CompanyCentralPage() {
           />
         )}{" "}
         {tab === "customer" && <CustomerWorkspace companyId={id} />}{" "}
+        {tab === "finance" && <CustomerFinancePanel companyId={id} />}{" "}
         {tab === "opportunities" && (
           <CompanyOpportunities
             opportunities={related.opportunities}

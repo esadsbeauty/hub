@@ -6,6 +6,7 @@ import { DashboardPage } from "@/modules/dashboard/DashboardPage";
 import { AgendaPage } from "@/modules/agenda/AgendaPage";
 import { ReportsPage } from "@/modules/reports/ReportsPage";
 import { CustomersPage } from "@/modules/customers/CustomersPage";
+import { FinancePage } from "@/modules/finance/FinancePage";
 import { UnderDevelopment } from "@/modules/placeholder/UnderDevelopment";
 import { AppLayout } from "@/layouts/app-layout";
 import { ProtectedRoute } from "@/routes/protected-route";
@@ -34,7 +35,8 @@ export function App() {
           <Route path="agenda" element={<AgendaPage />} />
           <Route path="relatorios" element={<ReportsPage />} />
           <Route path="clientes" element={<CustomersPage />} />
-          {["financeiro", "marketing", "ia", "configuracoes"].map(
+          <Route path="financeiro" element={<FinancePage />} />
+          {["marketing", "ia", "configuracoes"].map(
             (path) => (
               <Route
                 key={path}

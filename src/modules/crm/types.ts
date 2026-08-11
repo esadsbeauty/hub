@@ -55,7 +55,17 @@ export type ActivityType =
   | "contract_sent"
   | "contract_signed"
   | "contract_expiring"
-  | "contract_cancelled";
+  | "contract_cancelled"
+  | "receivable_created"
+  | "receivable_paid"
+  | "receivable_partially_paid"
+  | "receivable_cancelled"
+  | "payment_received"
+  | "payable_created"
+  | "payable_paid"
+  | "transaction_reversed"
+  | "recurrence_created"
+  | "recurrence_cancelled";
 
 export type Organization = {
   id: string;

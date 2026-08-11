@@ -109,6 +109,16 @@ function activityType(value: string): ActivityType {
     case "contract_signed":
     case "contract_expiring":
     case "contract_cancelled":
+    case "receivable_created":
+    case "receivable_paid":
+    case "receivable_partially_paid":
+    case "receivable_cancelled":
+    case "payment_received":
+    case "payable_created":
+    case "payable_paid":
+    case "transaction_reversed":
+    case "recurrence_created":
+    case "recurrence_cancelled":
       return value;
     default:
       return "company_updated";
