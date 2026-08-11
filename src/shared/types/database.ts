@@ -27,6 +27,8 @@ export type Database = {
           name: string;
           slug: string;
           timezone: string;
+          currency: string;
+          locale: string;
         }
       >;
       profiles: Table<
@@ -205,6 +207,11 @@ export type Database = {
       lead_acquisitions: Table<{id:string;organization_id:string;company_id:string;contact_id:string|null;opportunity_id:string|null;source_id:string|null;campaign_id:string|null;ad_group_id:string|null;ad_id:string|null;provider:string|null;external_event_id:string|null;utm_source:string|null;utm_medium:string|null;utm_campaign:string|null;utm_content:string|null;utm_term:string|null;landing_page:string|null;referrer:string|null;gclid:string|null;fbclid:string|null;utm_id:string|null;captured_at:string;is_first_touch:boolean;is_last_touch:boolean;metadata:Json;created_by:string|null;created_at:string}>;
       marketing_spend: Table<Base&{provider:string;source_id:string|null;campaign_id:string|null;ad_group_id:string|null;ad_id:string|null;external_entity_id:string|null;date:string;amount:number;currency:string;impressions:number;reach:number;clicks:number;external_conversions:number;external_data:Json}>;
       marketing_connections: Table<Base&{provider:string;external_account_id:string;name:string;status:"connected"|"disconnected"|"error"|"syncing";last_sync_at:string|null;last_successful_sync_at:string|null;sync_error:string|null}>;
+      permissions: Table<{id:string;key:string;name:string;description:string;module:string;created_at:string}>;
+      roles: Table<{id:string;organization_id:string|null;name:string;slug:string;is_system:boolean;created_at:string;updated_at:string}>;
+      role_permissions: Table<{role_id:string;permission_id:string}>;
+      organization_members: Table<{id:string;organization_id:string;user_id:string;role_id:string;status:"invited"|"active"|"suspended"|"inactive";joined_at:string|null;invited_by:string|null;created_at:string;updated_at:string}>;
+      audit_logs: Table<{id:string;organization_id:string;user_id:string|null;action:string;entity_type:string;entity_id:string|null;module:string;old_values:Json;new_values:Json;metadata:Json;ip_address:string|null;user_agent:string|null;created_at:string}>;
     };
     Views: Record<string, never>;
     Functions: {
@@ -240,6 +247,14 @@ export type Database = {
       generate_recurring_entries: { Args:{target_rule_id:string;through_date:string}; Returns:number };
       upsert_marketing_spend:{Args:{spend_data:Json};Returns:Database["public"]["Tables"]["marketing_spend"]["Row"]};
       capture_lead_acquisition:{Args:{acquisition_data:Json};Returns:Database["public"]["Tables"]["lead_acquisitions"]["Row"]};
+      has_permission:{Args:{required_permission:string};Returns:boolean};
+      current_authorization:{Args:Record<string,never>;Returns:Json};
+      accept_own_invitation:{Args:Record<string,never>;Returns:undefined};
+      governance_snapshot:{Args:{audit_limit?:number;audit_offset?:number};Returns:Json};
+      change_member_role:{Args:{target_member_id:string;target_role_id:string};Returns:undefined};
+      change_member_status:{Args:{target_member_id:string;target_status:string};Returns:undefined};
+      update_organization_settings:{Args:{settings_data:Json};Returns:undefined};
+      write_invitation_audit:{Args:{invited_user_id:string;invited_role_id:string};Returns:undefined};
     };
     Enums: {
       profile_role: "admin" | "manager" | "sales" | "financial" | "member";

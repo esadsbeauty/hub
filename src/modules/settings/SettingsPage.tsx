@@ -1,0 +1,38 @@
+import { useState } from "react";
+import { ShieldCheck, Users, FileClock, Building2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { PageContainer } from "@/shared/components/layout/page-container";
+import { PageHeader } from "@/shared/components/layout/page-header";
+import { Skeleton } from "@/shared/components/feedback/states";
+import { Tabs } from "@/shared/components/navigation/tabs";
+import { Modal } from "@/shared/components/overlays/modal";
+import { useAppState } from "@/shared/state/app-state";
+import { permissionLabels } from "@/shared/permissions/permissions";
+import { formatDate } from "@/modules/crm/utils/formatters";
+import { useGovernance, useGovernanceActions } from "./hooks";
+import type { MemberStatus } from "./types";
+
+type View = "general" | "users" | "permissions" | "security" | "audit";
+const tabs = [{ value: "general", label: "Geral" }, { value: "users", label: "Usuários" }, { value: "permissions", label: "Permissões" }, { value: "security", label: "Segurança" }, { value: "audit", label: "Auditoria" }] satisfies { value: View; label: string }[];
+const statusLabel: Record<MemberStatus, string> = { active: "Ativo", invited: "Convidado", suspended: "Suspenso", inactive: "Inativo" };
+
+export function SettingsPage() {
+  const [view, setView] = useState<View>("general"); const [inviteOpen, setInviteOpen] = useState(false); const [auditPage, setAuditPage] = useState(0); const query = useGovernance(auditPage); const actions = useGovernanceActions(); const { can } = useAppState();
+  if (!query.data) return <PageContainer><Skeleton className="h-32"/><Skeleton className="h-96"/></PageContainer>;
+  const data = query.data;
+  return <PageContainer><PageHeader eyebrow="Governança interna" title="Configurações" description="Acesso, organização e rastreabilidade em uma camada centralizada."/><Tabs tabs={tabs.filter((tab) => tab.value !== "audit" || can("audit.view"))} value={view} onChange={setView}/>
+    {view === "general" && <OrganizationCard data={data.organization} save={(input) => actions.updateOrganization.mutate(input)} editable={can("settings.manage")}/>} 
+    {view === "users" && <Card><CardHeader><div className="flex items-center justify-between"><CardTitle>Usuários da organização</CardTitle>{can("users.manage") && <Button onClick={() => setInviteOpen(true)}>Convidar usuário</Button>}</div></CardHeader><CardContent className="space-y-2">{data.members.map((member) => <div key={member.id} className="grid items-center gap-3 rounded-xl border p-4 md:grid-cols-[1.4fr_1fr_1fr_auto]"><div><b>{member.name}</b><p className="text-sm text-muted-foreground">{member.email}</p></div><Select value={member.roleId} disabled={!can("users.manage")} onChange={(event) => actions.changeRole.mutate({ memberId: member.id, roleId: event.target.value })}>{data.roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</Select><span className="text-sm font-semibold">{statusLabel[member.status]}</span>{can("users.manage") && member.status !== "inactive" && <Button variant="outline" onClick={() => actions.changeStatus.mutate({ memberId: member.id, status: member.status === "suspended" ? "active" : "suspended" })}>{member.status === "suspended" ? "Reativar" : "Suspender"}</Button>}</div>)}</CardContent></Card>}
+    {view === "permissions" && <div className="grid gap-4 md:grid-cols-2">{data.roles.map((role) => <Card key={role.id}><CardHeader><CardTitle>{role.name}</CardTitle></CardHeader><CardContent className="flex flex-wrap gap-2">{role.permissions.map((permission) => <span key={permission} className="rounded-full bg-muted px-3 py-1 text-xs">{permissionLabels[permission]}</span>)}</CardContent></Card>)}</div>}
+    {view === "security" && <div className="grid gap-4 md:grid-cols-3">{[{ icon: ShieldCheck, title: "Supabase Auth", text: "Sessões persistentes e refresh automático, sem autenticação paralela." }, { icon: Users, title: "Membership ativo", text: "RLS e RPCs exigem vínculo ativo com a organização." }, { icon: FileClock, title: "Auditoria imutável", text: "Logs administrativos não podem ser alterados ou apagados pelo cliente." }].map(({ icon: Icon, title, text }) => <Card key={title}><CardContent className="p-6"><Icon className="text-champagne-dark"/><b className="mt-4 block">{title}</b><p className="mt-2 text-sm text-muted-foreground">{text}</p></CardContent></Card>)}</div>}
+    <InviteModal open={inviteOpen} close={() => setInviteOpen(false)} roles={data.roles} save={(input) => actions.inviteUser.mutateAsync(input).then(() => setInviteOpen(false))}/>
+    {view === "audit" && <Card><CardHeader><CardTitle>Últimas ações administrativas</CardTitle></CardHeader><CardContent>{data.audits.length === 0 ? <p className="text-muted-foreground">Nenhuma ação auditável encontrada.</p> : data.audits.map((log) => <div key={log.id} className="grid gap-2 border-b py-3 md:grid-cols-[1fr_1fr_1fr_2fr]"><span>{formatDate(log.createdAt)}</span><b>{log.userName ?? "Sistema"}</b><span>{log.module} · {log.action}</span><span>{log.entityType}{log.entityId ? ` · ${log.entityId}` : ""}</span></div>)}<div className="mt-4 flex justify-end gap-2"><Button variant="outline" disabled={auditPage === 0} onClick={() => setAuditPage((page) => page - 1)}>Anterior</Button><Button variant="outline" disabled={data.audits.length < 50} onClick={() => setAuditPage((page) => page + 1)}>Próxima</Button></div></CardContent></Card>}
+  </PageContainer>;
+}
+
+function OrganizationCard({ data, save, editable }: { data: { name: string; timezone: string; currency: string; locale: string }; save: (input: typeof data) => void; editable: boolean }) { const [form, setForm] = useState(data); return <Card><CardHeader><CardTitle className="flex items-center gap-2"><Building2 size={18}/>Organização</CardTitle></CardHeader><CardContent className="grid gap-4 md:grid-cols-2"><Input disabled={!editable} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })}/><Input disabled={!editable} value={form.timezone} onChange={(event) => setForm({ ...form, timezone: event.target.value })}/><Input disabled={!editable} value={form.currency} onChange={(event) => setForm({ ...form, currency: event.target.value })}/><Input disabled={!editable} value={form.locale} onChange={(event) => setForm({ ...form, locale: event.target.value })}/>{editable && <Button onClick={() => save(form)}>Salvar configurações</Button>}</CardContent></Card>; }
+
+function InviteModal({ open, close, roles, save }: { open: boolean; close: () => void; roles: { id: string; name: string }[]; save: (input: { name: string; email: string; roleId: string }) => Promise<unknown> }) { const [name, setName] = useState(""); const [email, setEmail] = useState(""); const [roleId, setRoleId] = useState(roles[0]?.id ?? ""); return <Modal open={open} onClose={close} title="Convidar usuário"><div className="space-y-4"><Input placeholder="Nome" value={name} onChange={(event) => setName(event.target.value)}/><Input type="email" placeholder="email@empresa.com" value={email} onChange={(event) => setEmail(event.target.value)}/><Select value={roleId} onChange={(event) => setRoleId(event.target.value)}>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</Select><p className="text-xs text-muted-foreground">O usuário definirá a própria senha pelo convite seguro do Supabase Auth.</p><Button disabled={!name || !email || !roleId} onClick={() => void save({ name, email, roleId })}>Enviar convite</Button></div></Modal>; }
