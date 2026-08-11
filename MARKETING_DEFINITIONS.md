@@ -12,3 +12,10 @@
 - **UTMs:** valores originais, preservados sem normalização automática.
 - **Não atribuído:** ausência explícita de evidência; nunca é redistribuída silenciosamente.
 - **Integrações:** credenciais pertencem a backend secrets/Vault. O banco público guarda apenas estado e IDs externos.
+
+## Captura e idempotência
+
+- Lead é uma `company` distinta com touchpoint capturado no período; um novo evento não duplica a empresa.
+- First Touch é o primeiro evento conhecido e imutável; Last Touch é o evento elegível mais recente antes da conversão.
+- Webhooks devem informar `provider` + `external_event_id`; a combinação é idempotente por organização.
+- Credenciais de plataformas não fazem parte deste modelo e devem permanecer em Secrets/Vault no backend.

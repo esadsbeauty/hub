@@ -202,7 +202,7 @@ export type Database = {
       marketing_campaigns: Table<Base&{source_id:string;provider:string;external_id:string|null;name:string;objective:string|null;status:"active"|"paused"|"completed"|"archived";start_date:string|null;end_date:string|null;budget:number|null;external_account_id:string|null;metadata:Json}>;
       marketing_ad_groups: Table<Base&{campaign_id:string;external_id:string|null;name:string;status:string;metadata:Json}>;
       marketing_ads: Table<Base&{campaign_id:string;ad_group_id:string|null;external_id:string|null;name:string;status:string;creative_name:string|null;destination_url:string|null;metadata:Json}>;
-      lead_acquisitions: Table<{id:string;organization_id:string;company_id:string;contact_id:string|null;opportunity_id:string|null;source_id:string|null;campaign_id:string|null;ad_group_id:string|null;ad_id:string|null;utm_source:string|null;utm_medium:string|null;utm_campaign:string|null;utm_content:string|null;utm_term:string|null;landing_page:string|null;referrer:string|null;gclid:string|null;fbclid:string|null;utm_id:string|null;captured_at:string;is_first_touch:boolean;metadata:Json;created_at:string}>;
+      lead_acquisitions: Table<{id:string;organization_id:string;company_id:string;contact_id:string|null;opportunity_id:string|null;source_id:string|null;campaign_id:string|null;ad_group_id:string|null;ad_id:string|null;provider:string|null;external_event_id:string|null;utm_source:string|null;utm_medium:string|null;utm_campaign:string|null;utm_content:string|null;utm_term:string|null;landing_page:string|null;referrer:string|null;gclid:string|null;fbclid:string|null;utm_id:string|null;captured_at:string;is_first_touch:boolean;is_last_touch:boolean;metadata:Json;created_by:string|null;created_at:string}>;
       marketing_spend: Table<Base&{provider:string;source_id:string|null;campaign_id:string|null;ad_group_id:string|null;ad_id:string|null;external_entity_id:string|null;date:string;amount:number;currency:string;impressions:number;reach:number;clicks:number;external_conversions:number;external_data:Json}>;
       marketing_connections: Table<Base&{provider:string;external_account_id:string;name:string;status:"connected"|"disconnected"|"error"|"syncing";last_sync_at:string|null;last_successful_sync_at:string|null;sync_error:string|null}>;
     };
@@ -239,6 +239,7 @@ export type Database = {
       reverse_financial_transaction: { Args:{target_transaction_id:string}; Returns:undefined };
       generate_recurring_entries: { Args:{target_rule_id:string;through_date:string}; Returns:number };
       upsert_marketing_spend:{Args:{spend_data:Json};Returns:Database["public"]["Tables"]["marketing_spend"]["Row"]};
+      capture_lead_acquisition:{Args:{acquisition_data:Json};Returns:Database["public"]["Tables"]["lead_acquisitions"]["Row"]};
     };
     Enums: {
       profile_role: "admin" | "manager" | "sales" | "financial" | "member";
