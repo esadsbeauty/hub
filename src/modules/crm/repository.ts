@@ -5,6 +5,7 @@ import type {
   FollowUpFormData,
   LostOpportunityFormData,
   OpportunityFormData,
+  TaskFormData,
 } from "./schema";
 import type {
   ActivityType,
@@ -18,14 +19,24 @@ import type {
   OpportunityStageHistory,
   PipelineStage,
   Task,
+  TaskPriority,
   TimelineEvent,
 } from "./types";
+import { localDateTimeToUtc } from "./utils/formatters";
 
 const STORAGE = "esads_crm_data_v3";
 const ORGANIZATION_ID = "esads-beauty";
 const USER_ID = "preview-admin";
 const now = () => new Date().toISOString();
 const id = () => crypto.randomUUID();
+const taskPriority = (value: string): TaskPriority =>
+  value === "baixa" || value === "low"
+    ? "low"
+    : value === "alta" || value === "high"
+      ? "high"
+      : value === "urgent"
+        ? "urgent"
+        : "medium";
 const tags = (value?: string) =>
   value
     ?.split(",")
@@ -156,6 +167,7 @@ function seed(): CrmData {
       id: ORGANIZATION_ID,
       name: "ESADS Beauty",
       slug: "esads-beauty",
+      timezone: "America/Sao_Paulo",
       createdAt,
       updatedAt: createdAt,
     },
@@ -168,6 +180,17 @@ function seed(): CrmData {
       createdAt,
       updatedAt: createdAt,
     },
+    profiles: [
+      {
+        id: USER_ID,
+        organizationId: ORGANIZATION_ID,
+        name: "Administrador",
+        email: "admin@esadsbeauty.com",
+        role: "admin",
+        createdAt,
+        updatedAt: createdAt,
+      },
+    ],
     companies: [company],
     contacts: [contact],
     pipelines: [
@@ -214,10 +237,31 @@ function read(): CrmData {
     return data;
   }
   const stored = JSON.parse(raw) as CrmData;
-  return { ...stored, stageHistory: stored.stageHistory ?? [] };
+  return {
+    ...stored,
+    organization: {
+      ...stored.organization,
+      timezone: stored.organization.timezone ?? "America/Sao_Paulo",
+    },
+    stageHistory: stored.stageHistory ?? [],
+    profiles: stored.profiles ?? [stored.profile],
+    tasks: (stored.tasks ?? []).map((task) => {
+      return {
+        ...task,
+        dueAt: task.dueAt ?? legacyDueAt(task) ?? task.createdAt,
+        priority: taskPriority(task.priority),
+        assigneeName: task.assigneeName ?? "Administrador",
+      };
+    }),
+  };
 }
 function write(data: CrmData) {
   localStorage.setItem(STORAGE, JSON.stringify(data));
+}
+function legacyDueAt(task: Task) {
+  if ("dueDate" in task && typeof task.dueDate === "string")
+    return task.dueDate;
+  return undefined;
 }
 function companyInput(input: CompanyFormData) {
   const { tags: tagList, ...company } = input;
@@ -227,6 +271,17 @@ function companyInput(input: CompanyFormData) {
 export const crmRepository = {
   async list() {
     return read();
+  },
+  async listTasksRange(from: string, to: string) {
+    return read().tasks.filter(
+      (task) => !task.deletedAt && task.dueAt >= from && task.dueAt < to,
+    );
+  },
+  async listOverdueTasks(until: string) {
+    return read().tasks.filter(
+      (task) =>
+        !task.deletedAt && task.status === "pending" && task.dueAt < until,
+    );
   },
   async createCompany(input: CompanyFormData) {
     const data = read();
@@ -561,6 +616,51 @@ export const crmRepository = {
     );
     write(data);
   },
+  async createTask(input: TaskFormData) {
+    const data = read();
+    const createdAt = now();
+    const task: Task = {
+      id: id(),
+      organizationId: ORGANIZATION_ID,
+      companyId: input.companyId || undefined,
+      opportunityId: input.opportunityId || undefined,
+      assignedTo: input.assignedTo,
+      assigneeName: data.profile.name,
+      createdBy: USER_ID,
+      title: input.title,
+      description: input.description,
+      type: input.type,
+      status: "pending",
+      priority: input.priority,
+      dueAt: localDateTimeToUtc(input.date, input.time),
+      durationMinutes: input.durationMinutes,
+      locationType: input.locationType,
+      location: input.location,
+      meetingUrl: input.meetingUrl || undefined,
+      createdAt,
+      updatedAt: createdAt,
+    };
+    data.tasks.unshift(task);
+    data.events.unshift(
+      activity(
+        task.type === "meeting"
+          ? "meeting_scheduled"
+          : task.type === "follow_up"
+            ? "followup_created"
+            : "task_created",
+        task.type === "meeting"
+          ? "Reunião agendada"
+          : task.type === "follow_up"
+            ? "Follow-up criado"
+            : "Tarefa criada",
+        task.companyId,
+        task.opportunityId,
+        task.title,
+      ),
+    );
+    write(data);
+    return task;
+  },
   async createFollowUp(
     companyId: string,
     input: FollowUpFormData,
@@ -573,6 +673,7 @@ export const crmRepository = {
       companyId,
       opportunityId,
       assignedTo: USER_ID,
+      assigneeName: data.profile.name,
       createdBy: USER_ID,
       title: input.title,
       description: input.description ?? input.notes,
@@ -588,8 +689,8 @@ export const crmRepository = {
           : input.status === "cancelado"
             ? "cancelled"
             : "pending",
-      priority: input.priority,
-      dueDate: `${input.date}T${input.time}:00`,
+      priority: taskPriority(input.priority),
+      dueAt: localDateTimeToUtc(input.date, input.time),
       createdAt: now(),
       updatedAt: now(),
     };
@@ -637,15 +738,23 @@ export const crmRepository = {
       updatedAt: now(),
     };
     data.activities.unshift(item);
-    data.events.unshift(
-      activity(
-        input.type === "reuniao" ? "meeting_scheduled" : "task_created",
-        input.type === "reuniao" ? "Reunião agendada" : "Atividade registrada",
-        companyId,
-        undefined,
-        item.title,
-      ),
+    const eventType: ActivityType =
+      input.type === "ligacao"
+        ? "call_completed"
+        : input.type === "whatsapp"
+          ? "whatsapp_sent"
+          : input.type === "reuniao" || input.type === "videochamada"
+            ? "meeting_completed"
+            : "task_completed";
+    const event = activity(
+      eventType,
+      input.title,
+      companyId,
+      undefined,
+      input.description,
     );
+    event.createdAt = localDateTimeToUtc(input.date, input.time);
+    data.events.unshift(event);
     write(data);
     return item;
   },
@@ -659,10 +768,64 @@ export const crmRepository = {
         ? { ...item, status: "completed", completedAt, updatedAt: completedAt }
         : item,
     );
+    const eventType: ActivityType =
+      task.type === "follow_up"
+        ? "followup_completed"
+        : task.type === "meeting"
+          ? "meeting_completed"
+          : task.type === "call"
+            ? "call_completed"
+            : task.type === "whatsapp"
+              ? "whatsapp_sent"
+              : task.type === "email"
+                ? "email_sent"
+                : "task_completed";
     data.events.unshift(
       activity(
-        "task_completed",
-        "Tarefa concluída",
+        eventType,
+        task.type === "follow_up" ? "Follow-up concluído" : "Tarefa concluída",
+        task.companyId,
+        task.opportunityId,
+        task.title,
+      ),
+    );
+    write(data);
+  },
+  async rescheduleTask(taskId: string, dueAt: string) {
+    const data = read();
+    const task = data.tasks.find((item) => item.id === taskId);
+    if (!task || task.status !== "pending")
+      throw new Error("Tarefa pendente não encontrada");
+    data.tasks = data.tasks.map((item) =>
+      item.id === taskId ? { ...item, dueAt, updatedAt: now() } : item,
+    );
+    data.events.unshift(
+      activity(
+        "task_rescheduled",
+        "Tarefa reagendada",
+        task.companyId,
+        task.opportunityId,
+        task.title,
+        { old_due_at: task.dueAt, new_due_at: dueAt },
+      ),
+    );
+    write(data);
+  },
+  async cancelTask(taskId: string) {
+    const data = read();
+    const task = data.tasks.find((item) => item.id === taskId);
+    if (!task || task.status !== "pending")
+      throw new Error("Tarefa pendente não encontrada");
+    const cancelledAt = now();
+    data.tasks = data.tasks.map((item) =>
+      item.id === taskId
+        ? { ...item, status: "cancelled", cancelledAt, updatedAt: cancelledAt }
+        : item,
+    );
+    data.events.unshift(
+      activity(
+        task.type === "meeting" ? "meeting_cancelled" : "task_cancelled",
+        task.type === "meeting" ? "Reunião cancelada" : "Tarefa cancelada",
         task.companyId,
         task.opportunityId,
         task.title,
@@ -743,9 +906,12 @@ export const opportunityRepository = {
   archive: crmRepository.archiveOpportunity,
 };
 export const taskRepository = {
+  createTask: crmRepository.createTask,
   create: crmRepository.createFollowUp,
   update: crmRepository.updateFollowUp,
   complete: crmRepository.completeTask,
+  reschedule: crmRepository.rescheduleTask,
+  cancel: crmRepository.cancelTask,
 };
 export const activityRepository = {
   create: crmRepository.createActivity,

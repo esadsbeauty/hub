@@ -13,6 +13,7 @@ import { useToast } from "@/shared/components/feedback/toast";
 import { useCrmActions, useCrmData } from "../hooks";
 import { CompanyForm } from "../components/company-form";
 import {
+  ActivityQuickForm,
   ContactQuickForm,
   FollowUpQuickForm,
 } from "../components/simple-forms";
@@ -44,7 +45,13 @@ export function CompanyCentralPage() {
   const { notify } = useToast();
   const [tab, setTab] = useState<Tab>("overview");
   const [modal, setModal] = useState<
-    "edit" | "contact" | "opportunity" | "followup" | "note" | null
+    | "edit"
+    | "contact"
+    | "opportunity"
+    | "followup"
+    | "interaction"
+    | "note"
+    | null
   >(null);
   const [note, setNote] = useState("");
   const [selected, setSelected] = useState<Opportunity>();
@@ -160,6 +167,9 @@ export function CompanyCentralPage() {
               <Button variant="outline" onClick={() => setModal("note")}>
                 <NotebookPen size={15} /> Nova nota
               </Button>
+              <Button variant="outline" onClick={() => setModal("interaction")}>
+                Registrar interação
+              </Button>
               <Button variant="ghost" onClick={() => setModal("contact")}>
                 <UserPlus size={15} /> Contato
               </Button>
@@ -187,7 +197,12 @@ export function CompanyCentralPage() {
             onOpen={setSelected}
           />
         )}{" "}
-        {tab === "activities" && <CompanyTimeline events={related.events} />}{" "}
+        {tab === "activities" && (
+          <CompanyTimeline
+            events={related.events}
+            onAddNote={() => setModal("note")}
+          />
+        )}{" "}
         {tab === "contacts" && (
           <CompanyContacts
             contacts={related.contacts}
@@ -210,6 +225,25 @@ export function CompanyCentralPage() {
             onComplete={(taskId) =>
               actions.completeTask.mutate(taskId, {
                 onSuccess: () => success("Tarefa concluída"),
+              })
+            }
+            onReschedule={(task) =>
+              actions.rescheduleTask.mutate(
+                {
+                  id: task.id,
+                  dueAt: new Date(
+                    new Date(task.dueAt).getTime() + 86_400_000,
+                  ).toISOString(),
+                },
+                {
+                  onSuccess: () =>
+                    success("Tarefa reagendada para o próximo dia"),
+                },
+              )
+            }
+            onCancel={(taskId) =>
+              actions.cancelTask.mutate(taskId, {
+                onSuccess: () => success("Tarefa cancelada"),
               })
             }
           />
@@ -277,6 +311,22 @@ export function CompanyCentralPage() {
         />
       </Modal>
       <Modal
+        open={modal === "interaction"}
+        title="Registrar interação"
+        onClose={() => setModal(null)}
+      >
+        <ActivityQuickForm
+          onSubmit={async (form) => {
+            await actions.createActivity.mutateAsync({
+              companyId: id,
+              data: form,
+            });
+            setModal(null);
+            success("Interação registrada");
+          }}
+        />
+      </Modal>
+      <Modal
         open={modal === "note"}
         title="Nova nota"
         onClose={() => setModal(null)}
@@ -340,14 +390,18 @@ export function CompanyCentralPage() {
           (item) => item.id === selected?.pipelineId,
         )}
         stages={data.stages}
+        activities={related.events.filter(
+          (event) => event.opportunityId === selected?.id,
+        )}
         nextTask={
           related.tasks
             .filter(
               (item) =>
                 item.opportunityId === selected?.id &&
-                item.status === "pending",
+                item.status === "pending" &&
+                item.type === "follow_up",
             )
-            .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0]
+            .sort((a, b) => a.dueAt.localeCompare(b.dueAt))[0]
         }
         open={Boolean(selected)}
         onClose={() => setSelected(undefined)}

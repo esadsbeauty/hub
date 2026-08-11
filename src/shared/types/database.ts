@@ -23,7 +23,11 @@ export type Database = {
   public: {
     Tables: {
       organizations: Table<
-        Omit<Base, "organization_id"> & { name: string; slug: string }
+        Omit<Base, "organization_id"> & {
+          name: string;
+          slug: string;
+          timezone: string;
+        }
       >;
       profiles: Table<
         Base & {
@@ -159,9 +163,14 @@ export type Database = {
             | "meeting"
             | "task";
           status: "pending" | "completed" | "cancelled";
-          priority: Priority;
-          due_date: string | null;
+          priority: "low" | "medium" | "high" | "urgent";
+          due_at: string | null;
           completed_at: string | null;
+          cancelled_at: string | null;
+          duration_minutes: number | null;
+          location_type: "online" | "in_person" | "phone" | "other" | null;
+          location: string | null;
+          meeting_url: string | null;
           deleted_at: string | null;
         }
       >;
@@ -189,6 +198,18 @@ export type Database = {
       create_company_with_primary_contact: {
         Args: { company_data: Json; contact_data?: Json };
         Returns: Database["public"]["Tables"]["companies"]["Row"];
+      };
+      complete_task: {
+        Args: { target_task_id: string };
+        Returns: Database["public"]["Tables"]["tasks"]["Row"];
+      };
+      reschedule_task: {
+        Args: { target_task_id: string; new_due_at: string };
+        Returns: Database["public"]["Tables"]["tasks"]["Row"];
+      };
+      cancel_task: {
+        Args: { target_task_id: string };
+        Returns: Database["public"]["Tables"]["tasks"]["Row"];
       };
     };
     Enums: {

@@ -14,8 +14,10 @@ import type {
   Pipeline,
   PipelineStage,
   Task,
+  TimelineEvent,
 } from "../types";
 import { currency, daysSince, formatDateTime } from "../utils/formatters";
+import { ActivityTimeline } from "./activity-timeline";
 const lossReasons: {
   value: LostOpportunityFormData["reason"];
   label: string;
@@ -35,6 +37,7 @@ export function OpportunityDetails({
   pipeline,
   stages,
   nextTask,
+  activities,
   open,
   onClose,
   onMove,
@@ -51,6 +54,7 @@ export function OpportunityDetails({
   pipeline?: Pipeline;
   stages: PipelineStage[];
   nextTask?: Task;
+  activities: TimelineEvent[];
   open: boolean;
   onClose: () => void;
   onMove: (stageId: string) => void;
@@ -143,7 +147,7 @@ export function OpportunityDetails({
               ],
               [
                 "Próximo follow-up",
-                nextTask ? formatDateTime(nextTask.dueDate) : "Nenhum",
+                nextTask ? formatDateTime(nextTask.dueAt) : "Nenhum",
               ],
             ].map(([label, value]) => (
               <div key={label} className="border-b pb-2">
@@ -157,6 +161,10 @@ export function OpportunityDetails({
               {opportunity.description}
             </p>
           )}
+          <section className="space-y-3 border-t pt-5">
+            <h3 className="font-bold">Histórico da oportunidade</h3>
+            <ActivityTimeline events={activities} compact />
+          </section>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={onEdit}>
               Editar

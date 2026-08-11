@@ -6,6 +6,8 @@ const source = supabase ? supabaseCrmRepository : crmRepository;
 
 export const crmDataSource = {
   list: () => source.list(),
+  listTasksRange: (from: string, to: string) => source.listTasksRange(from, to),
+  listOverdueTasks: (until: string) => source.listOverdueTasks(until),
   createCompany: (input: Parameters<typeof source.createCompany>[0]) =>
     source.createCompany(input),
   updateCompany: (
@@ -38,6 +40,8 @@ export const crmDataSource = {
     input: Parameters<typeof source.updateContact>[1],
   ) => source.updateContact(id, input),
   deleteContact: (id: string) => source.deleteContact(id),
+  createTask: (input: Parameters<typeof source.createTask>[0]) =>
+    source.createTask(input),
   createFollowUp: (
     companyId: string,
     input: Parameters<typeof source.createFollowUp>[1],
@@ -48,6 +52,9 @@ export const crmDataSource = {
     input: Parameters<typeof source.updateFollowUp>[1],
   ) => source.updateFollowUp(id, input),
   completeTask: (id: string) => source.completeTask(id),
+  rescheduleTask: (id: string, dueAt: string) =>
+    source.rescheduleTask(id, dueAt),
+  cancelTask: (id: string) => source.cancelTask(id),
   addNote: (companyId: string, text: string, opportunityId?: string) =>
     source.addNote(companyId, text, opportunityId),
   createActivity: (

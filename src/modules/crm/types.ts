@@ -1,4 +1,5 @@
 export type Priority = "baixa" | "media" | "alta";
+export type TaskPriority = "low" | "medium" | "high" | "urgent";
 export type Temperature = "frio" | "morno" | "quente";
 export type ContactStatus = "ativo" | "inativo";
 export type OpportunityStatus = "open" | "won" | "lost" | "archived";
@@ -23,14 +24,24 @@ export type ActivityType =
   | "company_created"
   | "company_updated"
   | "contact_created"
+  | "contact_updated"
   | "opportunity_created"
+  | "opportunity_updated"
   | "stage_changed"
   | "followup_created"
   | "followup_completed"
   | "meeting_scheduled"
   | "task_created"
   | "task_completed"
+  | "task_cancelled"
+  | "task_rescheduled"
   | "note_created"
+  | "meeting_completed"
+  | "meeting_cancelled"
+  | "call_completed"
+  | "whatsapp_sent"
+  | "email_sent"
+  | "owner_changed"
   | "deal_won"
   | "deal_lost";
 
@@ -38,6 +49,7 @@ export type Organization = {
   id: string;
   name: string;
   slug: string;
+  timezone: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -184,14 +196,20 @@ export type Task = {
   companyId?: string;
   opportunityId?: string;
   assignedTo: string;
+  assigneeName?: string;
   createdBy: string;
   title: string;
   description?: string;
   type: TaskType;
   status: TaskStatus;
-  priority: Priority;
-  dueDate: string;
+  priority: TaskPriority;
+  dueAt: string;
   completedAt?: string;
+  cancelledAt?: string;
+  durationMinutes?: number;
+  locationType?: "online" | "in_person" | "phone" | "other";
+  location?: string;
+  meetingUrl?: string;
   createdAt: string;
   updatedAt: string;
   deletedAt?: string | null;
@@ -253,6 +271,7 @@ export type CompanyNote = {
 export type CrmData = {
   organization: Organization;
   profile: Profile;
+  profiles: Profile[];
   companies: Company[];
   contacts: CompanyContact[];
   pipelines: Pipeline[];

@@ -7,6 +7,7 @@ import type {
   FollowUpFormData,
   LostOpportunityFormData,
   OpportunityFormData,
+  TaskFormData,
 } from "./schema";
 import type {
   ActivityType,
@@ -21,6 +22,7 @@ import type {
   Task,
   TimelineEvent,
 } from "./types";
+import { localDateTimeToUtc } from "./utils/formatters";
 
 type Tables = Database["public"]["Tables"];
 type OrganizationRow = Tables["organizations"]["Row"];
@@ -74,14 +76,24 @@ function activityType(value: string): ActivityType {
     case "company_created":
     case "company_updated":
     case "contact_created":
+    case "contact_updated":
     case "opportunity_created":
+    case "opportunity_updated":
     case "stage_changed":
     case "followup_created":
     case "followup_completed":
     case "meeting_scheduled":
     case "task_created":
     case "task_completed":
+    case "task_cancelled":
+    case "task_rescheduled":
     case "note_created":
+    case "meeting_completed":
+    case "meeting_cancelled":
+    case "call_completed":
+    case "whatsapp_sent":
+    case "email_sent":
+    case "owner_changed":
     case "deal_won":
     case "deal_lost":
       return value;
@@ -209,21 +221,27 @@ function opportunity(
     deletedAt: row.deleted_at,
   };
 }
-function task(row: TaskRow): Task {
+function task(row: TaskRow, owners: Map<string, string> = new Map()): Task {
   return {
     id: row.id,
     organizationId: row.organization_id,
     companyId: row.company_id ?? undefined,
     opportunityId: row.opportunity_id ?? undefined,
     assignedTo: row.assigned_to ?? "",
+    assigneeName: row.assigned_to ? owners.get(row.assigned_to) : undefined,
     createdBy: row.created_by,
     title: row.title,
     description: row.description ?? undefined,
     type: row.type,
     status: row.status,
     priority: row.priority,
-    dueDate: row.due_date ?? row.created_at,
+    dueAt: row.due_at ?? row.created_at,
     completedAt: row.completed_at ?? undefined,
+    cancelledAt: row.cancelled_at ?? undefined,
+    durationMinutes: row.duration_minutes ?? undefined,
+    locationType: row.location_type ?? undefined,
+    location: row.location ?? undefined,
+    meetingUrl: row.meeting_url ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
@@ -322,6 +340,7 @@ async function list(): Promise<CrmData> {
       id: organization.id,
       name: organization.name,
       slug: organization.slug,
+      timezone: organization.timezone,
       createdAt: organization.created_at,
       updatedAt: organization.updated_at,
     },
@@ -335,6 +354,16 @@ async function list(): Promise<CrmData> {
       createdAt: profile.created_at,
       updatedAt: profile.updated_at,
     },
+    profiles: profiles.map((item) => ({
+      id: item.id,
+      organizationId: item.organization_id,
+      name: item.name,
+      email: item.email,
+      avatarUrl: item.avatar_url ?? undefined,
+      role: item.role,
+      createdAt: item.created_at,
+      updatedAt: item.updated_at,
+    })),
     companies: companyRows.map((item) => company(item, owners)),
     contacts: contactRows.map(contact),
     pipelines: pipelineRows.map((item) => ({
@@ -389,7 +418,7 @@ async function list(): Promise<CrmData> {
         createdAt: item.created_at,
       }),
     ),
-    tasks: taskRows.map(task),
+    tasks: taskRows.map((item) => task(item, owners)),
     activities: [],
     files: [],
     notes: noteRows.map(
@@ -442,6 +471,47 @@ function companyPayload(input: Partial<CompanyFormData>) {
 
 export const supabaseCrmRepository = {
   list,
+  async listTasksRange(from: string, to: string) {
+    const profile = await context();
+    const profilesResult = await client().from("profiles").select("*");
+    const profiles: ProfileRow[] = ensure(
+      profilesResult.data,
+      profilesResult.error,
+    );
+    const owners = new Map<string, string>(
+      profiles.map((item) => [item.id, item.name]),
+    );
+    const result = await client()
+      .from("tasks")
+      .select("*")
+      .eq("organization_id", profile.organization_id)
+      .gte("due_at", from)
+      .lt("due_at", to)
+      .is("deleted_at", null)
+      .order("due_at");
+    return ensure(result.data, result.error).map((item) => task(item, owners));
+  },
+  async listOverdueTasks(until: string) {
+    const profile = await context();
+    const profilesResult = await client().from("profiles").select("*");
+    const profiles: ProfileRow[] = ensure(
+      profilesResult.data,
+      profilesResult.error,
+    );
+    const owners = new Map<string, string>(
+      profiles.map((item) => [item.id, item.name]),
+    );
+    const { data, error } = await client()
+      .from("tasks")
+      .select("*")
+      .eq("organization_id", profile.organization_id)
+      .eq("status", "pending")
+      .lt("due_at", until)
+      .is("deleted_at", null)
+      .order("due_at", { ascending: true });
+    if (error) throw friendlyError(error);
+    return (data ?? []).map((row) => task(row, owners));
+  },
   async createCompany(input: CompanyFormData) {
     const profile = await context();
     const payload = companyPayload(input);
@@ -736,6 +806,34 @@ export const supabaseCrmRepository = {
       .eq("id", id);
     if (result.error) throw friendlyError(result.error);
   },
+  async createTask(input: TaskFormData) {
+    const profile = await context();
+    const result = await client()
+      .from("tasks")
+      .insert({
+        organization_id: profile.organization_id,
+        company_id: input.companyId || null,
+        opportunity_id: input.opportunityId || null,
+        assigned_to: input.assignedTo,
+        created_by: profile.id,
+        title: input.title,
+        description: input.description,
+        type: input.type,
+        status: "pending",
+        priority: input.priority,
+        due_at: localDateTimeToUtc(input.date, input.time),
+        duration_minutes: input.durationMinutes,
+        location_type: input.locationType,
+        location: input.location,
+        meeting_url: input.meetingUrl || null,
+      })
+      .select("*")
+      .single();
+    return task(
+      ensure(result.data, result.error),
+      new Map([[profile.id, profile.name]]),
+    );
+  },
   async createFollowUp(
     companyId: string,
     input: FollowUpFormData,
@@ -766,35 +864,54 @@ export const supabaseCrmRepository = {
         description: input.description ?? input.notes,
         type,
         status,
-        priority: input.priority,
-        due_date: `${input.date}T${input.time}:00`,
+        priority:
+          input.priority === "baixa"
+            ? "low"
+            : input.priority === "alta"
+              ? "high"
+              : "medium",
+        due_at: localDateTimeToUtc(input.date, input.time),
       })
       .select("*")
       .single();
     return task(ensure(result.data, result.error));
   },
   async updateFollowUp(id: string, input: Partial<FollowUpFormData>) {
+    const priority = input.priority
+      ? input.priority === "baixa"
+        ? "low"
+        : input.priority === "alta"
+          ? "high"
+          : "medium"
+      : undefined;
     const result = await client()
       .from("tasks")
       .update({
         title: input.title,
         description: input.description ?? input.notes,
-        priority: input.priority,
-        due_date:
+        priority,
+        due_at:
           input.date && input.time
-            ? `${input.date}T${input.time}:00`
+            ? localDateTimeToUtc(input.date, input.time)
             : undefined,
       })
       .eq("id", id);
     if (result.error) throw friendlyError(result.error);
   },
   async completeTask(id: string) {
-    const completedAt = new Date().toISOString();
-    const result = await client()
-      .from("tasks")
-      .update({ status: "completed", completed_at: completedAt })
-      .eq("id", id);
-    if (result.error) throw friendlyError(result.error);
+    const result = await client().rpc("complete_task", { target_task_id: id });
+    return task(ensure(result.data, result.error));
+  },
+  async rescheduleTask(id: string, dueAt: string) {
+    const result = await client().rpc("reschedule_task", {
+      target_task_id: id,
+      new_due_at: dueAt,
+    });
+    return task(ensure(result.data, result.error));
+  },
+  async cancelTask(id: string) {
+    const result = await client().rpc("cancel_task", { target_task_id: id });
+    return task(ensure(result.data, result.error));
   },
   async addNote(companyId: string, text: string, opportunityId?: string) {
     const profile = await context();
@@ -823,16 +940,25 @@ export const supabaseCrmRepository = {
   },
   async createActivity(companyId: string, input: ActivityFormData) {
     const profile = await context();
+    const type: ActivityType =
+      input.type === "ligacao"
+        ? "call_completed"
+        : input.type === "whatsapp"
+          ? "whatsapp_sent"
+          : input.type === "reuniao" || input.type === "videochamada"
+            ? "meeting_completed"
+            : "task_completed";
     const result = await client()
       .from("activities")
       .insert({
         organization_id: profile.organization_id,
         company_id: companyId,
         user_id: profile.id,
-        type: input.type === "reuniao" ? "meeting_scheduled" : "task_created",
+        type,
         title: input.title,
         description: input.description,
         metadata: { date: input.date, time: input.time, owner: input.owner },
+        created_at: localDateTimeToUtc(input.date, input.time),
       });
     if (result.error) throw friendlyError(result.error);
     return input;

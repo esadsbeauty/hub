@@ -1,4 +1,4 @@
-import { Check, ExternalLink, Mail, MessageCircle, Trash2 } from "lucide-react";
+import { ExternalLink, Mail, MessageCircle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/shared/components/feedback/states";
@@ -16,7 +16,9 @@ import type {
   Task,
   TimelineEvent,
 } from "../types";
-import { currency, formatDateTime, taskTypeLabel } from "../utils/formatters";
+import { currency, formatDateTime } from "../utils/formatters";
+import { ActivityTimeline } from "./activity-timeline";
+import { TaskCard } from "./task-card";
 export function CompanyOverview({
   company,
   contacts,
@@ -35,8 +37,8 @@ export function CompanyOverview({
   const primary = contacts.find((item) => item.isPrimary);
   const open = opportunities.filter((item) => item.status === "open");
   const next = [...tasks]
-    .filter((item) => item.status === "pending")
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+    .filter((item) => item.status === "pending" && item.type === "follow_up")
+    .sort((a, b) => a.dueAt.localeCompare(b.dueAt))[0];
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <Card>
@@ -102,7 +104,7 @@ export function CompanyOverview({
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Próximo follow-up</p>
-            <b>{next ? formatDateTime(next.dueDate) : "Nenhum"}</b>
+            <b>{next ? formatDateTime(next.dueAt) : "Nenhum"}</b>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Última atividade</p>
@@ -266,79 +268,39 @@ export function CompanyOpportunities({
     />
   );
 }
-export function CompanyTimeline({ events }: { events: TimelineEvent[] }) {
-  return events.length ? (
-    <div className="space-y-4">
-      {[...events]
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-        .map((event) => (
-          <div
-            key={event.id}
-            className="relative border-l-2 border-champagne pl-5"
-          >
-            <span className="absolute -left-1.5 top-1 h-2.5 w-2.5 rounded-full bg-champagne" />
-            <p className="text-xs text-muted-foreground">
-              {formatDateTime(event.createdAt)}
-            </p>
-            <b>{event.title}</b>
-            {event.description && (
-              <p className="text-sm text-muted-foreground">
-                {event.description}
-              </p>
-            )}
-            <p className="text-xs text-muted-foreground">{event.user}</p>
-          </div>
-        ))}
-    </div>
-  ) : (
-    <EmptyState title="Nenhuma atividade registrada" />
-  );
+export function CompanyTimeline({
+  events,
+  onAddNote,
+}: {
+  events: TimelineEvent[];
+  onAddNote?: () => void;
+}) {
+  return <ActivityTimeline events={events} onAddNote={onAddNote} />;
 }
 export function CompanyTasks({
   tasks,
   onComplete,
+  onReschedule,
+  onCancel,
 }: {
   tasks: Task[];
   onComplete: (id: string) => void;
+  onReschedule: (task: Task) => void;
+  onCancel: (id: string) => void;
 }) {
-  const now = new Date().toISOString();
   return tasks.length ? (
     <div className="space-y-3">
       {[...tasks]
-        .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-        .map((task) => {
-          const overdue = task.status === "pending" && task.dueDate < now;
-          return (
-            <Card key={task.id} className={overdue ? "border-amber-300" : ""}>
-              <CardContent className="flex flex-col justify-between gap-3 p-4 sm:flex-row sm:items-center">
-                <div>
-                  <div className="flex gap-2">
-                    <b>{task.title}</b>
-                    {overdue && <StatusBadge status="Atrasada" />}
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {taskTypeLabel(task.type)} · {formatDateTime(task.dueDate)}{" "}
-                    ·{" "}
-                    {task.status === "pending"
-                      ? "Pendente"
-                      : task.status === "completed"
-                        ? "Concluída"
-                        : "Cancelada"}
-                  </p>
-                </div>
-                {task.status === "pending" && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onComplete(task.id)}
-                  >
-                    <Check size={14} /> Concluir
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
+        .sort((a, b) => a.dueAt.localeCompare(b.dueAt))
+        .map((task) => (
+          <TaskCard
+            key={task.id}
+            task={task}
+            onComplete={() => onComplete(task.id)}
+            onReschedule={() => onReschedule(task)}
+            onCancel={() => onCancel(task.id)}
+          />
+        ))}
     </div>
   ) : (
     <EmptyState title="Nenhuma tarefa ou follow-up" />

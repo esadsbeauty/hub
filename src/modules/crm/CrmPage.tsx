@@ -127,7 +127,7 @@ export function CrmPage() {
           (item) =>
             item.companyId === company.id &&
             item.status === "pending" &&
-            item.dueDate < new Date().toISOString(),
+            item.dueAt < new Date().toISOString(),
         );
         const latestActivity = events
           .filter((item) => item.companyId === company.id)
@@ -187,17 +187,20 @@ export function CrmPage() {
                     a.lastInteractionAt ?? "",
                   )
                 : sort === "followup"
-                  ? (nextTask(a.id)?.dueDate ?? "9999").localeCompare(
-                      nextTask(b.id)?.dueDate ?? "9999",
+                  ? (nextTask(a.id)?.dueAt ?? "9999").localeCompare(
+                      nextTask(b.id)?.dueAt ?? "9999",
                     )
                   : priorityRank[b.priority] - priorityRank[a.priority],
       );
     function nextTask(companyId: string) {
       return tasks
         .filter(
-          (item) => item.companyId === companyId && item.status === "pending",
+          (item) =>
+            item.companyId === companyId &&
+            item.status === "pending" &&
+            item.type === "follow_up",
         )
-        .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+        .sort((a, b) => a.dueAt.localeCompare(b.dueAt))[0];
     }
   }, [
     companies,
@@ -236,9 +239,12 @@ export function CrmPage() {
   const nextTask = (companyId: string) =>
     tasks
       .filter(
-        (item) => item.companyId === companyId && item.status === "pending",
+        (item) =>
+          item.companyId === companyId &&
+          item.status === "pending" &&
+          item.type === "follow_up",
       )
-      .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+      .sort((a, b) => a.dueAt.localeCompare(b.dueAt))[0];
   const lastEvent = (companyId: string) =>
     events
       .filter((item) => item.companyId === companyId)
@@ -539,7 +545,7 @@ export function CrmPage() {
               render: (company) => (
                 <div className="text-sm">
                   {nextTask(company.id)
-                    ? formatDateTime(nextTask(company.id)?.dueDate)
+                    ? formatDateTime(nextTask(company.id)?.dueAt)
                     : "Nenhum"}
                   <p className="text-xs text-muted-foreground">
                     Última:{" "}
@@ -653,6 +659,9 @@ export function CrmPage() {
           (item) => item.id === selected?.pipelineId,
         )}
         stages={data.stages}
+        activities={data.events.filter(
+          (event) => event.opportunityId === selected?.id,
+        )}
         nextTask={selected ? nextTask(selected.companyId) : undefined}
         open={Boolean(selected)}
         onClose={() => setSelected(undefined)}
@@ -801,7 +810,7 @@ function OpportunityKanban({
                             </p>
                             {task && (
                               <p className="mt-2 text-xs">
-                                Próximo: {formatDateTime(task.dueDate)}
+                                Próximo: {formatDateTime(task.dueAt)}
                               </p>
                             )}
                           </button>

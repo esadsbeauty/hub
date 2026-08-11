@@ -81,6 +81,27 @@ export const followUpSchema = z.object({
   notes: optionalText,
 });
 export type FollowUpFormData = z.infer<typeof followUpSchema>;
+
+export const taskSchema = z.object({
+  companyId: z.string().optional(),
+  opportunityId: z.string().optional(),
+  title: z.string().trim().min(2, "Informe o título").max(120),
+  description: optionalText,
+  type: z.enum(["follow_up", "call", "whatsapp", "email", "meeting", "task"]),
+  priority: z.enum(["low", "medium", "high", "urgent"]),
+  assignedTo: z.string().min(1, "Selecione o responsável"),
+  date: z.string().min(1, "Informe a data"),
+  time: z.string().min(1, "Informe o horário"),
+  durationMinutes: z.number().min(5).max(1440).optional(),
+  locationType: z.enum(["online", "in_person", "phone", "other"]).optional(),
+  location: optionalText,
+  meetingUrl: z
+    .string()
+    .url("Informe uma URL válida")
+    .optional()
+    .or(z.literal("")),
+});
+export type TaskFormData = z.infer<typeof taskSchema>;
 export const activitySchema = z.object({
   title: z.string().trim().min(2, "Informe o título"),
   description: optionalText,

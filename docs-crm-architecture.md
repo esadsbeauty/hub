@@ -23,3 +23,9 @@ A Central da Empresa deriva o relacionamento a partir das oportunidades: negóci
 As operações do frontend passam por um data source único. Com as variáveis do Supabase configuradas, o CRM usa PostgreSQL e as políticas RLS; sem credenciais, utiliza somente o repositório local de preview. Nenhum componente acessa o cliente Supabase diretamente. As query keys permanecem centralizadas para permitir consultas paginadas por entidade sem alterar a UI.
 
 As migrations incrementais alinham o modelo operacional sem apagar registros: completam os campos de empresas e contatos, garantem um único contato principal ativo e registram automaticamente atividades de empresas, contatos, oportunidades, notas e tarefas. Novos perfis recebem o papel mínimo `member`; privilégios administrativos deixam de ser concedidos automaticamente no cadastro.
+
+## Agenda, tarefas e timeline
+
+`tasks` é a única fonte de planejamento operacional para follow-ups, ligações, WhatsApp, email, reuniões e tarefas genéricas. O vencimento usa `due_at TIMESTAMPTZ`; o banco persiste UTC e a interface converte para o fuso do navegador do usuário. “Atrasada” é uma condição calculada (`pending` e `due_at < now()`), nunca um status persistido.
+
+`activities` registra apenas fatos já ocorridos e permanece append-only para o usuário autenticado. Os RPCs `complete_task`, `reschedule_task` e `cancel_task` mantêm alteração e auditoria na mesma transação; o trigger registra autor, entidade, prazo anterior e novo prazo. A agenda consulta somente o intervalo diário, semanal ou mensal visível e mantém chaves de cache específicas por intervalo.
