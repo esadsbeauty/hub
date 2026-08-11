@@ -4,6 +4,7 @@ import { CrmPage } from "@/modules/crm/CrmPage";
 import { CompanyCentralPage } from "@/modules/crm/pages/CompanyCentralPage";
 import { DashboardPage } from "@/modules/dashboard/DashboardPage";
 import { AgendaPage } from "@/modules/agenda/AgendaPage";
+import { ReportsPage } from "@/modules/reports/ReportsPage";
 import { UnderDevelopment } from "@/modules/placeholder/UnderDevelopment";
 import { AppLayout } from "@/layouts/app-layout";
 import { ProtectedRoute } from "@/routes/protected-route";
@@ -30,24 +31,20 @@ export function App() {
           <Route path="crm/empresas/:id" element={<CompanyCentralPage />} />
           <Route path="crm/companies/:id" element={<CompanyCentralPage />} />
           <Route path="agenda" element={<AgendaPage />} />
-          {[
-            "clientes",
-            "financeiro",
-            "marketing",
-            "ia",
-            "relatorios",
-            "configuracoes",
-          ].map((path) => (
-            <Route
-              key={path}
-              path={path}
-              element={
-                <UnderDevelopment
-                  title={path[0].toUpperCase() + path.slice(1)}
-                />
-              }
-            />
-          ))}
+          <Route path="relatorios" element={<ReportsPage />} />
+          {["clientes", "financeiro", "marketing", "ia", "configuracoes"].map(
+            (path) => (
+              <Route
+                key={path}
+                path={path}
+                element={
+                  <UnderDevelopment
+                    title={path[0].toUpperCase() + path.slice(1)}
+                  />
+                }
+              />
+            ),
+          )}
         </Route>
       </Routes>
     </BrowserRouter>
