@@ -198,6 +198,13 @@ export type Database = {
       payables: Table<Base & { supplier_name:string; description:string; category_id:string|null; cost_center_id:string|null; competence_date:string; due_date:string; original_amount:number; discount_amount:number; interest_amount:number; penalty_amount:number; net_amount:number; status:"pending"|"partially_paid"|"paid"|"cancelled"|"refunded"; financial_account_id:string|null; notes:string|null; recurrence_rule_id:string|null; recurrence_key:string|null; created_by:string; cancelled_at:string|null; deleted_at:string|null }>;
       financial_transactions: Table<{ id:string; organization_id:string; financial_account_id:string; type:"income"|"expense"|"transfer"|"adjustment"; transfer_direction:"in"|"out"|null; amount:number; occurred_at:string; description:string; payment_method:string|null; reference:string|null; created_by:string; reversed_at:string|null; reversed_by:string|null; reversal_of_id:string|null; transfer_id:string|null; created_at:string }>;
       payment_allocations: Table<{ id:string; organization_id:string; transaction_id:string; receivable_id:string|null; payable_id:string|null; amount:number; created_at:string }>;
+      marketing_sources: Table<Base&{name:string;slug:string;channel:"paid_social"|"paid_search"|"organic_social"|"organic_search"|"referral"|"outbound"|"direct"|"partner"|"other";platform:string;type:string;is_paid:boolean;is_active:boolean}>;
+      marketing_campaigns: Table<Base&{source_id:string;provider:string;external_id:string|null;name:string;objective:string|null;status:"active"|"paused"|"completed"|"archived";start_date:string|null;end_date:string|null;budget:number|null;external_account_id:string|null;metadata:Json}>;
+      marketing_ad_groups: Table<Base&{campaign_id:string;external_id:string|null;name:string;status:string;metadata:Json}>;
+      marketing_ads: Table<Base&{campaign_id:string;ad_group_id:string|null;external_id:string|null;name:string;status:string;creative_name:string|null;destination_url:string|null;metadata:Json}>;
+      lead_acquisitions: Table<{id:string;organization_id:string;company_id:string;contact_id:string|null;opportunity_id:string|null;source_id:string|null;campaign_id:string|null;ad_group_id:string|null;ad_id:string|null;utm_source:string|null;utm_medium:string|null;utm_campaign:string|null;utm_content:string|null;utm_term:string|null;landing_page:string|null;referrer:string|null;gclid:string|null;fbclid:string|null;utm_id:string|null;captured_at:string;is_first_touch:boolean;metadata:Json;created_at:string}>;
+      marketing_spend: Table<Base&{provider:string;source_id:string|null;campaign_id:string|null;ad_group_id:string|null;ad_id:string|null;external_entity_id:string|null;date:string;amount:number;currency:string;impressions:number;reach:number;clicks:number;external_conversions:number;external_data:Json}>;
+      marketing_connections: Table<Base&{provider:string;external_account_id:string;name:string;status:"connected"|"disconnected"|"error"|"syncing";last_sync_at:string|null;last_successful_sync_at:string|null;sync_error:string|null}>;
     };
     Views: Record<string, never>;
     Functions: {
@@ -231,6 +238,7 @@ export type Database = {
       register_financial_payment: { Args:{ entry_kind:string; target_entry_id:string; target_account_id:string; payment_amount:number; payment_occurred_at:string; payment_method_value:string; payment_reference:string; payment_notes?:string }; Returns:string };
       reverse_financial_transaction: { Args:{target_transaction_id:string}; Returns:undefined };
       generate_recurring_entries: { Args:{target_rule_id:string;through_date:string}; Returns:number };
+      upsert_marketing_spend:{Args:{spend_data:Json};Returns:Database["public"]["Tables"]["marketing_spend"]["Row"]};
     };
     Enums: {
       profile_role: "admin" | "manager" | "sales" | "financial" | "member";

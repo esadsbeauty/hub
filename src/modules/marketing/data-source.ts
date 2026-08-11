@@ -1,0 +1,1 @@
+import{supabase}from"@/lib/supabase";import type{MarketingRepository}from"./repository-contract";import{marketingRepository}from"./repository";import{supabaseMarketingRepository}from"./supabase-repository";export const marketingDataSource:MarketingRepository=supabase?supabaseMarketingRepository:marketingRepository;
