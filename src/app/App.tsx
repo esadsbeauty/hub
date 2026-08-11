@@ -5,6 +5,7 @@ import { CompanyCentralPage } from "@/modules/crm/pages/CompanyCentralPage";
 import { DashboardPage } from "@/modules/dashboard/DashboardPage";
 import { AgendaPage } from "@/modules/agenda/AgendaPage";
 import { ReportsPage } from "@/modules/reports/ReportsPage";
+import { CustomersPage } from "@/modules/customers/CustomersPage";
 import { UnderDevelopment } from "@/modules/placeholder/UnderDevelopment";
 import { AppLayout } from "@/layouts/app-layout";
 import { ProtectedRoute } from "@/routes/protected-route";
@@ -32,7 +33,8 @@ export function App() {
           <Route path="crm/companies/:id" element={<CompanyCentralPage />} />
           <Route path="agenda" element={<AgendaPage />} />
           <Route path="relatorios" element={<ReportsPage />} />
-          {["clientes", "financeiro", "marketing", "ia", "configuracoes"].map(
+          <Route path="clientes" element={<CustomersPage />} />
+          {["financeiro", "marketing", "ia", "configuracoes"].map(
             (path) => (
               <Route
                 key={path}

@@ -125,7 +125,10 @@ export function useCrmActions() {
     }),
     markOpportunityWon: useMutation({
       mutationFn: crmDataSource.markOpportunityWon,
-      onSuccess: refresh,
+      onSuccess: async () => {
+        await client.invalidateQueries({ queryKey: ["customers"] });
+        await refresh();
+      },
       onError,
     }),
     markOpportunityLost: useMutation({

@@ -183,6 +183,13 @@ export type Database = {
           deleted_at: string | null;
         }
       >;
+      customer_accounts: Table<Base & { company_id: string; status: "onboarding" | "active" | "paused" | "cancelled" | "inactive"; client_since: string; owner_id: string | null; success_owner_id: string | null; source_opportunity_id: string | null; cancellation_reason: string | null; cancellation_notes: string | null; cancelled_at: string | null; archived_at: string | null }>;
+      services: Table<Base & { name: string; description: string | null; category: string | null; default_price: number | null; billing_type: "one_time" | "recurring" | "custom"; is_active: boolean }>;
+      customer_services: Table<Base & { customer_account_id: string; service_id: string; source_opportunity_id: string | null; status: "pending" | "active" | "paused" | "completed" | "cancelled"; start_date: string | null; end_date: string | null; agreed_price: number | null; billing_type: "one_time" | "recurring" | "custom"; billing_interval: "monthly" | "quarterly" | "yearly" | "one_time" | "custom"; owner_id: string | null; notes: string | null; cancelled_at: string | null; deleted_at: string | null }>;
+      onboardings: Table<Base & { customer_account_id: string; customer_service_id: string | null; source_opportunity_id: string | null; title: string; status: "not_started" | "in_progress" | "blocked" | "completed" | "cancelled"; owner_id: string | null; started_at: string | null; due_at: string | null; completed_at: string | null; deleted_at: string | null }>;
+      onboarding_steps: Table<Base & { onboarding_id: string; task_id: string | null; title: string; description: string | null; position: number; status: "pending" | "in_progress" | "completed" | "blocked" | "cancelled"; assigned_to: string | null; due_at: string | null; completed_at: string | null; blocked_by: "internal" | "client" | "external" | null; blocked_reason: string | null }>;
+      contracts: Table<Base & { customer_account_id: string; source_opportunity_id: string | null; title: string; status: "draft" | "sent" | "signed" | "active" | "expired" | "cancelled"; contract_number: string; start_date: string; end_date: string | null; signed_at: string | null; value: number | null; billing_type: "one_time" | "recurring" | "custom"; billing_interval: "monthly" | "quarterly" | "yearly" | "one_time" | "custom"; auto_renew: boolean; notice_days: number; owner_id: string | null; notes: string | null; cancelled_at: string | null; deleted_at: string | null }>;
+      contract_services: Table<{ contract_id: string; customer_service_id: string }>;
     };
     Views: Record<string, never>;
     Functions: {
@@ -211,6 +218,8 @@ export type Database = {
         Args: { target_task_id: string };
         Returns: Database["public"]["Tables"]["tasks"]["Row"];
       };
+      activate_customer_from_won_opportunity: { Args: { target_opportunity_id: string }; Returns: Database["public"]["Tables"]["customer_accounts"]["Row"] };
+      complete_onboarding_step: { Args: { target_step_id: string }; Returns: Database["public"]["Tables"]["onboarding_steps"]["Row"] };
     };
     Enums: {
       profile_role: "admin" | "manager" | "sales" | "financial" | "member";

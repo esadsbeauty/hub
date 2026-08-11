@@ -43,7 +43,19 @@ export type ActivityType =
   | "email_sent"
   | "owner_changed"
   | "deal_won"
-  | "deal_lost";
+  | "deal_lost"
+  | "customer_created"
+  | "customer_cancelled"
+  | "service_started"
+  | "service_paused"
+  | "service_cancelled"
+  | "onboarding_started"
+  | "onboarding_step_completed"
+  | "contract_created"
+  | "contract_sent"
+  | "contract_signed"
+  | "contract_expiring"
+  | "contract_cancelled";
 
 export type Organization = {
   id: string;

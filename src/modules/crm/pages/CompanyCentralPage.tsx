@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Edit, NotebookPen, Plus, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -29,9 +29,11 @@ import {
 } from "../components/company-sections";
 import type { CompanyContact, Opportunity } from "../types";
 import { formatDateTime } from "../utils/formatters";
-type Tab = "overview" | "opportunities" | "activities" | "contacts" | "tasks";
+import { CustomerWorkspace } from "@/modules/customers/components/customer-workspace";
+type Tab = "overview" | "customer" | "opportunities" | "activities" | "contacts" | "tasks";
 const tabs: { value: Tab; label: string }[] = [
   { value: "overview", label: "Visão geral" },
+  { value: "customer", label: "Pós-venda" },
   { value: "opportunities", label: "Oportunidades" },
   { value: "activities", label: "Atividades" },
   { value: "contacts", label: "Contatos" },
@@ -40,10 +42,11 @@ const tabs: { value: Tab; label: string }[] = [
 export function CompanyCentralPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { data, isLoading } = useCrmData();
   const actions = useCrmActions();
   const { notify } = useToast();
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<Tab>(() => searchParams.get("customer") === "1" ? "customer" : "overview");
   const [modal, setModal] = useState<
     | "edit"
     | "contact"
@@ -189,6 +192,7 @@ export function CompanyCentralPage() {
             notes={related.notes}
           />
         )}{" "}
+        {tab === "customer" && <CustomerWorkspace companyId={id} />}{" "}
         {tab === "opportunities" && (
           <CompanyOpportunities
             opportunities={related.opportunities}

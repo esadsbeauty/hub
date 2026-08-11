@@ -29,3 +29,12 @@ As migrations incrementais alinham o modelo operacional sem apagar registros: co
 `tasks` é a única fonte de planejamento operacional para follow-ups, ligações, WhatsApp, email, reuniões e tarefas genéricas. O vencimento usa `due_at TIMESTAMPTZ`; o banco persiste UTC e a interface converte para o fuso do navegador do usuário. “Atrasada” é uma condição calculada (`pending` e `due_at < now()`), nunca um status persistido.
 
 `activities` registra apenas fatos já ocorridos e permanece append-only para o usuário autenticado. Os RPCs `complete_task`, `reschedule_task` e `cancel_task` mantêm alteração e auditoria na mesma transação; o trigger registra autor, entidade, prazo anterior e novo prazo. A agenda consulta somente o intervalo diário, semanal ou mensal visível e mantém chaves de cache específicas por intervalo.
+
+## Fundação de pós-venda
+
+- `companies` continua sendo a identidade cadastral; `customer_accounts` representa o relacionamento de cliente e é único por organização/empresa.
+- O fechamento de uma oportunidade ativa o relacionamento de forma idempotente. Novas vendas da mesma empresa não duplicam a conta.
+- `services` é o catálogo configurável; `customer_services` preserva o serviço e o preço negociado de cada contratação. O valor é comercial/contratual e não representa pagamento.
+- `onboardings` descreve o processo, `onboarding_steps` descreve sua estrutura e `tasks` continua sendo a fonte de ações agendadas. O vínculo opcional é `onboarding_steps.task_id`.
+- `contracts.value` é o valor total do acordo; `customer_services.agreed_price` é o preço por intervalo do serviço. Contratos históricos não são sobrescritos.
+- A oportunidade atual ainda possui valor global. Vários itens por oportunidade exigirão `opportunity_items` quando houver regra de produto confirmada; a tabela não foi criada prematuramente.

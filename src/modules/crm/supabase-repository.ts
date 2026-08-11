@@ -97,6 +97,18 @@ function activityType(value: string): ActivityType {
     case "owner_changed":
     case "deal_won":
     case "deal_lost":
+    case "customer_created":
+    case "customer_cancelled":
+    case "service_started":
+    case "service_paused":
+    case "service_cancelled":
+    case "onboarding_started":
+    case "onboarding_step_completed":
+    case "contract_created":
+    case "contract_sent":
+    case "contract_signed":
+    case "contract_expiring":
+    case "contract_cancelled":
       return value;
     default:
       return "company_updated";
@@ -666,20 +678,17 @@ export const supabaseCrmRepository = defineCrmRepository({
     return opportunity(ensure(result.data, result.error), new Map());
   },
   async markOpportunityWon(id: string) {
-    const currentResult = await client()
+    const activation = await client().rpc(
+      "activate_customer_from_won_opportunity",
+      { target_opportunity_id: id },
+    );
+    if (activation.error) throw friendlyError(activation.error);
+    const updated = await client()
       .from("opportunities")
-      .select("pipeline_id")
+      .select("*")
       .eq("id", id)
       .single();
-    const current = ensure(currentResult.data, currentResult.error);
-    const stageResult = await client()
-      .from("pipeline_stages")
-      .select("id")
-      .eq("pipeline_id", current.pipeline_id)
-      .eq("is_won", true)
-      .single();
-    const stage = ensure(stageResult.data, stageResult.error);
-    return this.moveOpportunity(id, stage.id);
+    return opportunity(ensure(updated.data, updated.error), new Map());
   },
   async markOpportunityLost(id: string, input: LostOpportunityFormData) {
     const currentResult = await client()
