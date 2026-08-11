@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react";
 import {
   BriefcaseBusiness,
+  Building2,
   Calendar,
   CheckSquare,
   Clock3,
+  FileText,
   Mail,
   MessageCircle,
   NotebookPen,
+  PackageCheck,
   Phone,
   RefreshCw,
 } from "lucide-react";
@@ -22,6 +25,7 @@ type Filter =
   | "meetings"
   | "stages"
   | "deals"
+  | "customers"
   | "communications";
 const filters: { value: Filter; label: string }[] = [
   { value: "all", label: "Todas" },
@@ -31,6 +35,7 @@ const filters: { value: Filter; label: string }[] = [
   { value: "meetings", label: "Reuniões" },
   { value: "stages", label: "Etapas" },
   { value: "deals", label: "Negócios" },
+  { value: "customers", label: "Clientes" },
   { value: "communications", label: "Comunicações" },
 ];
 const activityLabels: Record<ActivityType, string> = {
@@ -57,6 +62,18 @@ const activityLabels: Record<ActivityType, string> = {
   deal_won: "Negócio ganho",
   deal_lost: "Negócio perdido",
   owner_changed: "Responsável alterado",
+  customer_created: "Cliente ativado",
+  customer_cancelled: "Cliente cancelado",
+  service_started: "Serviço iniciado",
+  service_paused: "Serviço pausado",
+  service_cancelled: "Serviço cancelado",
+  onboarding_started: "Onboarding iniciado",
+  onboarding_step_completed: "Etapa do onboarding concluída",
+  contract_created: "Contrato criado",
+  contract_sent: "Contrato enviado",
+  contract_signed: "Contrato assinado",
+  contract_expiring: "Contrato próximo do vencimento",
+  contract_cancelled: "Contrato cancelado",
 };
 function category(type: ActivityType): Filter {
   if (type === "note_created") return "notes";
@@ -64,6 +81,13 @@ function category(type: ActivityType): Filter {
   if (type.startsWith("meeting")) return "meetings";
   if (type === "stage_changed") return "stages";
   if (type === "deal_won" || type === "deal_lost") return "deals";
+  if (
+    type.startsWith("customer_") ||
+    type.startsWith("service_") ||
+    type.startsWith("onboarding_") ||
+    type.startsWith("contract_")
+  )
+    return "customers";
   if (
     type === "call_completed" ||
     type === "whatsapp_sent" ||
@@ -96,6 +120,10 @@ function ActivityIcon({ type }: { type: ActivityType }) {
   if (type.startsWith("task") || type.startsWith("followup"))
     return <CheckSquare {...props} />;
   if (type.startsWith("deal")) return <BriefcaseBusiness {...props} />;
+  if (type.startsWith("customer_")) return <Building2 {...props} />;
+  if (type.startsWith("service_")) return <PackageCheck {...props} />;
+  if (type.startsWith("onboarding_")) return <CheckSquare {...props} />;
+  if (type.startsWith("contract_")) return <FileText {...props} />;
   return <Clock3 {...props} />;
 }
 export function ActivityTimeline({
