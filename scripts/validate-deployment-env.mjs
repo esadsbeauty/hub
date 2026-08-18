@@ -1,9 +1,18 @@
 const required = ["VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY"];
 const missing = required.filter((name) => !process.env[name]?.trim());
 const isVercelBuild = process.env.VERCEL === "1";
+const vercelEnv = process.env.VERCEL_ENV ?? "unknown";
 const url = process.env.VITE_SUPABASE_URL?.trim();
 const key = process.env.VITE_SUPABASE_ANON_KEY?.trim();
 let invalid = false;
+
+if (isVercelBuild) {
+  console.log("[deployment-env]", JSON.stringify({
+    hasSupabaseUrl: Boolean(url),
+    hasSupabaseAnonKey: Boolean(key),
+    vercelEnv,
+  }));
+}
 
 function isPublicSupabaseKey(value) {
   if (value.startsWith("sb_publishable_")) return true;
@@ -30,7 +39,7 @@ if (!missing.length) {
 
 if (missing.length && isVercelBuild) {
   console.error(
-    `Deployment bloqueado: configure ${missing.join(" e ")} nos ambientes da Vercel antes de publicar.`,
+    `Deployment ${vercelEnv} bloqueado: configure ${missing.join(" e ")} para o ambiente ${vercelEnv} do projeto Vercel e faça um novo deployment.`,
   );
   process.exit(1);
 }

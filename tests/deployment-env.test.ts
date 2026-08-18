@@ -10,18 +10,26 @@ const run = (env: Record<string, string>) => spawnSync(process.execPath, [script
 
 describe("configuração de deployment", () => {
   test("bloqueia build Vercel sem variáveis obrigatórias", () => {
-    const result = run({ VERCEL: "1" });
+    const result = run({ VERCEL: "1", VERCEL_ENV: "preview" });
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("VITE_SUPABASE_URL");
+    expect(result.stderr).toContain("ambiente preview");
+    expect(result.stdout).toContain('"hasSupabaseUrl":false');
+    expect(result.stdout).toContain('"hasSupabaseAnonKey":false');
+    expect(result.stdout).toContain('"vercelEnv":"preview"');
   });
 
   test("aceita URL HTTPS e chave pública sem imprimir valores", () => {
     const result = run({
       VERCEL: "1",
+      VERCEL_ENV: "preview",
       VITE_SUPABASE_URL: "https://project.supabase.co",
       VITE_SUPABASE_ANON_KEY: "sb_publishable_example",
     });
     expect(result.status).toBe(0);
+    expect(result.stdout).toContain('"hasSupabaseUrl":true');
+    expect(result.stdout).toContain('"hasSupabaseAnonKey":true');
+    expect(result.stdout).toContain('"vercelEnv":"preview"');
     expect(result.stdout + result.stderr).not.toContain("project.supabase.co");
     expect(result.stdout + result.stderr).not.toContain("sb_publishable_example");
   });
@@ -32,6 +40,7 @@ describe("configuração de deployment", () => {
     const secretKey = `${header}.${payload}.signature`;
     const result = run({
       VERCEL: "1",
+      VERCEL_ENV: "preview",
       VITE_SUPABASE_URL: "https://project.supabase.co",
       VITE_SUPABASE_ANON_KEY: secretKey,
     });

@@ -21,6 +21,16 @@ Use a **Project URL** e a chave pública **anon/publishable** do projeto Supabas
 
 Repita o cadastro para cada escopo necessário. Uma variável configurada somente em **Production** não estará disponível em deployments de **Preview**. Depois de alterar qualquer variável, gere um novo deployment, pois o Vite incorpora os valores no bundle durante o build.
 
+Branches que não são a branch de produção — incluindo branches `codex/...` — normalmente geram deployments com `VERCEL_ENV=preview`. Para elas, as duas variáveis precisam estar explicitamente habilitadas no escopo **Preview**.
+
+Durante builds Vercel, o `prebuild` registra somente três informações não sensíveis: presença da URL, presença da chave pública e `VERCEL_ENV`. O resultado esperado para uma branch de preview é:
+
+```text
+[deployment-env] {"hasSupabaseUrl":true,"hasSupabaseAnonKey":true,"vercelEnv":"preview"}
+```
+
+Os valores da URL e da chave nunca são impressos.
+
 ## Obtenção dos valores
 
 No painel do Supabase, abra **Project Settings → API**:
