@@ -16,10 +16,12 @@ O CRM é o módulo principal e contém empresas, contatos, timeline, follow-ups,
 
 ## Execução
 
-1. Copie `.env.example` para `.env` e configure Supabase.
+1. Copie `.env.example` para `.env` e configure `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`.
 2. Rode a migration em `supabase/migrations`.
 3. Execute `npm install` e `npm run dev`.
 
-Com as duas variáveis Supabase configuradas, autenticação e CRM utilizam os repositórios PostgreSQL protegidos por RLS. Sem credenciais, o app libera o `localStorage` exclusivamente como modo de preview.
+As duas variáveis Supabase são obrigatórias para autenticação e acesso aos repositórios PostgreSQL protegidos por RLS. Sem elas, o acesso permanece bloqueado; não existe fallback de autenticação local.
+
+Para configurar Production, Preview e Development na Vercel, consulte [`DEPLOYMENT.md`](./DEPLOYMENT.md).
 
 As migrations devem ser aplicadas em ordem. Todas as evoluções do CRM são incrementais e preservam os registros existentes.
