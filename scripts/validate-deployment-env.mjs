@@ -5,6 +5,19 @@ const url = process.env.VITE_SUPABASE_URL?.trim();
 const key = process.env.VITE_SUPABASE_ANON_KEY?.trim();
 let invalid = false;
 
+function isPublicSupabaseKey(value) {
+  if (value.startsWith("sb_publishable_")) return true;
+  if (!value.startsWith("eyJ")) return false;
+
+  try {
+    const payload = value.split(".")[1];
+    if (!payload) return false;
+    return JSON.parse(Buffer.from(payload, "base64url").toString("utf8")).role === "anon";
+  } catch {
+    return false;
+  }
+}
+
 if (!missing.length) {
   try {
     const parsed = new URL(url);
@@ -12,7 +25,7 @@ if (!missing.length) {
   } catch {
     invalid = true;
   }
-  invalid ||= !key.startsWith("eyJ") && !key.startsWith("sb_publishable_");
+  invalid ||= !isPublicSupabaseKey(key);
 }
 
 if (missing.length && isVercelBuild) {

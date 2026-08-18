@@ -15,7 +15,19 @@ function isValidSupabaseUrl(value: string | undefined) {
 
 function isValidPublicKey(value: string | undefined) {
   if (!value || value.includes("your-anon-key")) return false;
-  return value.startsWith("eyJ") || value.startsWith("sb_publishable_");
+  if (value.startsWith("sb_publishable_")) return true;
+  if (!value.startsWith("eyJ")) return false;
+
+  try {
+    const [, payload] = value.split(".");
+    if (!payload) return false;
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const normalized = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    const decoded = JSON.parse(atob(normalized)) as { role?: string };
+    return decoded.role === "anon";
+  } catch {
+    return false;
+  }
 }
 
 const missing = !supabaseUrl || !supabaseAnonKey;
