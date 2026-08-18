@@ -1,4 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-@tailwind base;@tailwind components;@tailwind utilities;
-@layer base{:root{--background:42 35% 98%;--foreground:220 18% 7%;--card:0 0% 100%;--card-foreground:220 18% 7%;--muted:42 25% 94%;--muted-foreground:220 8% 42%;--border:42 18% 88%;--primary:220 18% 7%;--primary-foreground:42 35% 98%}.dark{--background:220 18% 7%;--foreground:42 35% 98%;--card:220 16% 10%;--card-foreground:42 35% 98%;--muted:220 14% 14%;--muted-foreground:42 10% 70%;--border:220 12% 18%;--primary:42 48% 70%;--primary-foreground:220 18% 7%}*{@apply border-border}body{@apply bg-background text-foreground font-sans antialiased} }
-@layer components{.glass{@apply border bg-white/75 shadow-premium backdrop-blur-xl dark:bg-white/5}.premium-focus{@apply focus:outline-none focus:ring-2 focus:ring-champagne/60 focus:ring-offset-2 focus:ring-offset-background}.smooth{@apply transition-all duration-200 ease-out}}
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@layer base {
+  :root {--background:36 23% 97%;--foreground:30 7% 10%;--card:0 0% 100%;--card-foreground:30 7% 10%;--muted:36 16% 94%;--muted-foreground:30 5% 43%;--border:35 13% 88%;--primary:30 7% 9%;--primary-foreground:36 23% 97%;--accent:39 43% 60%;--sidebar:0 0% 4%;--sidebar-muted:0 0% 65%;--success:151 32% 36%;--warning:26 58% 47%;--danger:3 48% 48%;--radius-card:1.125rem;--radius-control:.75rem}
+  .dark {--background:30 7% 8%;--foreground:36 23% 96%;--card:30 6% 11%;--card-foreground:36 23% 96%;--muted:30 5% 15%;--muted-foreground:35 8% 68%;--border:30 5% 20%;--primary:36 23% 96%;--primary-foreground:30 7% 9%}
+  *{@apply border-border} html{@apply bg-background} body{@apply bg-background font-sans text-foreground antialiased;font-feature-settings:'ss01' 1,'cv11' 1}button,input,select,textarea{font:inherit}::selection{background:hsl(var(--accent)/.22)}
+}
+@layer components {.glass{@apply bg-card shadow-soft}.premium-focus{@apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne/55 focus-visible:ring-offset-2 focus-visible:ring-offset-background}.smooth{@apply transition-colors duration-200 ease-out}.subtle-divider{@apply border-border/70}}

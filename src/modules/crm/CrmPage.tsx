@@ -290,9 +290,8 @@ export function CrmPage() {
   return (
     <PageContainer>
       <PageHeader
-        eyebrow="Centro comercial"
         title="CRM"
-        description="Empresas, contatos, oportunidades e próximos passos em uma visão única."
+        description="Empresas, oportunidades e próximos passos."
         actions={
           <>
             <Button variant="outline" onClick={() => setModal("followup")}>
@@ -758,14 +757,13 @@ function OpportunityKanban({
           return (
             <section
               key={stage.id}
-              className="min-w-72 rounded-2xl bg-muted/60 p-3"
+              className="min-w-72 rounded-2xl bg-muted/55 p-3"
               onDragOver={(event) => event.preventDefault()}
               onDrop={() => dragging && onMove(dragging, stage.id)}
             >
               <header className="mb-3">
-                <h2 className="font-bold">{stage.name}</h2>
-                <p className="text-xs text-muted-foreground">
-                  {rows.length} oportunidades ·{" "}
+                <h2 className="text-sm font-semibold">{stage.name} · {rows.length}</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
                   {currency.format(
                     rows.reduce((sum, item) => sum + item.value, 0),
                   )}
@@ -786,7 +784,7 @@ function OpportunityKanban({
                         draggable
                         onDragStart={() => setDragging(item)}
                         onDragEnd={() => setDragging(undefined)}
-                        className="cursor-grab smooth hover:-translate-y-0.5 hover:shadow-premium"
+                        className="cursor-grab ring-1 ring-black/[.025] transition-shadow hover:shadow-[0_10px_30px_rgba(24,20,16,.08)]"
                       >
                         <CardContent className="p-4">
                           <button
@@ -796,9 +794,9 @@ function OpportunityKanban({
                             <p className="text-xs font-semibold text-muted-foreground">
                               {company?.fantasyName}
                             </p>
-                            <h3 className="mt-1 font-bold">{item.title}</h3>
+                            <h3 className="mt-1 text-sm font-semibold">{item.title}</h3>
                             <div className="mt-3 flex items-center justify-between gap-2">
-                              <p className="font-bold">
+                              <p className="text-sm font-semibold">
                                 {currency.format(item.value)}
                               </p>
                               {company && (

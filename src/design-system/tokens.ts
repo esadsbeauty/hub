@@ -1,13 +1,8 @@
 export const designTokens = {
-  colors: {
-    black: '#050507',
-    white: '#FFFFFF',
-    champagne: '#D8C18D',
-    champagneDark: '#A98B4D',
-    surface: '#FAF8F3',
-    muted: '#F4F1EA',
-  },
-  radii: { sm: '0.625rem', md: '0.875rem', lg: '1rem', xl: '1.35rem' },
-  shadows: { premium: '0 24px 80px -32px rgba(0,0,0,.35)' },
-  layout: { sidebar: '18rem', content: '88rem' },
+  colors: { background:'#FAF9F7',sidebar:'#0B0B0B',foreground:'#1C1A18',card:'#FFFFFF',muted:'#F3F1ED',champagne:'#C7A86B',success:'#3E7B5C',warning:'#A96632',danger:'#A94D47' },
+  spacing: { xs:'.25rem',sm:'.5rem',md:'.75rem',lg:'1rem',xl:'1.5rem','2xl':'2rem','3xl':'2.5rem','4xl':'3rem' },
+  radii: { sm:'.625rem',control:'.75rem',card:'1.125rem',overlay:'1.5rem' },
+  shadows: { soft:'0 1px 2px rgba(24,20,16,.025), 0 8px 28px rgba(24,20,16,.045)',overlay:'0 24px 70px -28px rgba(11,11,11,.34)' },
+  typography: { family:'Manrope, ui-sans-serif, system-ui, sans-serif',pageTitle:'1.75rem',sectionTitle:'1.125rem',body:'.875rem' },
+  transitions: { fast:'150ms',default:'200ms' }, layout: { sidebar:'16rem',content:'90rem' },
 } as const;

@@ -172,9 +172,8 @@ export function AgendaPage() {
   return (
     <PageContainer>
       <PageHeader
-        eyebrow="Execução operacional"
         title="Agenda"
-        description="Follow-ups, reuniões e tarefas integrados às empresas e oportunidades."
+        description="Sua rotina de follow-ups, reuniões e tarefas."
         actions={
           <Button onClick={() => setModalOpen(true)}>
             <Plus size={16} /> Nova atividade

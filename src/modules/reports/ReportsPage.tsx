@@ -84,16 +84,11 @@ export function ReportsPage() {
   return (
     <PageContainer>
       <PageHeader
-        eyebrow="Revenue Operations"
-        title="Relatórios Comerciais"
-        description="Indicadores auditáveis de pipeline, vendas ganhas, forecast e performance. Vendas não representam recebimentos financeiros."
+        title="Relatórios"
+        description="Performance comercial e evolução da operação."
       />
       <div className="mt-5 space-y-4">
-        <AnalyticsFiltersBar
-          data={crm.data}
-          filters={filters}
-          onChange={setFilters}
-        />
+        <details><summary className="w-fit cursor-pointer list-none rounded-xl border border-border/70 bg-card px-3 py-2 text-sm font-medium">Filtros</summary><div className="mt-2"><AnalyticsFiltersBar data={crm.data} filters={filters} onChange={setFilters}/></div></details>
         <Tabs tabs={tabs} value={tab} onChange={setTab} />
       </div>
       <div className="mt-6 space-y-6">

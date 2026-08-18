@@ -1,7 +1,1 @@
-import { X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-
-export function Modal({ open, title, children, onClose }: { open: boolean; title: string; children: React.ReactNode; onClose: () => void }) {
-  if (!open) return null;
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4"><div className="glass max-h-[92vh] w-full max-w-4xl overflow-auto rounded-[1.6rem] bg-card p-6"><div className="mb-5 flex items-center justify-between"><h2 className="text-xl font-bold">{title}</h2><Button variant="ghost" size="sm" onClick={onClose}><X size={18}/></Button></div>{children}</div></div>;
-}
+import{X}from'lucide-react';import{Button}from'@/components/ui/button';export function Modal({open,title,onClose,children}:{open:boolean;title:string;onClose:()=>void;children:React.ReactNode}){if(!open)return null;return <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4 backdrop-blur-[2px]"><div className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-[1.5rem] bg-card p-5 shadow-overlay md:p-6"><div className="mb-5 flex items-center justify-between"><h2 className="text-lg font-semibold">{title}</h2><Button variant="ghost" size="sm" aria-label="Fechar" onClick={onClose}><X size={17}/></Button></div>{children}</div></div>}

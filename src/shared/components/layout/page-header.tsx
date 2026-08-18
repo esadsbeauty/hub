@@ -1,14 +1,1 @@
-import { ReactNode } from 'react';
-
-export function PageHeader({ title, eyebrow, description, actions }: { title: string; eyebrow?: string; description?: string; actions?: ReactNode }) {
-  return (
-    <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-      <div>
-        {eyebrow && <p className="text-xs font-bold uppercase tracking-[.28em] text-champagne-dark">{eyebrow}</p>}
-        <h1 className="mt-1 text-3xl font-extrabold tracking-tight md:text-5xl">{title}</h1>
-        {description && <p className="mt-2 max-w-3xl text-muted-foreground">{description}</p>}
-      </div>
-      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
-    </div>
-  );
-}
+import type {ReactNode} from 'react';export function PageHeader({title,eyebrow,description,actions}:{title:string;eyebrow?:string;description?:string;actions?:ReactNode}){return <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center"><div>{eyebrow&&<p className="mb-1 text-[11px] font-semibold uppercase tracking-[.18em] text-muted-foreground">{eyebrow}</p>}<h1 className="text-2xl font-semibold tracking-[-.035em] md:text-[1.75rem]">{title}</h1>{description&&<p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>}</div>{actions&&<div className="flex flex-wrap items-center gap-2">{actions}</div>}</div>}
