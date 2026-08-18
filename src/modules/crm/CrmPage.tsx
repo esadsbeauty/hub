@@ -1,5 +1,5 @@
-import { useDeferredValue, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Building2,
   CalendarClock,
@@ -72,6 +72,7 @@ const emptyFilters: Filters = {
 };
 export function CrmPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data, isLoading, isError, refetch } = useCrmData();
   const actions = useCrmActions();
   const { notify } = useToast();
@@ -79,7 +80,7 @@ export function CrmPage() {
     () => sessionStorage.getItem("crm-query") ?? "",
   );
   const deferredQuery = useDeferredValue(query);
-  const [view, setView] = useState<View>("kanban");
+  const [view, setView] = useState<View>(() => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches ? "list" : "kanban");
   const [sort, setSort] = useState<Sort>("newest");
   const [filters, setFilters] = useState<Filters>(() => {
     const saved = sessionStorage.getItem("crm-filters");
@@ -92,6 +93,8 @@ export function CrmPage() {
   const [duplicates, setDuplicates] = useState<Company[]>([]);
   const [selected, setSelected] = useState<Opportunity>();
   const [quickCompanyId, setQuickCompanyId] = useState("");
+  useEffect(() => { const requested = searchParams.get("new"); if (requested === "company" || requested === "opportunity") setModal(requested); }, [searchParams]);
+  const closeModal = () => { setModal(null); if (searchParams.has("new")) { const next = new URLSearchParams(searchParams); next.delete("new"); next.delete("quick"); setSearchParams(next, { replace: true }); } };
   const updateFilters = (next: Filters) => {
     setFilters(next);
     sessionStorage.setItem("crm-filters", JSON.stringify(next));
@@ -561,10 +564,10 @@ export function CrmPage() {
       <Modal
         open={modal === "company"}
         title="Nova empresa"
-        onClose={() => setModal(null)}
+        onClose={closeModal}
       >
         <CompanyForm
-          onCancel={() => setModal(null)}
+          onCancel={closeModal}
           onSubmit={(form) => submitCompany(form)}
         />
       </Modal>
@@ -605,13 +608,13 @@ export function CrmPage() {
       <Modal
         open={modal === "opportunity"}
         title="Nova oportunidade"
-        onClose={() => setModal(null)}
+        onClose={closeModal}
       >
         <OpportunityForm
           companies={companies}
           pipelines={data.pipelines}
           stages={data.stages}
-          onCancel={() => setModal(null)}
+          onCancel={closeModal}
           onSubmit={async (form) => {
             await actions.createOpportunity.mutateAsync(form);
             setModal(null);
@@ -622,7 +625,7 @@ export function CrmPage() {
       <Modal
         open={modal === "followup"}
         title="Novo follow-up"
-        onClose={() => setModal(null)}
+        onClose={closeModal}
       >
         <div className="space-y-3">
           <Select

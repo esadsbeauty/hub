@@ -1,10 +1,8 @@
-import { supabase } from "@/lib/supabase";
-import { crmRepository } from "./repository";
 import { supabaseCrmRepository } from "./supabase-repository";
 import type { FollowUpFormData, TaskFormData } from "./schema";
-import type { Task } from "./types";
+import type { CompanyFile, Task } from "./types";
 
-const source = supabase ? supabaseCrmRepository : crmRepository;
+const source = supabaseCrmRepository;
 
 export const crmDataSource = {
   list: () => source.list(),
@@ -62,10 +60,10 @@ export const crmDataSource = {
     companyId: string,
     input: Parameters<typeof source.createActivity>[1],
   ) => source.createActivity(companyId, input),
-  addFile: supabase
-    ? async () => {
-        throw new Error("Arquivos ainda não estão disponíveis neste ambiente.");
-      }
-    : (companyId: string, file: Parameters<typeof crmRepository.addFile>[1]) =>
-        crmRepository.addFile(companyId, file),
+  addFile: async (
+    _companyId: string,
+    _file: Omit<CompanyFile, "id" | "organizationId" | "companyId" | "user" | "createdAt">,
+  ) => {
+    throw new Error("Arquivos ainda não estão disponíveis neste ambiente.");
+  },
 };
