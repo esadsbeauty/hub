@@ -1,5 +1,7 @@
 # Deploy na Vercel
 
+O rollout definitivo do banco, inventário completo das migrations e checklist pós-`db push` estão em [`SUPABASE_DEPLOYMENT.md`](./SUPABASE_DEPLOYMENT.md).
+
 ## Modos da aplicação
 
 A aplicação possui uma única seleção central de infraestrutura:

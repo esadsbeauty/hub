@@ -1,0 +1,19 @@
+# Local CLI configuration only. Remote project refs and credentials must never be committed.
+project_id = "esads-beauty-hub"
+
+[api]
+enabled = true
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+major_version = 15
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173/aceitar-convite"]
+
+[functions.invite-user]
+verify_jwt = true

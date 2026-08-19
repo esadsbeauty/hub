@@ -67,4 +67,14 @@ describe("configuração de deployment", () => {
     expect(example).toContain("VITE_APP_MODE=supabase");
     expect(example).not.toContain("SERVICE_ROLE");
   });
+
+  test("audita a sequência completa sem operações destrutivas de dados", () => {
+    const result = spawnSync(process.execPath, ["scripts/audit-supabase-migrations.mjs"], { encoding: "utf8" });
+    expect(result.status).toBe(0);
+    const audit = JSON.parse(result.stdout) as { migrations: number; ordered: string[]; destructive: string[] };
+    expect(audit.migrations).toBe(13);
+    expect(audit.ordered[0]).toBe("202607290001_initial_crm.sql");
+    expect(audit.ordered.at(-1)).toBe("202608190002_harden_initial_owner_eligibility.sql");
+    expect(audit.destructive).toEqual([]);
+  });
 });

@@ -10,7 +10,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "db:audit": "node scripts/audit-supabase-migrations.mjs",
+    "db:dry-run": "npm run db:audit && supabase db push --dry-run",
+    "db:push": "npm run db:audit && supabase db push"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
