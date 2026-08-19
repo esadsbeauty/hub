@@ -2,7 +2,7 @@
 
 ## Migration inventory
 
-The repository contains 14 ordered migrations. They must be applied as one history; never apply the first migration in isolation.
+The repository contains 15 ordered migrations. They must be applied as one history; never apply the first migration in isolation.
 
 | Order | Migration | Scope and dependencies | Classification |
 |---:|---|---|---|
@@ -20,6 +20,7 @@ The repository contains 14 ordered migrations. They must be applied as one histo
 | 12 | `202608190001_self_service_initial_owner.sql` | Removes the arbitrary-user Owner claim and introduces authenticated bootstrap status/claim using `auth.uid()`. | Security replacement. |
 | 13 | `202608190002_harden_initial_owner_eligibility.sql` | Reserves bootstrap to the earliest Auth user, locks concurrent claims, backfills profile/membership and grants Owner permissions. | Current bootstrap implementation. |
 | 14 | `202608190003_public_registration_access_requests.sql` | Adds controlled public registration, atomic first-Owner resolution, pending memberships and audited approval/rejection without exposing role or organization choices to the client. | Current registration lifecycle. |
+| 15 | `202608200001_blog_foundation.sql` | Adds the organization-aware public blog, editorial permissions, publication RLS, safe public RPCs, audit events and the dedicated public image bucket. | Acquisition foundation. |
 
 There is no `seed.sql`: structural seeds are idempotent statements inside migrations. No commercial demo data is inserted. The checked-in history contains no migration whose final company security model is `auth.uid() = companies.user_id`; the foundational schema already uses `organization_id`, `created_by` and `owner_id`.
 

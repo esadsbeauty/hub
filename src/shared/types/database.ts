@@ -207,6 +207,8 @@ export type Database = {
       lead_acquisitions: Table<{id:string;organization_id:string;company_id:string;contact_id:string|null;opportunity_id:string|null;source_id:string|null;campaign_id:string|null;ad_group_id:string|null;ad_id:string|null;provider:string|null;external_event_id:string|null;utm_source:string|null;utm_medium:string|null;utm_campaign:string|null;utm_content:string|null;utm_term:string|null;landing_page:string|null;referrer:string|null;gclid:string|null;fbclid:string|null;utm_id:string|null;captured_at:string;is_first_touch:boolean;is_last_touch:boolean;metadata:Json;created_by:string|null;created_at:string}>;
       marketing_spend: Table<Base&{provider:string;source_id:string|null;campaign_id:string|null;ad_group_id:string|null;ad_id:string|null;external_entity_id:string|null;date:string;amount:number;currency:string;impressions:number;reach:number;clicks:number;external_conversions:number;external_data:Json}>;
       marketing_connections: Table<Base&{provider:string;external_account_id:string;name:string;status:"connected"|"disconnected"|"error"|"syncing";last_sync_at:string|null;last_successful_sync_at:string|null;sync_error:string|null}>;
+      blog_categories: Table<{id:string;organization_id:string;name:string;slug:string;created_at:string;updated_at:string}>;
+      blog_posts: Table<{id:string;organization_id:string;title:string;slug:string;excerpt:string;content:string;cover_image_path:string|null;category_id:string|null;status:"draft"|"published"|"archived";author_id:string;published_at:string|null;seo_title:string|null;seo_description:string|null;created_at:string;updated_at:string;deleted_at:string|null}>;
       permissions: Table<{id:string;key:string;name:string;description:string;module:string;created_at:string}>;
       roles: Table<{id:string;organization_id:string|null;name:string;slug:string;is_system:boolean;created_at:string;updated_at:string}>;
       role_permissions: Table<{role_id:string;permission_id:string}>;
@@ -215,6 +217,8 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      public_blog_posts: { Args: { search_term?: string | null; category_slug?: string | null; page_offset?: number; page_limit?: number }; Returns: Json };
+      public_blog_post: { Args: { post_slug: string }; Returns: Json };
       current_organization_id: { Args: Record<string, never>; Returns: string };
       create_default_pipeline: {
         Args: { target_organization_id: string };

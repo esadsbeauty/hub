@@ -8,3 +8,12 @@
   *{@apply border-border} html{@apply bg-background} body{@apply bg-background font-sans text-foreground antialiased;font-feature-settings:'ss01' 1,'cv11' 1}button,input,select,textarea{font:inherit}::selection{background:hsl(var(--accent)/.22)}
 }
 @layer components {.glass{@apply bg-card shadow-soft}.premium-focus{@apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne/55 focus-visible:ring-offset-2 focus-visible:ring-offset-background}.smooth{@apply transition-colors duration-200 ease-out}.subtle-divider{@apply border-border/70}}
+@layer components {
+  .blog-prose{@apply text-[17px] leading-8 text-foreground md:text-lg md:leading-9}
+  .blog-prose p{@apply my-6}
+  .blog-prose h2{@apply mb-4 mt-12 text-[1.75rem] font-semibold leading-tight tracking-[-.04em] md:text-3xl}
+  .blog-prose h3{@apply mb-3 mt-9 text-[1.35rem] font-semibold leading-tight tracking-[-.025em] md:text-2xl}
+  .blog-prose ul{@apply my-6 list-disc space-y-2 pl-6}
+  .blog-prose blockquote{@apply my-8 border-l-4 border-champagne bg-champagne-soft/60 px-5 py-4 text-lg italic leading-8}
+  .blog-prose a{@apply font-semibold text-champagne-dark underline decoration-champagne/50 underline-offset-4}
+}

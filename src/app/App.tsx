@@ -18,6 +18,7 @@ import { RestrictedAccessPage } from "@/modules/settings/RestrictedAccessPage";
 import { InitialOwnerPage } from "@/modules/settings/InitialOwnerPage";
 import { InviteAcceptancePage } from "@/modules/auth/InviteAcceptancePage";
 import { useAuth } from "@/providers/auth-context";
+import { BlogCmsPage } from "@/modules/blog/pages/BlogCmsPage";
 
 function LoginRoute() {
   const { user, passwordRecovery } = useAuth();
@@ -50,6 +51,7 @@ export function App() {
           <Route path="clientes" element={<PermissionRoute permission="customers.view"><CustomersPage /></PermissionRoute>} />
           <Route path="financeiro" element={<PermissionRoute permission="finance.view"><FinancePage /></PermissionRoute>} />
           <Route path="marketing" element={<PermissionRoute permission="marketing.view"><MarketingPage /></PermissionRoute>} />
+          <Route path="marketing/blog" element={<PermissionRoute permission="blog.view"><BlogCmsPage /></PermissionRoute>} />
           <Route path="configuracoes" element={<PermissionRoute permission="settings.view"><SettingsPage /></PermissionRoute>} />
           {["ia"].map(
             (path) => (

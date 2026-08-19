@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /blog
+Disallow: /login
+Disallow: /marketing/blog
+Sitemap: https://esadsbeauty.vercel.app/sitemap.xml
