@@ -64,14 +64,15 @@ Em desenvolvimento, a aplicação registra apenas se a configuração está ause
 
 ## Gestão de usuários pela Edge Function
 
-A função `invite-user` executa convites, reenvios, cancelamentos e o bootstrap inicial. Configure no ambiente seguro das Edge Functions:
+A função `invite-user` executa convites, reenvios e cancelamentos. Configure no ambiente seguro das Edge Functions:
 
 ```text
 APP_ORIGIN=https://esadsbeauty.vercel.app
-INITIAL_OWNER_EMAIL=email-do-responsavel@empresa.com
 ```
 
-`APP_ORIGIN` define a única origem aceita e o redirect de criação de senha. Use sempre o domínio principal de produção, nunca um Preview temporário. `INITIAL_OWNER_EMAIL` é uma allowlist para o bootstrap único; depois que o Owner existir, o banco rejeita qualquer segundo claim mesmo que a variável permaneça configurada.
+`APP_ORIGIN` define a única origem aceita e o redirect de criação de senha. Use sempre o domínio principal de produção, nunca um Preview temporário.
+
+O bootstrap inicial é executado diretamente por uma RPC autenticada. Ela só fica disponível quando existe exatamente um usuário em `auth.users`, não há membro ativo e não existe Owner. A identidade é sempre derivada de `auth.uid()`; nenhum email é hardcodado no frontend ou enviado livremente pelo cliente.
 
 `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` são consumidas somente dentro da Edge Function. A chave privilegiada nunca deve receber prefixo `VITE_`, ser enviada à Vercel como variável do frontend ou aparecer em logs.
 

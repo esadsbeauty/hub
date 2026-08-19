@@ -24,25 +24,6 @@ Deno.serve(async (request) => {
   const payload = await request.json().catch(() => ({})) as { action?: string; name?: string; email?: string; roleId?: string; memberId?: string };
   const action = payload.action ?? "invite";
 
-  if (action === "bootstrap_status" || action === "claim_owner") {
-    const initialOwnerEmail = Deno.env.get("INITIAL_OWNER_EMAIL")?.trim().toLowerCase();
-    const currentEmail = auth.user.email?.trim().toLowerCase();
-    const { data: organization } = await admin.from("organizations").select("id,name").eq("slug", "esads-beauty").maybeSingle();
-    if (!organization) return reply(409, { code: "organization_not_found", message: "Organização inicial não encontrada." });
-    const [{ count: activeCount }, { data: owner }] = await Promise.all([
-      admin.from("organization_members").select("id", { count: "exact", head: true }).eq("organization_id", organization.id).eq("status", "active"),
-      admin.from("organization_members").select("id,roles!inner(slug)").eq("organization_id", organization.id).eq("roles.slug", "owner").limit(1).maybeSingle(),
-    ]);
-    const available = (activeCount ?? 0) === 0 && !owner;
-    const eligible = available && Boolean(initialOwnerEmail) && currentEmail === initialOwnerEmail;
-    if (action === "bootstrap_status") return reply(200, { available, eligible, organizationName: organization.name });
-    if (!eligible) return reply(403, { code: "bootstrap_denied", message: "A configuração inicial não está disponível para este usuário." });
-    const name = payload.name?.trim();
-    if (!name) return reply(400, { code: "invalid_name", message: "Informe seu nome." });
-    const { error } = await admin.rpc("claim_initial_owner", { target_user_id: auth.user.id, target_name: name });
-    if (error) return reply(409, { code: "bootstrap_unavailable", message: "A configuração inicial já foi concluída ou não está mais disponível." });
-    return reply(200, { message: "Acesso de Administrador Geral ativado." });
-  }
 
   const { data: allowed } = await userClient.rpc("has_permission", { required_permission: "users.manage" });
   if (!allowed) return reply(403, { code: "permission_denied", message: "Você não possui permissão para gerenciar usuários." });

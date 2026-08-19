@@ -16,6 +16,6 @@ export const governanceRepository = {
   inviteUser(input: { name: string; email: string; roleId: string }) { return invoke<{ message: string }>({ action: "invite", ...input }, "Não foi possível enviar o convite."); },
   resendInvite(memberId: string) { return invoke<{ message: string }>({ action: "resend", memberId }, "Não foi possível reenviar o convite."); },
   cancelInvite(memberId: string) { return invoke<{ message: string }>({ action: "cancel", memberId }, "Não foi possível cancelar o convite."); },
-  bootstrapStatus() { return invoke<BootstrapStatus>({ action: "bootstrap_status" }, "Não foi possível validar a configuração inicial."); },
-  claimInitialOwner(name: string) { return invoke<{ message: string }>({ action: "claim_owner", name }, "Não foi possível ativar o Administrador Geral."); },
+  async bootstrapStatus(): Promise<BootstrapStatus> { const result = await client().rpc("initial_owner_bootstrap_status"); fail(result.error, "Não foi possível validar a configuração inicial."); return result.data as unknown as BootstrapStatus; },
+  async claimInitialOwner(name: string) { const result = await client().rpc("claim_initial_owner", { target_name: name }); fail(result.error, "Não foi possível ativar o Administrador Geral."); return result.data; },
 };
