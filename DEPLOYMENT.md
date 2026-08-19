@@ -72,7 +72,9 @@ APP_ORIGIN=https://esadsbeauty.vercel.app
 
 `APP_ORIGIN` define a única origem aceita e o redirect de criação de senha. Use sempre o domínio principal de produção, nunca um Preview temporário.
 
-O bootstrap inicial é executado diretamente por uma RPC autenticada. Ela só fica disponível quando existe exatamente um usuário em `auth.users`, não há membro ativo e não existe Owner. A identidade é sempre derivada de `auth.uid()`; nenhum email é hardcodado no frontend ou enviado livremente pelo cliente.
+O bootstrap inicial é executado diretamente por uma RPC autenticada. Aplique **todas** as migrations em ordem, incluindo `202608190001_self_service_initial_owner.sql` e `202608190002_harden_initial_owner_eligibility.sql`; se a RPC não existir, a interface mostra explicitamente que a configuração do banco está pendente em vez de classificar o usuário como sem autorização.
+
+Enquanto não existir Owner ativo, o bootstrap é reservado de forma determinística ao usuário mais antigo de `auth.users` (ordenado por `created_at` e `id`). Assim, registros Auth adicionais não bloqueiam o usuário principal, mas o segundo usuário também não pode reivindicar a organização. O claim usa `auth.uid()`, lock transacional e uma segunda verificação de Owner no banco; nenhum email, usuário ou organização é aceito livremente do frontend.
 
 `SUPABASE_URL`, `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` são consumidas somente dentro da Edge Function. A chave privilegiada nunca deve receber prefixo `VITE_`, ser enviada à Vercel como variável do frontend ou aparecer em logs.
 

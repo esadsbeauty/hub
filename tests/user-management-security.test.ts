@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
 const lifecycleMigration = readFileSync("supabase/migrations/202608180002_user_management_bootstrap.sql", "utf8");
-const bootstrapMigration = readFileSync("supabase/migrations/202608190001_self_service_initial_owner.sql", "utf8");
+const bootstrapMigration = readFileSync("supabase/migrations/202608190002_harden_initial_owner_eligibility.sql", "utf8");
+const ownerPage = readFileSync("src/modules/settings/InitialOwnerPage.tsx", "utf8");
 const edge = readFileSync("supabase/functions/invite-user/index.ts", "utf8");
 const appState = readFileSync("src/shared/state/app-state.tsx", "utf8");
 
@@ -18,7 +19,8 @@ describe("bootstrap seguro do primeiro Owner", () => {
   test("usa lock transacional e fecha o bootstrap depois do primeiro Owner", () => {
     expect(bootstrapMigration).toContain("pg_advisory_xact_lock");
     expect(bootstrapMigration).toContain("initial_owner_already_claimed");
-    expect(bootstrapMigration).toContain("auth_user_count<>1");
+    expect(bootstrapMigration).toContain("order by created_at,id limit 1");
+    expect(bootstrapMigration).toContain("initial_owner_reserved_for_initial_auth_user");
     expect(bootstrapMigration).toContain("r.slug='owner'");
   });
 
@@ -32,6 +34,12 @@ describe("bootstrap seguro do primeiro Owner", () => {
   test("Owner recebe todo o catálogo de permissões", () => {
     expect(bootstrapMigration).toContain("insert into public.role_permissions");
     expect(bootstrapMigration).toContain("select owner_role_id,id from public.permissions");
+  });
+
+  test("distingue schema ausente de um usuário realmente sem autorização", () => {
+    expect(ownerPage).toContain("Configuração do banco pendente");
+    expect(ownerPage).toContain("bootstrap.isError");
+    expect(ownerPage).toContain("Acesso pendente");
   });
 });
 
