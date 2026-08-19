@@ -33,28 +33,31 @@ Por isso, no modo local não são registrados listeners do Supabase Auth, não �
 No modo Supabase, o frontend usa estas variáveis públicas, incorporadas pelo Vite durante o build:
 
 ```text
+VITE_SITE_URL
 VITE_SUPABASE_URL
 VITE_SUPABASE_ANON_KEY
 ```
 
-Use a **Project URL** e a chave pública **anon/publishable** do projeto Supabase. Nunca configure `SUPABASE_SERVICE_ROLE_KEY`, access tokens ou refresh tokens no frontend.
+Em Production, configure `VITE_SITE_URL=https://esadsbeauty.vercel.app`. Essa URL central é usada por cadastro e recuperação de senha; em desenvolvimento, quando ela estiver vazia, a aplicação usa a origem atual do navegador. Use a **Project URL** e a chave pública **anon/publishable** do projeto Supabase. Nunca configure `SUPABASE_SERVICE_ROLE_KEY`, access tokens ou refresh tokens no frontend.
 
 ## Configuração
 
 1. Na Vercel, abra **Project Settings → Environment Variables**.
-2. Cadastre as duas variáveis sem aspas, espaços ou quebras de linha.
+2. Cadastre as três variáveis sem aspas, espaços ou quebras de linha.
 3. Marque **Production**, **Preview** e **Development** conforme o ambiente que deverá autenticar.
 4. Salve e execute um novo deployment. Variáveis Vite são resolvidas durante o build; alterar o painel não modifica um bundle já publicado.
-5. No Supabase, em **Authentication → URL Configuration**, mantenha a URL de produção e os redirects de preview autorizados para os fluxos de recuperação de senha.
+5. No Supabase, em **Authentication → URL Configuration**, configure **Site URL** como `https://esadsbeauty.vercel.app` e autorize `https://esadsbeauty.vercel.app`, `https://esadsbeauty.vercel.app/login` e `https://esadsbeauty.vercel.app/aceitar-convite` em **Redirect URLs**. Adicione URLs de Preview somente quando o ambiente realmente precisar autenticar.
 
-Repita o cadastro para cada escopo necessário. Uma variável configurada somente em **Production** não estará disponível em deployments de **Preview**. Depois de alterar qualquer variável, gere um novo deployment, pois o Vite incorpora os valores no bundle durante o build.
+Se o Supabase receber um redirect não autorizado, ele pode recorrer à **Site URL** configurada no painel. Portanto, um `redirect_to=http://localhost:3000` pode vir tanto do bundle antigo quanto de uma Site URL antiga no Supabase: atualize os dois locais e gere um novo deployment Vercel.
 
-Branches que não são a branch de produção — incluindo branches `codex/...` — normalmente geram deployments com `VERCEL_ENV=preview`. Para elas, as duas variáveis precisam estar explicitamente habilitadas no escopo **Preview**.
+Repita o cadastro para cada escopo necessário. Uma variável configurada somente em **Production** não estará disponível em deployments de **Preview**. Para Preview Supabase, use a URL pública daquele deployment em `VITE_SITE_URL` e autorize-a no Supabase; para Preview local, a variável pode permanecer vazia. Depois de alterar qualquer variável, gere um novo deployment, pois o Vite incorpora os valores no bundle durante o build.
 
-Durante builds Vercel, o `prebuild` registra somente três informações não sensíveis: presença da URL, presença da chave pública e `VERCEL_ENV`. O resultado esperado para uma branch de preview é:
+Branches que não são a branch de produção — incluindo branches `codex/...` — normalmente geram deployments com `VERCEL_ENV=preview`. Para elas, as três variáveis precisam estar explicitamente habilitadas no escopo **Preview** quando o modo Supabase for utilizado.
+
+Durante builds Vercel, o `prebuild` registra somente informações não sensíveis: modo, presença da URL pública, presença da URL Supabase, presença da chave pública e `VERCEL_ENV`. O resultado esperado para uma branch de preview é:
 
 ```text
-[deployment-env] {"hasSupabaseUrl":true,"hasSupabaseAnonKey":true,"vercelEnv":"preview"}
+[deployment-env] {"appMode":"supabase","hasSiteUrl":true,"hasSupabaseUrl":true,"hasSupabaseAnonKey":true,"vercelEnv":"preview"}
 ```
 
 Os valores da URL e da chave nunca são impressos.
@@ -77,6 +80,7 @@ O `prebuild` exige essas variáveis no modo Supabase. Em Preview local, elas nã
 - Credenciais válidas entram; senha incorreta e email inexistente não entram.
 - A sessão persiste após atualizar a página.
 - Recuperação de senha retorna para uma URL autorizada.
+- Cadastro confirmado retorna para `VITE_SITE_URL`, nunca para localhost em Production.
 - Logout remove a sessão e limpa os caches da aplicação.
 - O bundle não contém `service_role` nem credenciais privadas.
 
@@ -98,7 +102,7 @@ A função `invite-user` executa convites, reenvios e cancelamentos. Configure n
 APP_ORIGIN=https://esadsbeauty.vercel.app
 ```
 
-`APP_ORIGIN` define a única origem aceita e o redirect de criação de senha. Use sempre o domínio principal de produção, nunca um Preview temporário.
+`APP_ORIGIN` define a única origem aceita e o redirect de criação de senha. Em Production, mantenha seu valor igual à origem de `VITE_SITE_URL`. Use sempre o domínio principal de produção, nunca um Preview temporário.
 
 O bootstrap inicial é executado diretamente por uma RPC autenticada. Aplique **todas** as migrations em ordem, incluindo `202608190001_self_service_initial_owner.sql` e `202608190002_harden_initial_owner_eligibility.sql`; se a RPC não existir, a interface mostra explicitamente que a configuração do banco está pendente em vez de classificar o usuário como sem autorização.
 

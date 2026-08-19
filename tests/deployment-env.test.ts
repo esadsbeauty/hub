@@ -13,7 +13,8 @@ describe("configuração de deployment", () => {
     const result = run({ VERCEL: "1", VERCEL_ENV: "preview" });
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("VITE_SUPABASE_URL");
-    expect(result.stderr).toContain("VITE_SUPABASE_URL");
+    expect(result.stderr).toContain("VITE_SITE_URL");
+    expect(result.stdout).toContain('"hasSiteUrl":false');
     expect(result.stdout).toContain('"hasSupabaseUrl":false');
     expect(result.stdout).toContain('"hasSupabaseAnonKey":false');
     expect(result.stdout).toContain('"vercelEnv":"preview"');
@@ -36,11 +37,13 @@ describe("configuração de deployment", () => {
     const result = run({
       VERCEL: "1",
       VERCEL_ENV: "preview",
+      VITE_SITE_URL: "https://esadsbeauty.vercel.app",
       VITE_SUPABASE_URL: "https://project.supabase.co",
       VITE_SUPABASE_ANON_KEY: "sb_publishable_example",
     });
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('"hasSupabaseUrl":true');
+    expect(result.stdout).toContain('"hasSiteUrl":true');
     expect(result.stdout).toContain('"hasSupabaseAnonKey":true');
     expect(result.stdout).toContain('"vercelEnv":"preview"');
     expect(result.stdout + result.stderr).not.toContain("project.supabase.co");
@@ -54,6 +57,7 @@ describe("configuração de deployment", () => {
     const result = run({
       VERCEL: "1",
       VERCEL_ENV: "preview",
+      VITE_SITE_URL: "https://esadsbeauty.vercel.app",
       VITE_SUPABASE_URL: "https://project.supabase.co",
       VITE_SUPABASE_ANON_KEY: secretKey,
     });
@@ -62,9 +66,22 @@ describe("configuração de deployment", () => {
     expect(result.stderr).not.toContain(secretKey);
   });
 
+  test("rejeita localhost como redirect público no modo Supabase", () => {
+    const result = run({
+      VERCEL: "1",
+      VERCEL_ENV: "production",
+      VITE_SITE_URL: "http://localhost:3000",
+      VITE_SUPABASE_URL: "https://project.supabase.co",
+      VITE_SUPABASE_ANON_KEY: "sb_publishable_example",
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("URL HTTPS pública, nunca localhost");
+  });
+
   test("não documenta service role como variável de frontend", () => {
     const example = readFileSync(".env.example", "utf8");
     expect(example).toContain("VITE_APP_MODE=supabase");
+    expect(example).toContain("VITE_SITE_URL=\n");
     expect(example).not.toContain("SERVICE_ROLE");
   });
 

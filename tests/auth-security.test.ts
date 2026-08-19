@@ -23,9 +23,18 @@ describe("modos local e Supabase", () => {
     expect(auth).toContain("signInWithPassword");
     expect(auth).toContain("supabase.auth.signUp");
     expect(auth).toContain('rpc("complete_registration")');
+    expect(auth).toContain("authRedirectUrls.emailConfirmation");
+    expect(auth).toContain("authRedirectUrls.passwordRecovery");
+    expect(auth).not.toContain("window.location.origin");
     expect(localAuth).toContain("esads-hub-local-v1:session");
     expect(localAuth).toContain("enterLocalMode");
     expect(localAuth).not.toContain("supabase");
+  });
+  test("centraliza redirects públicos com fallback apenas para a origem atual", () => {
+    const redirects = readFileSync("src/config/site-url.ts", "utf8");
+    expect(redirects).toContain("import.meta.env.VITE_SITE_URL");
+    expect(redirects).toContain("window.location.origin");
+    expect(redirects).not.toContain("localhost");
   });
   test("cadastro expõe apenas nome, email e senha e respeita confirmação", () => {
     const page = readFileSync("src/modules/auth/RegisterPage.tsx", "utf8");

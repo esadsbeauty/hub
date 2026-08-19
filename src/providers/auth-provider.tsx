@@ -1,6 +1,7 @@
 import type { Session } from "@supabase/supabase-js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { authRedirectUrls } from "@/config/site-url";
 import { supabase } from "@/lib/supabase";
 import { AuthContext, type AuthValue, type RegistrationResult } from "./auth-context";
 
@@ -39,7 +40,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     user: session?.user ?? null, session, authenticated: Boolean(session), appMode: "supabase", loading, configured: Boolean(supabase), passwordRecovery,
     async signUp(name, email, password) {
       if (!supabase) throw unavailable();
-      const result = await supabase.auth.signUp({ email: email.trim().toLowerCase(), password, options: { data: { name: name.trim() }, emailRedirectTo: `${window.location.origin}/login` } });
+      const result = await supabase.auth.signUp({ email: email.trim().toLowerCase(), password, options: { data: { name: name.trim() }, emailRedirectTo: authRedirectUrls.emailConfirmation } });
       if (result.error) throw new Error("Não foi possível criar o cadastro. Verifique os dados e tente novamente.");
       if (result.data.user?.identities?.length === 0) throw new Error("Já existe uma conta com este email.");
       if (!result.data.session) return { status: "confirmation_required" };
@@ -49,7 +50,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     },
     async signIn(email, password) { if (!supabase) throw unavailable(); const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password }); if (error) throw new Error("Email ou senha incorretos."); const access = await supabase.rpc("complete_registration"); if (access.error) throw new Error("Não foi possível validar seu acesso agora."); queryClient.clear(); window.location.assign("/"); },
     enterLocalMode() { throw new Error("O modo local não está disponível."); },
-    async resetPassword(email) { if (!supabase) throw unavailable(); const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: `${window.location.origin}/login` }); if (error) throw new Error("Não foi possível enviar a recuperação agora."); },
+    async resetPassword(email) { if (!supabase) throw unavailable(); const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: authRedirectUrls.passwordRecovery }); if (error) throw new Error("Não foi possível enviar a recuperação agora."); },
     async updatePassword(password) { if (!supabase) throw unavailable(); const { error } = await supabase.auth.updateUser({ password }); if (error) throw new Error("Não foi possível atualizar a senha."); setPasswordRecovery(false); },
     async completeInvitation(password) { if (!supabase) throw unavailable(); const { error } = await supabase.auth.updateUser({ password }); if (error) throw new Error("Não foi possível criar seu acesso."); const membership = await supabase.rpc("accept_own_invitation"); if (membership.error) throw new Error("Seu convite não está mais disponível."); queryClient.clear(); window.location.assign("/"); },
     async signOut() { queryClient.clear(); setSession(null); activeUserId.current = null; if (supabase) await supabase.auth.signOut(); },
