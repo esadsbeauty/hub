@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-provider";
-import type { Permission, RoleSlug } from "@/shared/permissions/permissions";
+import { permissionKeys, type Permission, type RoleSlug } from "@/shared/permissions/permissions";
 
 type MemberStatus = "active" | "invited" | "suspended" | "inactive" | "unlinked";
 type Authorization = { organizationId: string; organizationName: string; role: RoleSlug; permissions: Permission[]; status: MemberStatus };
@@ -10,12 +10,17 @@ const AppStateContext = createContext<AppState | null>(null);
 const denied: Authorization = { organizationId: "", organizationName: "", role: "reader", permissions: [], status: "unlinked" };
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, appMode, loading: authLoading } = useAuth();
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [authorization, setAuthorization] = useState<Authorization>(denied);
   const [authorizationLoading, setAuthorizationLoading] = useState(true);
   useEffect(() => {
     if (authLoading) return;
+    if (appMode === "local" && user) {
+      setAuthorization({ organizationId: "local-esads-beauty", organizationName: "ESADS Beauty", role: "owner", permissions: [...permissionKeys], status: "active" });
+      setAuthorizationLoading(false);
+      return;
+    }
     if (!supabase || !user) { setAuthorization(denied); setAuthorizationLoading(false); return; }
     const client = supabase; setAuthorizationLoading(true);
     const loadAuthorization = () => client.rpc("current_authorization").then(({ data, error }) => {
@@ -28,7 +33,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     const onVisibility = () => { if (document.visibilityState === "visible") void loadAuthorization(); };
     document.addEventListener("visibilitychange", onVisibility);
     return () => { window.clearInterval(interval); document.removeEventListener("visibilitychange", onVisibility); };
-  }, [authLoading, user?.id]);
+  }, [appMode, authLoading, user?.id]);
   const value = useMemo<AppState>(() => ({ ...authorization, authorizationLoading, theme, setTheme, can: (key) => authorization.permissions.includes(key), canAny: (keys) => keys.some((key) => authorization.permissions.includes(key)), canAll: (keys) => keys.every((key) => authorization.permissions.includes(key)) }), [authorization, authorizationLoading, theme]);
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }

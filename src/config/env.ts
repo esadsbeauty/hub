@@ -1,3 +1,5 @@
+import { isLocalMode } from "@/config/app-mode";
+
 type SupabaseConfigurationIssue = "missing" | "invalid" | null;
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
@@ -39,9 +41,9 @@ export const supabaseConfigurationIssue: SupabaseConfigurationIssue = missing
   : invalid
     ? "invalid"
     : null;
-export const isSupabaseConfigured = supabaseConfigurationIssue === null;
+export const isSupabaseConfigured = !isLocalMode && supabaseConfigurationIssue === null;
 
-if (import.meta.env.DEV && supabaseConfigurationIssue) {
+if (import.meta.env.DEV && !isLocalMode && supabaseConfigurationIssue) {
   console.error(
     `[Auth configuration] ${supabaseConfigurationIssue === "missing" ? "VITE_SUPABASE_URL ou VITE_SUPABASE_ANON_KEY ausente." : "Variável pública do Supabase inválida."}`,
   );

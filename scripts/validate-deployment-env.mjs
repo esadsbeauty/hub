@@ -1,61 +1,36 @@
 const required = ["VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY"];
-const missing = required.filter((name) => !process.env[name]?.trim());
 const isVercelBuild = process.env.VERCEL === "1";
 const vercelEnv = process.env.VERCEL_ENV ?? "unknown";
+const requestedMode = process.env.VITE_APP_MODE ?? "supabase";
+const localMode = requestedMode === "local" && (!isVercelBuild || vercelEnv === "preview");
+const missing = required.filter((name) => !process.env[name]?.trim());
 const url = process.env.VITE_SUPABASE_URL?.trim();
 const key = process.env.VITE_SUPABASE_ANON_KEY?.trim();
 let invalid = false;
 
-if (isVercelBuild) {
-  console.log("[deployment-env]", JSON.stringify({
-    hasSupabaseUrl: Boolean(url),
-    hasSupabaseAnonKey: Boolean(key),
-    vercelEnv,
-  }));
+if (!['local', 'supabase'].includes(requestedMode)) {
+  console.error("Build bloqueado: VITE_APP_MODE deve ser local ou supabase.");
+  process.exit(1);
 }
+if (requestedMode === "local" && isVercelBuild && vercelEnv !== "preview") {
+  console.error(`Deployment ${vercelEnv} bloqueado: o modo local só pode ser usado em Preview.`);
+  process.exit(1);
+}
+if (isVercelBuild) console.log("[deployment-env]", JSON.stringify({ appMode: localMode ? "local" : "supabase", hasSupabaseUrl: Boolean(url), hasSupabaseAnonKey: Boolean(key), vercelEnv }));
 
 function isPublicSupabaseKey(value) {
   if (value.startsWith("sb_publishable_")) return true;
   if (!value.startsWith("eyJ")) return false;
-
-  try {
-    const payload = value.split(".")[1];
-    if (!payload) return false;
-    return JSON.parse(Buffer.from(payload, "base64url").toString("utf8")).role === "anon";
-  } catch {
-    return false;
-  }
+  try { const payload = value.split(".")[1]; return Boolean(payload) && JSON.parse(Buffer.from(payload, "base64url").toString("utf8")).role === "anon"; }
+  catch { return false; }
 }
-
 if (!missing.length) {
-  try {
-    const parsed = new URL(url);
-    invalid = parsed.protocol !== "https:" || !parsed.hostname;
-  } catch {
-    invalid = true;
-  }
+  try { const parsed = new URL(url); invalid = parsed.protocol !== "https:" || !parsed.hostname; }
+  catch { invalid = true; }
   invalid ||= !isPublicSupabaseKey(key);
 }
-
-if (missing.length && isVercelBuild) {
-  console.error(
-    `Deployment ${vercelEnv} bloqueado: configure ${missing.join(" e ")} para o ambiente ${vercelEnv} do projeto Vercel e faça um novo deployment.`,
-  );
-  process.exit(1);
-}
-
-if (invalid && isVercelBuild) {
-  console.error("Deployment bloqueado: a configuração pública do Supabase é inválida.");
-  process.exit(1);
-}
-
-if (missing.length) {
-  console.warn(
-    `Build local sem autenticação configurada: ${missing.join(", ")}. Nenhum fallback será habilitado.`,
-  );
-}
-
-
-if (invalid) {
-  console.warn("Build local com configuração pública do Supabase inválida. Nenhum fallback será habilitado.");
-}
+if (!localMode && missing.length && isVercelBuild) { console.error(`Deployment ${vercelEnv} bloqueado: configure ${missing.join(" e ")}.`); process.exit(1); }
+if (!localMode && invalid && isVercelBuild) { console.error("Deployment bloqueado: a configuração pública do Supabase é inválida."); process.exit(1); }
+if (localMode) console.warn("Modo local ativo: nenhuma infraestrutura Supabase será utilizada pela aplicação.");
+else if (missing.length) console.warn(`Build local sem autenticação configurada: ${missing.join(", ")}.`);
+else if (invalid) console.warn("Build local com configuração pública do Supabase inválida.");

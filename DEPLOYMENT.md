@@ -1,8 +1,23 @@
 # Deploy na Vercel
 
+## Modos da aplicação
+
+A aplicação possui uma única seleção central de infraestrutura:
+
+```text
+VITE_APP_MODE=local     # Development ou Vercel Preview
+VITE_APP_MODE=supabase  # autenticação e banco reais
+```
+
+Para destravar um **Preview**, configure apenas `VITE_APP_MODE=local` no escopo Preview e gere um novo deployment. Esse modo fornece o Owner local `Admin ESADS Beauty`, ignora readiness, membership e bootstrap do banco, e utiliza os repositories locais de CRM, Clientes, Financeiro e Marketing. Agenda, Dashboard e Relatórios continuam usando os hooks do CRM e, portanto, refletem os dados locais.
+
+A sessão fica em `sessionStorage`. Os dados de domínio ficam no namespace `esads-hub-local-v1:*` do `localStorage`; dados legados são lidos sem serem apagados. Nada é sincronizado automaticamente com o Supabase. O badge **Modo local** identifica essa condição no Hub.
+
+Production falha fechado: `VITE_APP_MODE=local` bloqueia o prebuild quando `VERCEL_ENV` não é `preview`. Use `VITE_APP_MODE=supabase` em Production. A decisão não utiliza hostname; se `esadsbeauty.vercel.app` estiver associado a Preview, é o escopo da variável e `VERCEL_ENV` que controlam o modo.
+
 ## Variáveis obrigatórias
 
-O frontend usa exclusivamente estas variáveis públicas, incorporadas pelo Vite durante o build:
+No modo Supabase, o frontend usa estas variáveis públicas, incorporadas pelo Vite durante o build:
 
 ```text
 VITE_SUPABASE_URL
@@ -41,7 +56,7 @@ No painel do Supabase, abra **Project Settings → API**:
 
 O validador aceita chaves `sb_publishable_...` e JWTs legados cujo papel seja `anon`. Um JWT com papel `service_role` bloqueia o deployment mesmo que tenha formato sintaticamente válido.
 
-O `prebuild` bloqueia deployments Vercel quando uma variável obrigatória estiver ausente. Localmente, a ausência apenas emite um aviso e a aplicação mantém o acesso bloqueado, sem autenticação simulada.
+O `prebuild` exige essas variáveis no modo Supabase. Em Preview local, elas não são necessárias porque nenhuma chamada Supabase é iniciada.
 
 ## Checklist pós-deploy
 

@@ -1,9 +1,9 @@
 import { entryBalance, netAmount, splitInstallments } from "./domain";
 import type { FinanceRepository } from "./repository-contract";
 import type { FinanceData, Payable, Receivable } from "./types";
-const STORAGE="esads_finance_data_v1",ORG="esads-beauty",USER="preview-admin";const id=()=>crypto.randomUUID(),now=()=>new Date().toISOString();
+const STORAGE="esads-hub-local-v1:finance",LEGACY_STORAGE="esads_finance_data_v1",ORG="local-esads-beauty",USER="local-owner";const id=()=>crypto.randomUUID(),now=()=>new Date().toISOString();
 const empty=():FinanceData=>({accounts:[],categories:[],costCenters:[],receivables:[],payables:[],transactions:[],allocations:[],recurrences:[]});
-const read=()=>{const value=localStorage.getItem(STORAGE);return value?JSON.parse(value) as FinanceData:empty();};const write=(data:FinanceData)=>localStorage.setItem(STORAGE,JSON.stringify(data));
+const read=()=>{const value=localStorage.getItem(STORAGE)??localStorage.getItem(LEGACY_STORAGE);return value?JSON.parse(value) as FinanceData:empty();};const write=(data:FinanceData)=>localStorage.setItem(STORAGE,JSON.stringify(data));
 const addMonths=(date:string,months:number)=>{const next=new Date(`${date}T12:00:00Z`);next.setUTCMonth(next.getUTCMonth()+months);return next.toISOString().slice(0,10);};
 function entry<T extends "receivable"|"payable">(type:T,input:T extends "receivable"?Parameters<FinanceRepository["createReceivable"]>[0]:Parameters<FinanceRepository["createPayable"]>[0]){const stamp=now();return {id:id(),organizationId:ORG,...input,discountAmount:input.discountAmount??0,interestAmount:input.interestAmount??0,penaltyAmount:input.penaltyAmount??0,netAmount:netAmount(input),status:"pending" as const,createdAt:stamp,updatedAt:stamp};}
 export const financeRepository:FinanceRepository={

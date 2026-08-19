@@ -1,8 +1,10 @@
+import { isLocalMode } from "@/config/app-mode";
+import { crmRepository } from "./repository";
 import { supabaseCrmRepository } from "./supabase-repository";
 import type { FollowUpFormData, TaskFormData } from "./schema";
 import type { CompanyFile, Task } from "./types";
 
-const source = supabaseCrmRepository;
+const source = isLocalMode ? crmRepository : supabaseCrmRepository;
 
 export const crmDataSource = {
   list: () => source.list(),

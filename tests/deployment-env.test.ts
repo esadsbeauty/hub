@@ -13,10 +13,23 @@ describe("configuração de deployment", () => {
     const result = run({ VERCEL: "1", VERCEL_ENV: "preview" });
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("VITE_SUPABASE_URL");
-    expect(result.stderr).toContain("ambiente preview");
+    expect(result.stderr).toContain("VITE_SUPABASE_URL");
     expect(result.stdout).toContain('"hasSupabaseUrl":false');
     expect(result.stdout).toContain('"hasSupabaseAnonKey":false');
     expect(result.stdout).toContain('"vercelEnv":"preview"');
+  });
+
+  test("permite modo local somente em Preview sem credenciais Supabase", () => {
+    const result = run({ VERCEL: "1", VERCEL_ENV: "preview", VITE_APP_MODE: "local" });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('"appMode":"local"');
+    expect(result.stderr).toContain("Modo local ativo");
+  });
+
+  test("bloqueia modo local em Production", () => {
+    const result = run({ VERCEL: "1", VERCEL_ENV: "production", VITE_APP_MODE: "local" });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("modo local só pode ser usado em Preview");
   });
 
   test("aceita URL HTTPS e chave pública sem imprimir valores", () => {
@@ -50,8 +63,8 @@ describe("configuração de deployment", () => {
   });
 
   test("não documenta service role como variável de frontend", () => {
-    expect(readFileSync(".env.example", "utf8")).toBe(
-      "VITE_SUPABASE_URL=\nVITE_SUPABASE_ANON_KEY=\n",
-    );
+    const example = readFileSync(".env.example", "utf8");
+    expect(example).toContain("VITE_APP_MODE=supabase");
+    expect(example).not.toContain("SERVICE_ROLE");
   });
 });

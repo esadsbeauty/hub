@@ -25,9 +25,10 @@ import type {
 import { localDateTimeToUtc } from "./utils/formatters";
 import { defineCrmRepository } from "./repository-contract";
 
-const STORAGE = "esads_crm_data_v3";
-const ORGANIZATION_ID = "esads-beauty";
-const USER_ID = "preview-admin";
+const STORAGE = "esads-hub-local-v1:crm";
+const LEGACY_STORAGE = "esads_crm_data_v3";
+const ORGANIZATION_ID = "local-esads-beauty";
+const USER_ID = "local-owner";
 const now = () => new Date().toISOString();
 const id = () => crypto.randomUUID();
 const taskPriority = (value: string): TaskPriority =>
@@ -106,63 +107,6 @@ function seed(): CrmData {
       updatedAt: createdAt,
     }),
   );
-  const company: Company = {
-    id: id(),
-    organizationId: ORGANIZATION_ID,
-    fantasyName: "ESADS Beauty Demo",
-    legalName: "ESADS Beauty LTDA",
-    city: "São Paulo",
-    state: "SP",
-    whatsapp: "(11) 99999-0000",
-    email: "contato@esadsbeauty.com",
-    responsibleName: "Maria Silva",
-    businessArea: "Beleza",
-    leadSource: "Indicação",
-    ownerId: USER_ID,
-    owner: "Administrador",
-    temperature: "quente",
-    priority: "alta",
-    notes: "Empresa demonstrativa para validar a Central 360°.",
-    tags: ["Cliente VIP", "Indicação"],
-    lifecycleStage: "lead",
-    createdBy: USER_ID,
-    createdAt,
-    updatedAt: createdAt,
-    lastInteractionAt: createdAt,
-  };
-  const opportunity: Opportunity = {
-    id: id(),
-    organizationId: ORGANIZATION_ID,
-    companyId: company.id,
-    pipelineId,
-    stageId: stages[4].id,
-    title: "Consultoria comercial",
-    value: 25000,
-    probability: stages[4].probability,
-    ownerId: USER_ID,
-    owner: "Administrador",
-    source: "Indicação",
-    status: "open",
-    createdBy: USER_ID,
-    createdAt,
-    updatedAt: createdAt,
-    stageEnteredAt: createdAt,
-  };
-  const contact: CompanyContact = {
-    id: id(),
-    organizationId: ORGANIZATION_ID,
-    companyId: company.id,
-    name: "Maria Silva",
-    role: "Compras",
-    whatsapp: "(11) 98888-0000",
-    email: "maria@demo.com",
-    isPrimary: true,
-    isFinancial: false,
-    isCommercial: true,
-    status: "ativo",
-    createdAt,
-    updatedAt: createdAt,
-  };
   return {
     organization: {
       id: ORGANIZATION_ID,
@@ -176,7 +120,7 @@ function seed(): CrmData {
       id: USER_ID,
       organizationId: ORGANIZATION_ID,
       name: "Administrador",
-      email: "admin@esadsbeauty.com",
+      email: "admin@esadsbeauty.local",
       role: "admin",
       createdAt,
       updatedAt: createdAt,
@@ -186,14 +130,14 @@ function seed(): CrmData {
         id: USER_ID,
         organizationId: ORGANIZATION_ID,
         name: "Administrador",
-        email: "admin@esadsbeauty.com",
+        email: "admin@esadsbeauty.local",
         role: "admin",
         createdAt,
         updatedAt: createdAt,
       },
     ],
-    companies: [company],
-    contacts: [contact],
+    companies: [],
+    contacts: [],
     pipelines: [
       {
         id: pipelineId,
@@ -206,24 +150,9 @@ function seed(): CrmData {
       },
     ],
     stages,
-    opportunities: [opportunity],
+    opportunities: [],
     stageHistory: [],
-    events: [
-      activity(
-        "opportunity_created",
-        "Oportunidade criada",
-        company.id,
-        opportunity.id,
-        opportunity.title,
-      ),
-      activity(
-        "company_created",
-        "Empresa criada",
-        company.id,
-        undefined,
-        company.fantasyName,
-      ),
-    ],
+    events: [],
     tasks: [],
     activities: [],
     files: [],
@@ -231,7 +160,7 @@ function seed(): CrmData {
   };
 }
 function read(): CrmData {
-  const raw = localStorage.getItem(STORAGE);
+  const raw = localStorage.getItem(STORAGE) ?? localStorage.getItem(LEGACY_STORAGE);
   if (!raw) {
     const data = seed();
     write(data);
