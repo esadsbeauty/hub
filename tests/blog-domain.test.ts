@@ -58,7 +58,19 @@ describe("fundação pública do blog", () => {
     expect(hardening).toContain("blog_media_editor_insert");
     expect(hardening).toContain("public.has_permission('blog.edit')");
     expect(repository).toContain("auth.getSession()");
-    expect(repository).toContain('path=`covers/${crypto.randomUUID()}.${extension}`');
+    expect(repository).toContain('/covers/${crypto.randomUUID()}.${extension}`');
     expect(cms).toContain("Ver artigo público");
+  });
+
+  test("reconciliação remota cria categorias, RPC de escrita e mídia por organização", () => {
+    const migration = readFileSync("supabase/migrations/202608200003_blog_remote_reconciliation.sql", "utf8");
+    const repository = readFileSync("src/modules/blog/supabase-repository.ts", "utf8");
+    expect(migration).toContain("('Vendas','vendas')");
+    expect(migration).toContain("('Gestão Comercial','gestao-comercial')");
+    expect(migration).toContain("create or replace function public.save_blog_post");
+    expect(migration).toContain("(storage.foldername(name))[1]=public.current_organization_id()::text");
+    expect(repository).toContain('.rpc("save_blog_post"');
+    expect(repository).toContain("details:error.details,hint:error.hint");
+    expect(repository).toContain('`${organization.data}/covers/${crypto.randomUUID()}.${extension}`');
   });
 });

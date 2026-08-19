@@ -11,7 +11,7 @@ VITE_APP_MODE=local     # Development ou Vercel Preview
 VITE_APP_MODE=supabase  # autenticação e banco reais
 ```
 
-Para um Preview puramente visual, `VITE_APP_MODE=local` continua disponível. Para validar Blog público, publicação e upload contra o Supabase remoto, o Preview deve usar `VITE_APP_MODE=supabase` e receber as mesmas variáveis públicas exigidas em Production. O modo local usa `localStorage`, portanto não representa o conteúdo publicado nem o bucket remoto.
+O modo local existe apenas no computador de desenvolvimento. Deployments Vercel Preview e Production devem usar `VITE_APP_MODE=supabase` e receber as mesmas variáveis públicas; o prebuild bloqueia um bundle Vercel local para impedir que conteúdo isolado de `localStorage` seja confundido com publicação remota.
 
 A sessão fica em `sessionStorage`. Os dados de domínio ficam no namespace `esads-hub-local-v1:*` do `localStorage`; dados legados são lidos sem serem apagados. Nada é sincronizado automaticamente com o Supabase. O badge **Modo local** identifica essa condição no Hub.
 
@@ -104,6 +104,9 @@ select to_regclass('public.blog_posts') as blog_posts,
        to_regclass('public.blog_categories') as blog_categories;
 select id, public, file_size_limit, allowed_mime_types
 from storage.buckets where id = 'blog';
+select name, slug from public.blog_categories
+where organization_id = (select id from public.organizations where slug='esads-beauty')
+order by name;
 select policyname, cmd, roles
 from pg_policies
 where (schemaname = 'public' and tablename in ('blog_posts','blog_categories'))
@@ -117,7 +120,7 @@ where p.key like 'blog.%'
 group by r.slug order by r.slug;
 ```
 
-O resultado esperado contém as duas tabelas, bucket `blog` público com limite de 5 MB, quatro policies `blog_media_*`, todas as permissões para `owner`/`admin` e, para `marketing`, todas exceto `blog.delete`.
+O resultado esperado contém as duas tabelas, as categorias Atendimento/CRM/Gestão Comercial/Marketing/Vendas, bucket `blog` público com limite de 5 MB, quatro policies `blog_media_*`, todas as permissões para `owner`/`admin` e, para `marketing`, todas exceto `blog.delete`.
 
 Se a autenticação funcionar, mas a aplicação mostrar acesso pendente, confirme separadamente que o usuário possui `profile`, membership ativa, organização e papel. Não contorne esse estado criando autenticação local.
 

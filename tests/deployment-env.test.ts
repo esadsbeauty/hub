@@ -20,17 +20,16 @@ describe("configuração de deployment", () => {
     expect(result.stdout).toContain('"vercelEnv":"preview"');
   });
 
-  test("permite modo local somente em Preview sem credenciais Supabase", () => {
+  test("bloqueia modo local também em Preview", () => {
     const result = run({ VERCEL: "1", VERCEL_ENV: "preview", VITE_APP_MODE: "local" });
-    expect(result.status).toBe(0);
-    expect(result.stdout).toContain('"appMode":"local"');
-    expect(result.stderr).toContain("Modo local ativo");
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("Preview e Production devem usar VITE_APP_MODE=supabase");
   });
 
   test("bloqueia modo local em Production", () => {
     const result = run({ VERCEL: "1", VERCEL_ENV: "production", VITE_APP_MODE: "local" });
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("modo local só pode ser usado em Preview");
+    expect(result.stderr).toContain("Preview e Production devem usar VITE_APP_MODE=supabase");
   });
 
   test("aceita URL HTTPS e chave pública sem imprimir valores", () => {
@@ -89,9 +88,9 @@ describe("configuração de deployment", () => {
     const result = spawnSync(process.execPath, ["scripts/audit-supabase-migrations.mjs"], { encoding: "utf8" });
     expect(result.status).toBe(0);
     const audit = JSON.parse(result.stdout) as { migrations: number; ordered: string[]; destructive: string[] };
-    expect(audit.migrations).toBe(16);
+    expect(audit.migrations).toBe(17);
     expect(audit.ordered[0]).toBe("202607290001_initial_crm.sql");
-    expect(audit.ordered.at(-1)).toBe("202608200002_blog_production_hardening.sql");
+    expect(audit.ordered.at(-1)).toBe("202608200003_blog_remote_reconciliation.sql");
     expect(audit.destructive).toEqual([]);
   });
 });

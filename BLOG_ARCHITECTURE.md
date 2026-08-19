@@ -21,7 +21,7 @@ Permissions are `blog.view`, `blog.create`, `blog.edit`, `blog.publish` and `blo
 ## Storage
 
 The dedicated public `blog` bucket accepts JPEG, PNG and WebP up to 5 MB. Public read is limited to that bucket. Upload/update require `blog.edit`; removal requires `blog.delete`. The CMS validates size and MIME type before upload. Cover images use lazy loading in listings and explicit dimensions/aspect ratios.
-Migration `202608200002_blog_production_hardening.sql` reconciles the bucket and role grants on remote environments, restricts new uploads to JPEG, PNG and WebP, and recreates the four Storage policies idempotently. Upload paths are generated as `covers/<uuid>.<safe-extension>` and never depend on the original filename.
+Migrations `202608200002_blog_production_hardening.sql` and `202608200003_blog_remote_reconciliation.sql` reconcile the bucket and role grants, seed Vendas/Atendimento/Gestão Comercial/Marketing/CRM, and scope writes to `<organization-id>/covers/<uuid>.<safe-extension>`. New uploads accept JPEG, PNG and WebP and never depend on the original filename.
 
 ## Vercel routing and environments
 

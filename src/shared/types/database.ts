@@ -219,6 +219,8 @@ export type Database = {
     Functions: {
       public_blog_posts: { Args: { search_term?: string | null; category_slug?: string | null; page_offset?: number; page_limit?: number }; Returns: Json };
       public_blog_post: { Args: { post_slug: string }; Returns: Json };
+      save_blog_post: { Args: { post_id: string | null; post_title: string; post_slug: string; post_excerpt: string; post_content: string; post_cover_image_path: string | null; post_category_id: string | null; post_seo_title: string | null; post_seo_description: string | null }; Returns: string };
+      set_blog_post_status: { Args: { post_id: string; next_status: string }; Returns: undefined };
       current_organization_id: { Args: Record<string, never>; Returns: string };
       create_default_pipeline: {
         Args: { target_organization_id: string };

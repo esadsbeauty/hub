@@ -2,7 +2,7 @@ const required = ["VITE_SITE_URL", "VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY"
 const isVercelBuild = process.env.VERCEL === "1";
 const vercelEnv = process.env.VERCEL_ENV ?? "unknown";
 const requestedMode = process.env.VITE_APP_MODE ?? "supabase";
-const localMode = requestedMode === "local" && (!isVercelBuild || vercelEnv === "preview");
+const localMode = requestedMode === "local" && !isVercelBuild;
 const missing = required.filter((name) => !process.env[name]?.trim());
 const url = process.env.VITE_SUPABASE_URL?.trim();
 const key = process.env.VITE_SUPABASE_ANON_KEY?.trim();
@@ -14,8 +14,8 @@ if (!['local', 'supabase'].includes(requestedMode)) {
   console.error("Build bloqueado: VITE_APP_MODE deve ser local ou supabase.");
   process.exit(1);
 }
-if (requestedMode === "local" && isVercelBuild && vercelEnv !== "preview") {
-  console.error(`Deployment ${vercelEnv} bloqueado: o modo local só pode ser usado em Preview.`);
+if (requestedMode === "local" && isVercelBuild) {
+  console.error(`Deployment ${vercelEnv} bloqueado: Preview e Production devem usar VITE_APP_MODE=supabase.`);
   process.exit(1);
 }
 if (isVercelBuild) console.log("[deployment-env]", JSON.stringify({ appMode: localMode ? "local" : "supabase", hasSiteUrl: Boolean(siteUrl), hasSupabaseUrl: Boolean(url), hasSupabaseAnonKey: Boolean(key), vercelEnv }));
