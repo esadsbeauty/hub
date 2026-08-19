@@ -66,8 +66,8 @@ export function CompanyForm({
   });
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5"><p className="text-sm text-muted-foreground md:hidden">Cadastre o essencial agora. Você poderá completar os dados depois.</p>
-      <div className="grid gap-3 sm:grid-cols-2">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 sm:space-y-5"><p className="text-[15px] leading-6 sm:text-sm text-muted-foreground md:hidden">Cadastre o essencial agora. Você poderá completar os dados depois.</p>
+      <div className="grid gap-4 sm:grid-cols-2 sm:gap-3">
         <Input aria-label="Nome da empresa" placeholder="Nome da empresa" {...register("fantasyName")} />
         <Input aria-label="Contato" placeholder="Contato" {...register("responsibleName")} />
         <Input aria-label="WhatsApp" type="tel" inputMode="tel" autoComplete="tel" placeholder="WhatsApp" {...register("whatsapp", { setValueAs: normalizeWhatsapp })} />
@@ -75,7 +75,7 @@ export function CompanyForm({
         <Input aria-label="Origem" placeholder="Origem" list="lead-source-options" {...register("leadSource")} />
         <datalist id="lead-source-options"><option value="Instagram"/><option value="Meta Ads"/><option value="Google"/><option value="Indicação"/><option value="Prospecção"/><option value="Outro"/></datalist>
       </div>
-      <details className="rounded-xl border border-border/70 p-4"><summary className="cursor-pointer text-sm font-semibold">Adicionar mais informações</summary><div className="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+      <details className="rounded-xl border border-border/70 p-4"><summary className="cursor-pointer text-base font-semibold sm:text-sm">Adicionar mais informações</summary><div className="mt-5 grid gap-4 sm:mt-4 sm:grid-cols-2 sm:gap-3 md:grid-cols-3">
         <Input placeholder="Razão social" {...register("legalName")} /><Input placeholder="CNPJ" {...register("cnpj")} /><Input type="tel" placeholder="Telefone" {...register("phone")} />
         <Input placeholder="Facebook" {...register("facebook")} /><Input type="url" placeholder="Site" {...register("website")} /><Input type="email" autoComplete="email" placeholder="Email" {...register("email")} />
         <Input inputMode="numeric" placeholder="CEP" {...register("zipCode")} /><Input placeholder="Endereço" {...register("address")} /><Input placeholder="Número" {...register("number")} />

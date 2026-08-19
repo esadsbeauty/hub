@@ -14,24 +14,24 @@ export function PipelineOverview({
     <Card>
       <CardHeader>
         <CardTitle>Pipeline por etapa</CardTitle>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-[15px] leading-6 text-muted-foreground sm:text-sm sm:leading-normal">
           Distribuição atual das oportunidades abertas; período não altera
           estoque.
         </p>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5 sm:space-y-4">
         {analytics.stageRows.map((row, index) => (
           <div key={row.stage.id} className={index > 3 ? "hidden sm:block" : undefined}>
-            <div className="mb-1 flex items-end justify-between gap-3 text-sm">
+            <div className="mb-2 flex items-end justify-between gap-3 text-[15px] sm:mb-1 sm:text-sm">
               <div>
                 <b>{row.stage.name}</b>
-                <p className="text-sm text-muted-foreground sm:text-xs">
+                <p className="mt-0.5 text-[15px] leading-5 text-muted-foreground sm:mt-0 sm:text-xs">
                   {row.count} oportunidades <span className="hidden sm:inline">· {currency.format(row.weighted)} ponderado</span>
                 </p>
               </div>
-              <b className="text-sm">{currency.format(row.value)}</b>
+              <b className="text-[15px] sm:text-sm">{currency.format(row.value)}</b>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-muted">
+            <div className="h-2.5 overflow-hidden rounded-full bg-muted sm:h-2">
               <div
                 className="h-full rounded-full bg-champagne"
                 style={{
@@ -46,7 +46,7 @@ export function PipelineOverview({
             Não existem oportunidades abertas para os filtros selecionados.
           </p>
         )}
-        {analytics.stageRows.length > 4 && <Link to="/crm" className="flex min-h-12 items-center justify-between rounded-xl bg-muted/70 px-4 text-sm font-semibold sm:hidden">Abrir pipeline completo <ArrowRight size={18}/></Link>}
+        {analytics.stageRows.length > 4 && <Link to="/crm" className="flex min-h-[3.25rem] items-center justify-between rounded-xl bg-muted/70 px-4 text-[15px] font-semibold sm:hidden">Abrir pipeline completo <ArrowRight size={20}/></Link>}
       </CardContent>
     </Card>
   );

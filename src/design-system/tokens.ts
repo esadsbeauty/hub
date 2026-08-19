@@ -4,5 +4,15 @@ export const designTokens = {
   radii: { sm:'.625rem',control:'.75rem',card:'1.125rem',overlay:'1.5rem' },
   shadows: { soft:'0 1px 2px rgba(24,20,16,.025), 0 8px 28px rgba(24,20,16,.045)',overlay:'0 24px 70px -28px rgba(11,11,11,.34)' },
   typography: { family:'Manrope, ui-sans-serif, system-ui, sans-serif',pageTitle:'1.75rem',sectionTitle:'1.125rem',body:'.875rem' },
+  mobile: {
+    pageTitle: '2rem',
+    sectionTitle: '1.25rem',
+    body: '1rem',
+    supportingText: '.9375rem',
+    controlHeight: '3.25rem',
+    compactControlHeight: '3rem',
+    cardPadding: '1.25rem',
+    sectionGap: '2rem',
+  },
   transitions: { fast:'150ms',default:'200ms' }, layout: { sidebar:'16rem',content:'90rem' },
 } as const;

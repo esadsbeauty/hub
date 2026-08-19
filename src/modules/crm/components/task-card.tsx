@@ -38,20 +38,20 @@ export function TaskCard({
         : "alta";
   return (
     <Card className={overdue ? "border-amber-300" : ""}>
-      <CardContent className="flex flex-col justify-between gap-4 p-4 sm:flex-row sm:items-center">
+      <CardContent className="flex flex-col justify-between gap-5 p-5 sm:flex-row sm:items-center">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <b className="truncate">{task.title}</b>
+            <b className="truncate text-[17px] sm:text-base">{task.title}</b>
             <PriorityBadge priority={priority} />
             {task.priority === "urgent" && (
               <span className="text-xs font-bold text-red-700">Urgente</span>
             )}
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1.5 text-[15px] leading-6 text-muted-foreground sm:mt-1 sm:text-sm sm:leading-normal">
             {taskTypeLabel(task.type)} · {formatDateTime(task.dueAt)} ·{" "}
             {relativeDueLabel(task.dueAt)}
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1 text-sm leading-5 text-muted-foreground sm:text-xs">
             {company?.fantasyName ?? "Atividade interna"}
             {opportunity ? ` · ${opportunity.title}` : ""} ·{" "}
             {task.assigneeName ?? "Sem responsável"}
