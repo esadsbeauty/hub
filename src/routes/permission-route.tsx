@@ -1,6 +1,6 @@
 import { Navigate } from "react-router-dom";
 import type { Permission } from "@/shared/permissions/permissions";
-import { useAppState } from "@/shared/state/app-state";
+import { useAppState } from "@/shared/state/app-state-context";
 
 export function PermissionRoute({ permission, children }: { permission: Permission; children: React.ReactNode }) {
   const { can, authorizationLoading, status } = useAppState();

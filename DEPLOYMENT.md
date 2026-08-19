@@ -15,6 +15,17 @@ A sessão fica em `sessionStorage`. Os dados de domínio ficam no namespace `esa
 
 Production falha fechado: `VITE_APP_MODE=local` bloqueia o prebuild quando `VERCEL_ENV` não é `preview`. Use `VITE_APP_MODE=supabase` em Production. A decisão não utiliza hostname; se `esadsbeauty.vercel.app` estiver associado a Preview, é o escopo da variável e `VERCEL_ENV` que controlam o modo.
 
+### Bifurcação de inicialização
+
+`src/main.tsx` lê o modo antes de montar autenticação ou autorização e carrega apenas uma das árvores:
+
+```text
+local    → LocalAuthProvider → LocalAppStateProvider → App
+supabase → SupabaseAuthProvider → SupabaseAppStateProvider → App
+```
+
+Por isso, no modo local não são registrados listeners do Supabase Auth, não é executada a RPC `current_authorization` e a consulta de bootstrap permanece desabilitada. O console do navegador registra somente `{ appMode, isLocalMode }`, sem URLs, chaves ou sessões.
+
 ## Variáveis obrigatórias
 
 No modo Supabase, o frontend usa estas variáveis públicas, incorporadas pelo Vite durante o build:

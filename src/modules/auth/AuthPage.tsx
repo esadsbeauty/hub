@@ -6,7 +6,7 @@ import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/providers/auth-provider";
+import { useAuth } from "@/providers/auth-context";
 
 const schema = z.object({ email: z.string().email(), password: z.string() });
 type Form = z.infer<typeof schema>;

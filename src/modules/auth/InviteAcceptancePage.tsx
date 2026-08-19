@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/providers/auth-provider";
-import { useAppState } from "@/shared/state/app-state";
+import { useAuth } from "@/providers/auth-context";
+import { useAppState } from "@/shared/state/app-state-context";
 
 export function InviteAcceptancePage() {
   const auth = useAuth(); const { organizationName, status, authorizationLoading } = useAppState();

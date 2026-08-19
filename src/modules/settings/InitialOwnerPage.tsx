@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/providers/auth-provider";
-import { useAppState } from "@/shared/state/app-state";
+import { useAuth } from "@/providers/auth-context";
+import { useAppState } from "@/shared/state/app-state-context";
 import { useBootstrapStatus, useGovernanceActions } from "./hooks";
 
 export function InitialOwnerPage() {

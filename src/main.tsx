@@ -1,22 +1,16 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { App } from './app/App';
-import { AuthProvider } from './providers/auth-provider';
-import { AppQueryProvider } from './providers/query-provider';
-import { AppStateProvider } from './shared/state/app-state';
-import { ToastProvider } from './shared/components/feedback/toast';
-import './styles/globals.css';
+import React, { lazy, Suspense } from "react";
+import ReactDOM from "react-dom/client";
+import { appMode, isLocalMode } from "@/config/app-mode";
+import "./styles/globals.css";
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+console.info("[ESADS APP MODE]", { appMode, isLocalMode });
+
+const ApplicationRoot = lazy(() => isLocalMode ? import("./app/local-app-root") : import("./app/supabase-app-root"));
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <AppQueryProvider>
-      <AuthProvider>
-        <AppStateProvider>
-          <ToastProvider>
-            <App />
-          </ToastProvider>
-        </AppStateProvider>
-      </AuthProvider>
-    </AppQueryProvider>
+    <Suspense fallback={<div className="grid min-h-dvh place-items-center text-sm text-muted-foreground">Carregando Hub…</div>}>
+      <ApplicationRoot />
+    </Suspense>
   </React.StrictMode>,
 );

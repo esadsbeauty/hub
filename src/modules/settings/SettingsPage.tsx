@@ -11,7 +11,7 @@ import { Skeleton } from "@/shared/components/feedback/states";
 import { useToast } from "@/shared/components/feedback/toast";
 import { Tabs } from "@/shared/components/navigation/tabs";
 import { Modal } from "@/shared/components/overlays/modal";
-import { useAppState } from "@/shared/state/app-state";
+import { useAppState } from "@/shared/state/app-state-context";
 import { permissionLabels } from "@/shared/permissions/permissions";
 import { formatDate } from "@/modules/crm/utils/formatters";
 import { useGovernance, useGovernanceActions } from "./hooks";

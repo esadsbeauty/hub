@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Calendar, LayoutDashboard, Menu, Plus, Users, Handshake, Wallet, Megaphone, BarChart3, Settings } from "lucide-react";
 import { NavLink, Link } from "react-router-dom";
-import { useAppState } from "@/shared/state/app-state";
+import { useAppState } from "@/shared/state/app-state-context";
 
 const primary = [
   { to: "/", label: "Início", icon: LayoutDashboard, permission: "dashboard.view" as const },

@@ -16,19 +16,20 @@ import { SettingsPage } from "@/modules/settings/SettingsPage";
 import { RestrictedAccessPage } from "@/modules/settings/RestrictedAccessPage";
 import { InitialOwnerPage } from "@/modules/settings/InitialOwnerPage";
 import { InviteAcceptancePage } from "@/modules/auth/InviteAcceptancePage";
-import { useAuth } from "@/providers/auth-provider";
+import { useAuth } from "@/providers/auth-context";
 
 function LoginRoute() {
   const { user, passwordRecovery } = useAuth();
   return user && !passwordRecovery ? <Navigate to="/" replace /> : <AuthPage />;
 }
 export function App() {
+  const { appMode } = useAuth();
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginRoute />} />
-        <Route path="/aceitar-convite" element={<ProtectedRoute><InviteAcceptancePage /></ProtectedRoute>} />
-        <Route path="/finalizar-configuracao" element={<ProtectedRoute><InitialOwnerPage /></ProtectedRoute>} />
+        {appMode === "supabase" && <Route path="/aceitar-convite" element={<ProtectedRoute><InviteAcceptancePage /></ProtectedRoute>} />}
+        {appMode === "supabase" && <Route path="/finalizar-configuracao" element={<ProtectedRoute><InitialOwnerPage /></ProtectedRoute>} />}
         <Route
           element={
             <ProtectedRoute>
@@ -61,6 +62,7 @@ export function App() {
             ),
           )}
         </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
