@@ -12,6 +12,7 @@ type Auth = {
   signIn: (email: string, password: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
+  completeInvitation: (password: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 const AuthContext = createContext<Auth | null>(null);
@@ -43,6 +44,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async signIn(email, password) { if (!supabase) throw unavailable(); const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password }); if (error) throw new Error("Email ou senha incorretos."); },
     async resetPassword(email) { if (!supabase) throw unavailable(); const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: `${window.location.origin}/login` }); if (error) throw new Error("Não foi possível enviar a recuperação agora."); },
     async updatePassword(password) { if (!supabase) throw unavailable(); const { error } = await supabase.auth.updateUser({ password }); if (error) throw new Error("Não foi possível atualizar a senha."); setPasswordRecovery(false); },
+    async completeInvitation(password) {
+      if (!supabase) throw unavailable();
+      const { error: passwordError } = await supabase.auth.updateUser({ password });
+      if (passwordError) throw new Error("Não foi possível criar seu acesso.");
+      const { error: membershipError } = await supabase.rpc("accept_own_invitation");
+      if (membershipError) throw new Error("Seu convite não está mais disponível.");
+      queryClient.clear();
+      window.location.assign("/");
+    },
     async signOut() { queryClient.clear(); setSession(null); activeUserId.current = null; if (!supabase) return; await supabase.auth.signOut(); },
   }), [session, loading, passwordRecovery, queryClient]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

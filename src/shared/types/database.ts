@@ -255,6 +255,8 @@ export type Database = {
       change_member_status:{Args:{target_member_id:string;target_status:string};Returns:undefined};
       update_organization_settings:{Args:{settings_data:Json};Returns:undefined};
       write_invitation_audit:{Args:{invited_user_id:string;invited_role_id:string};Returns:undefined};
+      claim_initial_owner:{Args:{target_user_id:string;target_name:string};Returns:string};
+      manage_member_invitation:{Args:{actor_user_id:string;target_user_id:string;target_role_id:string;target_action:string};Returns:string};
     };
     Enums: {
       profile_role: "admin" | "manager" | "sales" | "financial" | "member";

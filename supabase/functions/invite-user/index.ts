@@ -1,29 +1,89 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const allowedOrigin = Deno.env.get("APP_ORIGIN") ?? "";
-const headers = { "Access-Control-Allow-Origin": allowedOrigin, "Access-Control-Allow-Headers": "authorization, apikey, content-type", "Content-Type": "application/json" };
+const headers = { "Access-Control-Allow-Origin": allowedOrigin, "Access-Control-Allow-Headers": "authorization, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS", "Content-Type": "application/json" };
 const reply = (status: number, body: Record<string, unknown>) => new Response(JSON.stringify(body), { status, headers });
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers });
-  if (request.headers.get("origin") !== allowedOrigin) return reply(403, { message: "Origem não autorizada." });
+  if (request.method !== "POST") return reply(405, { code: "method_not_allowed", message: "Método não permitido." });
+  if (!allowedOrigin || request.headers.get("origin") !== allowedOrigin) return reply(403, { code: "origin_denied", message: "Origem não autorizada." });
   const authorization = request.headers.get("authorization");
-  if (!authorization) return reply(401, { message: "Sessão inválida." });
-  const url = Deno.env.get("SUPABASE_URL"); const anon = Deno.env.get("SUPABASE_ANON_KEY"); const serviceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!url || !anon || !serviceRole) return reply(503, { message: "Convites ainda não estão configurados." });
+  if (!authorization) return reply(401, { code: "invalid_session", message: "Sessão inválida." });
+
+  const url = Deno.env.get("SUPABASE_URL");
+  const anon = Deno.env.get("SUPABASE_ANON_KEY");
+  const serviceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !anon || !serviceRole) return reply(503, { code: "not_configured", message: "Gestão de usuários ainda não está configurada." });
+
   const userClient = createClient(url, anon, { global: { headers: { Authorization: authorization } } });
-  const [{ data: allowed }, { data: auth }] = await Promise.all([userClient.rpc("has_permission", { required_permission: "users.manage" }), userClient.auth.getUser()]);
-  if (!allowed || !auth.user) return reply(403, { message: "Você não possui permissão para convidar usuários." });
-  const payload = await request.json() as { name?: string; email?: string; roleId?: string };
-  if (!payload.name?.trim() || !payload.email?.includes("@") || !payload.roleId) return reply(400, { message: "Preencha nome, email e papel." });
+  const { data: auth, error: authError } = await userClient.auth.getUser();
+  if (authError || !auth.user) return reply(401, { code: "invalid_session", message: "Sessão inválida." });
   const admin = createClient(url, serviceRole, { auth: { persistSession: false, autoRefreshToken: false } });
-  const { data: actor } = await admin.from("organization_members").select("organization_id").eq("user_id", auth.user.id).eq("status", "active").single();
-  const { data: role } = await admin.from("roles").select("id,organization_id").eq("id", payload.roleId).maybeSingle();
-  if (!actor || !role || (role.organization_id && role.organization_id !== actor.organization_id)) return reply(400, { message: "Papel inválido." });
-  const invited = await admin.auth.admin.inviteUserByEmail(payload.email.trim().toLowerCase(), { data: { name: payload.name.trim() }, redirectTo: `${allowedOrigin}/login` });
-  if (invited.error || !invited.data.user) return reply(400, { message: "Não foi possível enviar o convite." });
-  await admin.from("profiles").update({ name: payload.name.trim() }).eq("id", invited.data.user.id);
-  await admin.from("organization_members").update({ role_id: payload.roleId, status: "invited", invited_by: auth.user.id }).eq("organization_id", actor.organization_id).eq("user_id", invited.data.user.id);
-  await userClient.rpc("write_invitation_audit", { invited_user_id: invited.data.user.id, invited_role_id: payload.roleId });
-  return reply(200, { message: "Convite enviado com segurança." });
+  const payload = await request.json().catch(() => ({})) as { action?: string; name?: string; email?: string; roleId?: string; memberId?: string };
+  const action = payload.action ?? "invite";
+
+  if (action === "bootstrap_status" || action === "claim_owner") {
+    const initialOwnerEmail = Deno.env.get("INITIAL_OWNER_EMAIL")?.trim().toLowerCase();
+    const currentEmail = auth.user.email?.trim().toLowerCase();
+    const { data: organization } = await admin.from("organizations").select("id,name").eq("slug", "esads-beauty").maybeSingle();
+    if (!organization) return reply(409, { code: "organization_not_found", message: "Organização inicial não encontrada." });
+    const [{ count: activeCount }, { data: owner }] = await Promise.all([
+      admin.from("organization_members").select("id", { count: "exact", head: true }).eq("organization_id", organization.id).eq("status", "active"),
+      admin.from("organization_members").select("id,roles!inner(slug)").eq("organization_id", organization.id).eq("roles.slug", "owner").limit(1).maybeSingle(),
+    ]);
+    const available = (activeCount ?? 0) === 0 && !owner;
+    const eligible = available && Boolean(initialOwnerEmail) && currentEmail === initialOwnerEmail;
+    if (action === "bootstrap_status") return reply(200, { available, eligible, organizationName: organization.name });
+    if (!eligible) return reply(403, { code: "bootstrap_denied", message: "A configuração inicial não está disponível para este usuário." });
+    const name = payload.name?.trim();
+    if (!name) return reply(400, { code: "invalid_name", message: "Informe seu nome." });
+    const { error } = await admin.rpc("claim_initial_owner", { target_user_id: auth.user.id, target_name: name });
+    if (error) return reply(409, { code: "bootstrap_unavailable", message: "A configuração inicial já foi concluída ou não está mais disponível." });
+    return reply(200, { message: "Acesso de Administrador Geral ativado." });
+  }
+
+  const { data: allowed } = await userClient.rpc("has_permission", { required_permission: "users.manage" });
+  if (!allowed) return reply(403, { code: "permission_denied", message: "Você não possui permissão para gerenciar usuários." });
+  const { data: actorMembership } = await admin.from("organization_members").select("organization_id").eq("user_id", auth.user.id).eq("status", "active").limit(1).maybeSingle();
+  if (!actorMembership) return reply(403, { code: "permission_denied", message: "Você não possui permissão para gerenciar usuários." });
+
+  if (action === "invite") {
+    const name = payload.name?.trim();
+    const email = payload.email?.trim().toLowerCase();
+    if (!name || !email || !emailPattern.test(email) || !payload.roleId) return reply(400, { code: "invalid_input", message: "Preencha nome, email e função." });
+    const { data: role } = await admin.from("roles").select("id,slug,organization_id").eq("id", payload.roleId).maybeSingle();
+    if (!role || role.slug === "owner" || (role.organization_id && role.organization_id !== actorMembership.organization_id)) return reply(400, { code: "invalid_role", message: "Função inválida para convite." });
+    const { data: existingProfile } = await admin.from("profiles").select("id").ilike("email", email).maybeSingle();
+    if (existingProfile) {
+      const { data: membership } = await admin.from("organization_members").select("id,status").eq("organization_id", actorMembership.organization_id).eq("user_id", existingProfile.id).maybeSingle();
+      if (membership?.status === "active") return reply(409, { code: "member_exists", message: "Este usuário já faz parte da equipe." });
+      if (membership?.status === "invited") return reply(409, { code: "invite_pending", message: "Este email já possui um convite pendente." });
+    }
+    const invited = await admin.auth.admin.inviteUserByEmail(email, { data: { name }, redirectTo: `${allowedOrigin}/aceitar-convite` });
+    if (invited.error) return reply(400, { code: "invite_failed", message: "Não foi possível enviar o convite." });
+    const targetUserId = existingProfile?.id ?? invited.data.user?.id;
+    if (!targetUserId) return reply(500, { code: "invite_reconciliation_required", message: "Convite enviado, mas a vinculação precisa ser reconciliada." });
+    await admin.from("profiles").update({ name }).eq("id", targetUserId);
+    const { error } = await admin.rpc("manage_member_invitation", { actor_user_id: auth.user.id, target_user_id: targetUserId, target_role_id: payload.roleId, target_action: "invite" });
+    if (error) return reply(500, { code: "invite_reconciliation_required", message: "Convite enviado. Tente reenviar para concluir a vinculação." });
+    return reply(200, { message: "Convite enviado." });
+  }
+
+  if (action === "resend" || action === "cancel") {
+    if (!payload.memberId) return reply(400, { code: "invalid_member", message: "Usuário inválido." });
+    const { data: member } = await admin.from("organization_members").select("user_id,role_id,status,profiles!inner(email)").eq("organization_id", actorMembership.organization_id).eq("id", payload.memberId).maybeSingle();
+    if (!member || member.status !== "invited") return reply(409, { code: "invite_not_pending", message: "Este convite não está mais pendente." });
+    const email = (member.profiles as unknown as { email: string }).email;
+    if (action === "resend") {
+      const resent = await admin.auth.admin.inviteUserByEmail(email, { redirectTo: `${allowedOrigin}/aceitar-convite` });
+      if (resent.error) return reply(400, { code: "resend_failed", message: "Não foi possível reenviar o convite." });
+    }
+    const { error } = await admin.rpc("manage_member_invitation", { actor_user_id: auth.user.id, target_user_id: member.user_id, target_role_id: member.role_id, target_action: action });
+    if (error) return reply(403, { code: "operation_denied", message: "Você não possui permissão para realizar esta ação." });
+    return reply(200, { message: action === "resend" ? "Convite reenviado." : "Convite cancelado." });
+  }
+
+  return reply(400, { code: "invalid_action", message: "Ação inválida." });
 });

@@ -14,6 +14,8 @@ import { ProtectedRoute } from "@/routes/protected-route";
 import { PermissionRoute } from "@/routes/permission-route";
 import { SettingsPage } from "@/modules/settings/SettingsPage";
 import { RestrictedAccessPage } from "@/modules/settings/RestrictedAccessPage";
+import { InitialOwnerPage } from "@/modules/settings/InitialOwnerPage";
+import { InviteAcceptancePage } from "@/modules/auth/InviteAcceptancePage";
 import { useAuth } from "@/providers/auth-provider";
 
 function LoginRoute() {
@@ -25,6 +27,8 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginRoute />} />
+        <Route path="/aceitar-convite" element={<ProtectedRoute><InviteAcceptancePage /></ProtectedRoute>} />
+        <Route path="/finalizar-configuracao" element={<ProtectedRoute><InitialOwnerPage /></ProtectedRoute>} />
         <Route
           element={
             <ProtectedRoute>

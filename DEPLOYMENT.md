@@ -61,3 +61,22 @@ Os valores reais não pertencem ao Git e não podem ser definidos por `vercel.js
 ## Diagnóstico seguro
 
 Em desenvolvimento, a aplicação registra apenas se a configuração está ausente ou inválida. Nunca imprime URL, chave ou conteúdo de sessão. Em produção, o usuário recebe somente a mensagem segura de indisponibilidade.
+
+## Gestão de usuários pela Edge Function
+
+A função `invite-user` executa convites, reenvios, cancelamentos e o bootstrap inicial. Configure no ambiente seguro das Edge Functions:
+
+```text
+APP_ORIGIN=https://esadsbeauty.vercel.app
+INITIAL_OWNER_EMAIL=email-do-responsavel@empresa.com
+```
+
+`APP_ORIGIN` define a única origem aceita e o redirect de criação de senha. Use sempre o domínio principal de produção, nunca um Preview temporário. `INITIAL_OWNER_EMAIL` é uma allowlist para o bootstrap único; depois que o Owner existir, o banco rejeita qualquer segundo claim mesmo que a variável permaneça configurada.
+
+`SUPABASE_URL`, `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` são consumidas somente dentro da Edge Function. A chave privilegiada nunca deve receber prefixo `VITE_`, ser enviada à Vercel como variável do frontend ou aparecer em logs.
+
+Após aplicar migrations, publique a função novamente e autorize no Supabase Auth:
+
+- **Site URL:** domínio principal do Hub;
+- **Redirect URL:** `https://esadsbeauty.vercel.app/aceitar-convite`;
+- redirects de recuperação de senha realmente utilizados.
