@@ -47,4 +47,18 @@ describe("fundação pública do blog", () => {
     expect(seo).toContain('import { siteUrl }');
     expect(seo).toContain('og:type');
   });
+
+  test("deployment público possui fallback SPA e Storage remoto endurecido", () => {
+    const vercel = JSON.parse(readFileSync("vercel.json", "utf8")) as { rewrites: { source: string; destination: string }[] };
+    const hardening = readFileSync("supabase/migrations/202608200002_blog_production_hardening.sql", "utf8");
+    const repository = readFileSync("src/modules/blog/supabase-repository.ts", "utf8");
+    const cms = readFileSync("src/modules/blog/pages/BlogCmsPage.tsx", "utf8");
+    expect(vercel.rewrites[0]?.destination).toBe("/index.html");
+    expect(hardening).toContain("values('blog','blog',true,5242880");
+    expect(hardening).toContain("blog_media_editor_insert");
+    expect(hardening).toContain("public.has_permission('blog.edit')");
+    expect(repository).toContain("auth.getSession()");
+    expect(repository).toContain('path=`covers/${crypto.randomUUID()}.${extension}`');
+    expect(cms).toContain("Ver artigo público");
+  });
 });

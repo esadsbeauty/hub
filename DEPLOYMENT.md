@@ -11,7 +11,7 @@ VITE_APP_MODE=local     # Development ou Vercel Preview
 VITE_APP_MODE=supabase  # autenticação e banco reais
 ```
 
-Para destravar um **Preview**, configure apenas `VITE_APP_MODE=local` no escopo Preview e gere um novo deployment. Esse modo fornece o Owner local `Admin ESADS Beauty`, ignora readiness, membership e bootstrap do banco, e utiliza os repositories locais de CRM, Clientes, Financeiro e Marketing. Agenda, Dashboard e Relatórios continuam usando os hooks do CRM e, portanto, refletem os dados locais.
+Para um Preview puramente visual, `VITE_APP_MODE=local` continua disponível. Para validar Blog público, publicação e upload contra o Supabase remoto, o Preview deve usar `VITE_APP_MODE=supabase` e receber as mesmas variáveis públicas exigidas em Production. O modo local usa `localStorage`, portanto não representa o conteúdo publicado nem o bucket remoto.
 
 A sessão fica em `sessionStorage`. Os dados de domínio ficam no namespace `esads-hub-local-v1:*` do `localStorage`; dados legados são lidos sem serem apagados. Nada é sincronizado automaticamente com o Supabase. O badge **Modo local** identifica essa condição no Hub.
 
@@ -83,6 +83,41 @@ O `prebuild` exige essas variáveis no modo Supabase. Em Preview local, elas nã
 - Cadastro confirmado retorna para `VITE_SITE_URL`, nunca para localhost em Production.
 - Logout remove a sessão e limpa os caches da aplicação.
 - O bundle não contém `service_role` nem credenciais privadas.
+- Acesso direto e refresh em `/blog`, `/blog/<slug>` e `/marketing/blog` retornam a SPA, conforme o rewrite versionado em `vercel.json`.
+- `/blog` abre em janela anônima; somente artigos `published` aparecem.
+- Um Owner acessa `/marketing/blog`, envia uma capa JPG/PNG/WebP de até 5 MB, salva, publica e abre **Ver artigo público**.
+
+## Rollout remoto do Blog
+
+O código versionado não consegue afirmar que uma migration já foi aplicada no projeto remoto sem credenciais administrativas. No computador vinculado ao projeto ESADS Beauty, execute primeiro:
+
+```bash
+npx supabase migration list
+npx supabase db push --dry-run
+npx supabase db push
+```
+
+Depois, no SQL Editor, valide sem modificar dados:
+
+```sql
+select to_regclass('public.blog_posts') as blog_posts,
+       to_regclass('public.blog_categories') as blog_categories;
+select id, public, file_size_limit, allowed_mime_types
+from storage.buckets where id = 'blog';
+select policyname, cmd, roles
+from pg_policies
+where (schemaname = 'public' and tablename in ('blog_posts','blog_categories'))
+   or (schemaname = 'storage' and tablename = 'objects' and policyname like 'blog_media_%')
+order by schemaname, tablename, policyname;
+select r.slug, array_agg(p.key order by p.key) as blog_permissions
+from public.roles r
+join public.role_permissions rp on rp.role_id = r.id
+join public.permissions p on p.id = rp.permission_id
+where p.key like 'blog.%'
+group by r.slug order by r.slug;
+```
+
+O resultado esperado contém as duas tabelas, bucket `blog` público com limite de 5 MB, quatro policies `blog_media_*`, todas as permissões para `owner`/`admin` e, para `marketing`, todas exceto `blog.delete`.
 
 Se a autenticação funcionar, mas a aplicação mostrar acesso pendente, confirme separadamente que o usuário possui `profile`, membership ativa, organização e papel. Não contorne esse estado criando autenticação local.
 

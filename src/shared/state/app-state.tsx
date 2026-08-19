@@ -25,6 +25,6 @@ export function SupabaseAppStateProvider({ children }: { children: React.ReactNo
     document.addEventListener("visibilitychange", onVisibility);
     return () => { window.clearInterval(interval); document.removeEventListener("visibilitychange", onVisibility); };
   }, [authLoading, user?.id]);
-  const value = useMemo<AppState>(() => ({ ...authorization, authorizationLoading, theme, setTheme, can: (key) => authorization.permissions.includes(key), canAny: (keys) => keys.some((key) => authorization.permissions.includes(key)), canAll: (keys) => keys.every((key) => authorization.permissions.includes(key)) }), [authorization, authorizationLoading, theme]);
+  const value = useMemo<AppState>(() => { const isAdministrator = authorization.status === "active" && (authorization.role === "owner" || authorization.role === "admin"); const can = (key: Permission) => isAdministrator || authorization.permissions.includes(key); return ({ ...authorization, authorizationLoading, theme, setTheme, can, canAny: (keys) => keys.some(can), canAll: (keys) => keys.every(can) }); }, [authorization, authorizationLoading, theme]);
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }
