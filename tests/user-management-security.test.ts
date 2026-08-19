@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 const lifecycleMigration = readFileSync("supabase/migrations/202608180002_user_management_bootstrap.sql", "utf8");
 const bootstrapMigration = readFileSync("supabase/migrations/202608190002_harden_initial_owner_eligibility.sql", "utf8");
+const registrationMigration = readFileSync("supabase/migrations/202608190003_public_registration_access_requests.sql", "utf8");
 const ownerPage = readFileSync("src/modules/settings/InitialOwnerPage.tsx", "utf8");
 const edge = readFileSync("supabase/functions/invite-user/index.ts", "utf8");
 const appState = readFileSync("src/shared/state/app-state.tsx", "utf8");
@@ -40,6 +41,28 @@ describe("bootstrap seguro do primeiro Owner", () => {
     expect(ownerPage).toContain("Configuração do banco pendente");
     expect(ownerPage).toContain("bootstrap.isError");
     expect(ownerPage).toContain("Acesso pendente");
+  });
+});
+
+describe("cadastro público controlado", () => {
+  test("decide Owner no banco com identidade autenticada e lock transacional", () => {
+    expect(registrationMigration).toContain("current_user_id uuid:=auth.uid()");
+    expect(registrationMigration).toContain("pg_advisory_xact_lock");
+    expect(registrationMigration).toContain("order by created_at,id limit 1");
+    expect(registrationMigration).toContain("r.slug='owner'");
+    expect(registrationMigration).toContain("function public.complete_registration()");
+  });
+  test("cadastros posteriores ficam pending e sem tenant ativo", () => {
+    expect(registrationMigration).toContain("'pending'");
+    expect(registrationMigration).toContain("user_access_requested");
+    expect(appState).toContain('value.status === "active" ? value.permissions : []');
+  });
+  test("aprovação rejeita Owner e exige users.manage", () => {
+    expect(registrationMigration).toContain("approve_access_request");
+    expect(registrationMigration).toContain("slug<>'owner'");
+    expect(registrationMigration).toContain("has_permission('users.manage')");
+    expect(registrationMigration).toContain("user_approved");
+    expect(registrationMigration).toContain("user_rejected");
   });
 });
 

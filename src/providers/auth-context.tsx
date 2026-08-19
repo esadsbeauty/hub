@@ -2,6 +2,7 @@ import type { Session } from "@supabase/supabase-js";
 import { createContext, useContext } from "react";
 
 export type AuthUser = { id: string; email?: string; user_metadata: Record<string, string | undefined> };
+export type RegistrationResult = { status: "active" | "pending" | "confirmation_required"; role?: string };
 export type AuthValue = {
   user: AuthUser | null;
   session: Session | null;
@@ -10,6 +11,7 @@ export type AuthValue = {
   loading: boolean;
   configured: boolean;
   passwordRecovery: boolean;
+  signUp: (name: string, email: string, password: string) => Promise<RegistrationResult>;
   signIn: (email: string, password: string) => Promise<void>;
   enterLocalMode: () => void;
   resetPassword: (email: string) => Promise<void>;

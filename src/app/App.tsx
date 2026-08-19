@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthPage } from "@/modules/auth/AuthPage";
+import { RegisterPage } from "@/modules/auth/RegisterPage";
 import { CrmPage } from "@/modules/crm/CrmPage";
 import { CompanyCentralPage } from "@/modules/crm/pages/CompanyCentralPage";
 import { DashboardPage } from "@/modules/dashboard/DashboardPage";
@@ -28,6 +29,7 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginRoute />} />
+        <Route path="/register" element={<RegisterPage />} />
         {appMode === "supabase" && <Route path="/aceitar-convite" element={<ProtectedRoute><InviteAcceptancePage /></ProtectedRoute>} />}
         {appMode === "supabase" && <Route path="/finalizar-configuracao" element={<ProtectedRoute><InitialOwnerPage /></ProtectedRoute>} />}
         <Route
@@ -38,6 +40,7 @@ export function App() {
           }
         >
           <Route path="acesso-restrito" element={<RestrictedAccessPage />} />
+          <Route path="acesso-pendente" element={<RestrictedAccessPage />} />
           <Route index element={<PermissionRoute permission="dashboard.view"><DashboardPage /></PermissionRoute>} />
           <Route path="crm" element={<PermissionRoute permission="crm.view"><CrmPage /></PermissionRoute>} />
           <Route path="crm/empresas/:id" element={<PermissionRoute permission="crm.view"><CompanyCentralPage /></PermissionRoute>} />

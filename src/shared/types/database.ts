@@ -210,7 +210,7 @@ export type Database = {
       permissions: Table<{id:string;key:string;name:string;description:string;module:string;created_at:string}>;
       roles: Table<{id:string;organization_id:string|null;name:string;slug:string;is_system:boolean;created_at:string;updated_at:string}>;
       role_permissions: Table<{role_id:string;permission_id:string}>;
-      organization_members: Table<{id:string;organization_id:string;user_id:string;role_id:string;status:"invited"|"active"|"suspended"|"inactive";joined_at:string|null;invited_by:string|null;created_at:string;updated_at:string}>;
+      organization_members: Table<{id:string;organization_id:string;user_id:string;role_id:string;status:"pending"|"invited"|"active"|"suspended"|"inactive";joined_at:string|null;invited_by:string|null;approved_at:string|null;approved_by:string|null;created_at:string;updated_at:string}>;
       audit_logs: Table<{id:string;organization_id:string;user_id:string|null;action:string;entity_type:string;entity_id:string|null;module:string;old_values:Json;new_values:Json;metadata:Json;ip_address:string|null;user_agent:string|null;created_at:string}>;
     };
     Views: Record<string, never>;
@@ -257,6 +257,9 @@ export type Database = {
       write_invitation_audit:{Args:{invited_user_id:string;invited_role_id:string};Returns:undefined};
       initial_owner_bootstrap_status:{Args:Record<string,never>;Returns:Json};
       claim_initial_owner:{Args:{target_name:string};Returns:Json};
+      complete_registration:{Args:Record<string,never>;Returns:Json};
+      approve_access_request:{Args:{target_member_id:string;target_role_id:string};Returns:undefined};
+      reject_access_request:{Args:{target_member_id:string};Returns:undefined};
       manage_member_invitation:{Args:{actor_user_id:string;target_user_id:string;target_role_id:string;target_action:string};Returns:string};
     };
     Enums: {

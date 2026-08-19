@@ -12,6 +12,13 @@
 - **Convites:** nenhum convite fictício é executado pelo browser. O envio de email deve ser implementado em Edge Function/backend com JWT, rate limit e secret server-side.
 - **Secrets:** o frontend aceita somente URL e anon key públicas do Supabase. Tokens de integrações pertencem a Secrets/Vault.
 
+## Cadastro público controlado
+
+- O frontend envia ao Supabase Auth somente nome, email e senha; função, organização e status nunca são escolhidos pelo cliente.
+- `complete_registration()` usa `auth.uid()` e advisory lock transacional. Sem Owner ativo, exatamente um usuário recebe `owner/active`; os demais permanecem `pending` com role estrutural sem permissões efetivas.
+- Membership `pending` não resolve `current_organization_id()` e, portanto, não atravessa as policies dos dados comerciais.
+- Aprovação exige `users.manage`, rejeita a role Owner e registra `user_approved` e `user_role_assigned`; recusa registra `user_rejected`.
+
 ## Papéis padrão
 
 Administrador, Gestor, Comercial, Operacional, Financeiro, Marketing e Leitura. A coluna enum legada em `profiles` não é removida nesta migration.

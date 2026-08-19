@@ -17,6 +17,7 @@ export function LocalAuthProvider({ children }: { children: React.ReactNode }) {
     loading: false,
     configured: true,
     passwordRecovery: false,
+    signUp: unavailable,
     signIn: unavailable,
     resetPassword: unavailable,
     updatePassword: unavailable,

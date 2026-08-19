@@ -2,9 +2,21 @@ import type { Session } from "@supabase/supabase-js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { AuthContext, type AuthValue } from "./auth-context";
+import { AuthContext, type AuthValue, type RegistrationResult } from "./auth-context";
 
 const unavailable = () => new Error("Não foi possível conectar ao serviço de autenticação.");
+const registrationResult = (value: unknown): RegistrationResult => {
+  if (typeof value !== "object" || value === null || !("status" in value)) throw new Error("Não foi possível concluir a configuração do acesso.");
+  const status = value.status;
+  if (status !== "active" && status !== "pending") throw new Error("Não foi possível concluir a configuração do acesso.");
+  return { status, role: "role" in value && typeof value.role === "string" ? value.role : undefined };
+};
+async function finalizeRegistration() {
+  if (!supabase) throw unavailable();
+  const result = await supabase.rpc("complete_registration");
+  if (result.error) throw new Error("Não foi possível concluir a configuração do acesso.");
+  return registrationResult(result.data);
+}
 export function SupabaseAuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null>(null);
@@ -25,7 +37,17 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
   }, [queryClient]);
   const value = useMemo<AuthValue>(() => ({
     user: session?.user ?? null, session, authenticated: Boolean(session), appMode: "supabase", loading, configured: Boolean(supabase), passwordRecovery,
-    async signIn(email, password) { if (!supabase) throw unavailable(); const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password }); if (error) throw new Error("Email ou senha incorretos."); },
+    async signUp(name, email, password) {
+      if (!supabase) throw unavailable();
+      const result = await supabase.auth.signUp({ email: email.trim().toLowerCase(), password, options: { data: { name: name.trim() }, emailRedirectTo: `${window.location.origin}/login` } });
+      if (result.error) throw new Error("Não foi possível criar o cadastro. Verifique os dados e tente novamente.");
+      if (result.data.user?.identities?.length === 0) throw new Error("Já existe uma conta com este email.");
+      if (!result.data.session) return { status: "confirmation_required" };
+      const access = await finalizeRegistration();
+      queryClient.clear();
+      return access;
+    },
+    async signIn(email, password) { if (!supabase) throw unavailable(); const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password }); if (error) throw new Error("Email ou senha incorretos."); const access = await supabase.rpc("complete_registration"); if (access.error) throw new Error("Não foi possível validar seu acesso agora."); queryClient.clear(); window.location.assign("/"); },
     enterLocalMode() { throw new Error("O modo local não está disponível."); },
     async resetPassword(email) { if (!supabase) throw unavailable(); const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: `${window.location.origin}/login` }); if (error) throw new Error("Não foi possível enviar a recuperação agora."); },
     async updatePassword(password) { if (!supabase) throw unavailable(); const { error } = await supabase.auth.updateUser({ password }); if (error) throw new Error("Não foi possível atualizar a senha."); setPasswordRecovery(false); },

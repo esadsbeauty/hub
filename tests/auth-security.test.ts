@@ -21,9 +21,19 @@ describe("modos local e Supabase", () => {
     const auth = readFileSync("src/providers/auth-provider.tsx", "utf8");
     const localAuth = readFileSync("src/providers/local-auth-provider.tsx", "utf8");
     expect(auth).toContain("signInWithPassword");
+    expect(auth).toContain("supabase.auth.signUp");
+    expect(auth).toContain('rpc("complete_registration")');
     expect(localAuth).toContain("esads-hub-local-v1:session");
     expect(localAuth).toContain("enterLocalMode");
     expect(localAuth).not.toContain("supabase");
+  });
+  test("cadastro expõe apenas nome, email e senha e respeita confirmação", () => {
+    const page = readFileSync("src/modules/auth/RegisterPage.tsx", "utf8");
+    expect(page).toContain("passwordConfirmation");
+    expect(page).toContain("As senhas não coincidem");
+    expect(page).toContain("Confirme seu email");
+    expect(page).not.toContain("roleId");
+    expect(page).not.toContain("organizationId");
   });
   test("todos os data sources selecionam provider pela configuração central", () => {
     for (const path of ["src/modules/crm/data-source.ts", "src/modules/customers/data-source.ts", "src/modules/finance/data-source.ts", "src/modules/marketing/data-source.ts"]) {

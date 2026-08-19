@@ -1,6 +1,6 @@
 import type { Permission, RoleSlug } from "@/shared/permissions/permissions";
 
-export type MemberStatus = "invited" | "active" | "suspended" | "inactive";
+export type MemberStatus = "pending" | "invited" | "active" | "suspended" | "inactive";
 export type OrganizationSettings = { id: string; name: string; timezone: string; currency: string; locale: string };
 export type Role = { id: string; name: string; slug: RoleSlug; permissions: Permission[] };
 export type Member = { id: string; userId: string; name: string; email: string; roleId: string; roleName: string; roleSlug: RoleSlug; status: MemberStatus; joinedAt?: string; lastSignInAt?: string; createdAt: string };
