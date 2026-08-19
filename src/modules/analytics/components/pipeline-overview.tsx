@@ -1,4 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import { currency } from "@/modules/crm/utils/formatters";
 import type { AnalyticsResult } from "../analytics-service";
 
@@ -18,17 +20,16 @@ export function PipelineOverview({
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        {analytics.stageRows.map((row) => (
-          <div key={row.stage.id}>
+        {analytics.stageRows.map((row, index) => (
+          <div key={row.stage.id} className={index > 3 ? "hidden sm:block" : undefined}>
             <div className="mb-1 flex items-end justify-between gap-3 text-sm">
               <div>
                 <b>{row.stage.name}</b>
-                <p className="text-xs text-muted-foreground">
-                  {row.count} oportunidades · {currency.format(row.weighted)}{" "}
-                  ponderado
+                <p className="text-sm text-muted-foreground sm:text-xs">
+                  {row.count} oportunidades <span className="hidden sm:inline">· {currency.format(row.weighted)} ponderado</span>
                 </p>
               </div>
-              <b>{currency.format(row.value)}</b>
+              <b className="text-sm">{currency.format(row.value)}</b>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-muted">
               <div
@@ -45,6 +46,7 @@ export function PipelineOverview({
             Não existem oportunidades abertas para os filtros selecionados.
           </p>
         )}
+        {analytics.stageRows.length > 4 && <Link to="/crm" className="flex min-h-12 items-center justify-between rounded-xl bg-muted/70 px-4 text-sm font-semibold sm:hidden">Abrir pipeline completo <ArrowRight size={18}/></Link>}
       </CardContent>
     </Card>
   );

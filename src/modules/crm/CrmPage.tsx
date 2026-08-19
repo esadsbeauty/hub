@@ -7,6 +7,7 @@ import {
   Kanban,
   List,
   Plus,
+  SlidersHorizontal,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -77,7 +78,7 @@ export function CrmPage() {
   const actions = useCrmActions();
   const { notify } = useToast();
   const [query, setQuery] = useState(
-    () => sessionStorage.getItem("crm-query") ?? "",
+    () => searchParams.get("q") ?? sessionStorage.getItem("crm-query") ?? "",
   );
   const deferredQuery = useDeferredValue(query);
   const [view, setView] = useState<View>(() => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches ? "list" : "kanban");
@@ -93,7 +94,9 @@ export function CrmPage() {
   const [duplicates, setDuplicates] = useState<Company[]>([]);
   const [selected, setSelected] = useState<Opportunity>();
   const [quickCompanyId, setQuickCompanyId] = useState("");
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   useEffect(() => { const requested = searchParams.get("new"); if (requested === "company" || requested === "opportunity") setModal(requested); }, [searchParams]);
+  useEffect(() => { const requestedQuery = searchParams.get("q"); if (requestedQuery !== null) { setQuery(requestedQuery); sessionStorage.setItem("crm-query", requestedQuery); } }, [searchParams]);
   const closeModal = () => { setModal(null); if (searchParams.has("new")) { const next = new URLSearchParams(searchParams); next.delete("new"); next.delete("quick"); setSearchParams(next, { replace: true }); } };
   const updateFilters = (next: Filters) => {
     setFilters(next);
@@ -297,19 +300,19 @@ export function CrmPage() {
         description="Empresas, oportunidades e próximos passos."
         actions={
           <>
-            <Button variant="outline" onClick={() => setModal("followup")}>
+            <Button className="hidden md:inline-flex" variant="outline" onClick={() => setModal("followup")}>
               Tarefa / follow-up
             </Button>
-            <Button variant="outline" onClick={() => setModal("opportunity")}>
+            <Button className="hidden md:inline-flex" variant="outline" onClick={() => setModal("opportunity")}>
               Nova oportunidade
             </Button>
             <Button onClick={() => setModal("company")}>
-              <Plus size={17} /> Nova empresa
+              <Plus size={17} /> <span className="md:hidden">Novo lead</span><span className="hidden md:inline">Nova empresa</span>
             </Button>
           </>
         }
       />
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <MetricCard
           label="Empresas"
           value={companies.length}
@@ -375,7 +378,8 @@ export function CrmPage() {
           <option value="priority">Prioridade</option>
         </Select>
       </div>
-      <FilterBar>
+      <div className="grid grid-cols-[1fr_auto] gap-2 md:hidden"><SearchInput value={query} onChange={(event) => { setQuery(event.target.value); sessionStorage.setItem("crm-query", event.target.value); }} placeholder="Buscar lead ou contato…"/><Button variant="outline" aria-label="Abrir filtros" onClick={()=>setMobileFiltersOpen(true)}><SlidersHorizontal size={18}/>{activeFilters > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-[11px] text-primary-foreground">{activeFilters}</span>}</Button></div>
+      <FilterBar className="hidden md:flex">
         <SearchInput
           value={query}
           onChange={(event) => {
@@ -470,6 +474,17 @@ export function CrmPage() {
           </Button>
         )}
       </FilterBar>
+      <Modal open={mobileFiltersOpen} title="Filtrar CRM" onClose={()=>setMobileFiltersOpen(false)}>
+        <div className="grid gap-3">
+          <FilterSelect value={filters.owner} label="Responsável" values={companies.map((item) => item.owner)} onChange={(owner) => updateFilters({ ...filters, owner })}/>
+          <FilterSelect value={filters.source} label="Origem" values={companies.map((item) => item.leadSource)} onChange={(source) => updateFilters({ ...filters, source })}/>
+          <FilterSelect value={filters.state} label="Estado" values={companies.map((item) => item.state)} onChange={(state) => updateFilters({ ...filters, state })}/>
+          <Select aria-label="Temperatura" value={filters.temperature} onChange={(event)=>updateFilters({...filters,temperature:event.target.value})}><option value="all">Todas as temperaturas</option><option value="frio">Frio</option><option value="morno">Morno</option><option value="quente">Quente</option></Select>
+          <Select aria-label="Prioridade" value={filters.priority} onChange={(event)=>updateFilters({...filters,priority:event.target.value})}><option value="all">Todas as prioridades</option><option value="baixa">Baixa</option><option value="media">Média</option><option value="alta">Alta</option></Select>
+          <Select aria-label="Follow-ups" value={filters.overdue} onChange={(event)=>updateFilters({...filters,overdue:event.target.value})}><option value="all">Todos os follow-ups</option><option value="true">Com follow-up atrasado</option><option value="false">Sem follow-up atrasado</option></Select>
+          <div className="mt-2 grid grid-cols-2 gap-2"><Button variant="outline" onClick={()=>updateFilters(emptyFilters)}>Limpar</Button><Button onClick={()=>setMobileFiltersOpen(false)}>Aplicar filtros</Button></div>
+        </div>
+      </Modal>
       {filtered.length === 0 ? (
         <EmptyState
           title="Nenhuma empresa encontrada"

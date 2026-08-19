@@ -1,25 +1,54 @@
 import { useState } from "react";
-import { Calendar, LayoutDashboard, Menu, Plus, Users, Handshake, Wallet, Megaphone, BarChart3, Settings } from "lucide-react";
-import { NavLink, Link } from "react-router-dom";
+import { BarChart3, Calendar, Handshake, Home, Menu, Megaphone, Plus, Settings, UserPlus, Users, Wallet } from "lucide-react";
+import { Link, NavLink } from "react-router-dom";
 import { useAppState } from "@/shared/state/app-state-context";
 
-const primary = [
-  { to: "/", label: "Início", icon: LayoutDashboard, permission: "dashboard.view" as const },
+const navigation = [
+  { to: "/", label: "Início", icon: Home, permission: "dashboard.view" as const },
   { to: "/crm", label: "CRM", icon: Handshake, permission: "crm.view" as const },
   { to: "/agenda", label: "Agenda", icon: Calendar, permission: "agenda.view" as const },
-  { to: "/clientes", label: "Clientes", icon: Users, permission: "customers.view" as const },
 ];
 const more = [
+  { to: "/clientes", label: "Clientes", icon: Users, permission: "customers.view" as const },
   { to: "/financeiro", label: "Financeiro", icon: Wallet, permission: "finance.view" as const },
   { to: "/marketing", label: "Marketing", icon: Megaphone, permission: "marketing.view" as const },
   { to: "/relatorios", label: "Relatórios", icon: BarChart3, permission: "reports.view" as const },
   { to: "/configuracoes", label: "Configurações", icon: Settings, permission: "settings.view" as const },
 ];
+const actions = [
+  { label: "Novo lead", detail: "Cadastre nome e contato", to: "/crm?new=company&quick=1", icon: UserPlus },
+  { label: "Nova oportunidade", detail: "Adicione ao pipeline", to: "/crm?new=opportunity", icon: Handshake },
+  { label: "Novo follow-up", detail: "Programe o próximo contato", to: "/agenda?new=follow_up", icon: Calendar },
+  { label: "Nova tarefa", detail: "Organize uma ação", to: "/agenda?new=task", icon: Plus },
+];
+
 export function MobileNavigation() {
-  const { can } = useAppState(); const [sheet, setSheet] = useState<"new" | "more" | null>(null);
-  const actions = [
-    ["Novo lead", "/crm?new=company&quick=1"], ["Nova oportunidade", "/crm?new=opportunity"],
-    ["Novo follow-up", "/agenda?new=follow_up"], ["Nova tarefa", "/agenda?new=task"], ["Nova reunião", "/agenda?new=meeting"],
-  ];
-  return <><nav aria-label="Navegação principal" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-6 border-t border-border/70 bg-card/95 px-1 pt-1 backdrop-blur-xl lg:hidden pb-[max(.35rem,env(safe-area-inset-bottom))]">{primary.slice(0,2).map(({to,label,icon:Icon,permission}) => can(permission) && <NavLink end={to === "/"} key={to} to={to} className={({isActive}) => `flex min-h-14 flex-col items-center justify-center gap-1 text-[10px] font-medium ${isActive ? "text-foreground" : "text-muted-foreground"}`}><Icon size={19}/>{label}</NavLink>)}<button aria-label="Criar novo" onClick={() => setSheet("new")} className="mx-auto -mt-4 grid h-14 w-14 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-overlay"><Plus size={22}/></button>{primary.slice(2).map(({to,label,icon:Icon,permission}) => can(permission) && <NavLink key={to} to={to} className={({isActive}) => `flex min-h-14 flex-col items-center justify-center gap-1 text-[10px] font-medium ${isActive ? "text-foreground" : "text-muted-foreground"}`}><Icon size={19}/>{label}</NavLink>)}<button onClick={() => setSheet("more")} className="flex min-h-14 flex-col items-center justify-center gap-1 text-[10px] font-medium text-muted-foreground"><Menu size={19}/>Mais</button></nav>{sheet && <div className="fixed inset-0 z-50 bg-black/35 lg:hidden" onClick={() => setSheet(null)}><section role="dialog" aria-modal="true" aria-label={sheet === "new" ? "Criar novo" : "Mais opções"} className="absolute inset-x-0 bottom-0 rounded-t-3xl bg-card p-5 shadow-overlay pb-[max(1.25rem,env(safe-area-inset-bottom))]" onClick={(event) => event.stopPropagation()}><div className="mx-auto mb-5 h-1 w-10 rounded-full bg-border"/><h2 className="mb-3 text-lg font-semibold">{sheet === "new" ? "Criar novo" : "Mais opções"}</h2><div className="grid gap-1">{sheet === "new" ? actions.map(([label,to]) => <Link onClick={() => setSheet(null)} className="min-h-12 rounded-xl px-3 py-3 text-sm font-medium hover:bg-muted" key={to} to={to}>{label}</Link>) : more.filter((item) => can(item.permission)).map(({to,label,icon:Icon}) => <Link onClick={() => setSheet(null)} className="flex min-h-12 items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium hover:bg-muted" key={to} to={to}><Icon size={18}/>{label}</Link>)}</div></section></div>}</>;
+  const { can } = useAppState();
+  const [sheet, setSheet] = useState<"new" | "more" | null>(null);
+  const navItem = (item: (typeof navigation)[number]) => {
+    const Icon = item.icon;
+    return can(item.permission) && (
+      <NavLink end={item.to === "/"} key={item.to} to={item.to} className={({ isActive }) => `flex min-h-[4.25rem] flex-col items-center justify-center gap-1.5 rounded-2xl text-xs font-semibold ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
+        <Icon size={22} strokeWidth={1.8}/><span>{item.label}</span>
+      </NavLink>
+    );
+  };
+  return <>
+    <nav aria-label="Navegação principal" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border/60 bg-card/95 px-2 pt-1.5 shadow-[0_-12px_40px_rgba(25,20,15,.06)] backdrop-blur-xl lg:hidden pb-[max(.45rem,env(safe-area-inset-bottom))]">
+      {navItem(navigation[0])}{navItem(navigation[1])}
+      <button aria-label="Abrir ações rápidas" onClick={() => setSheet("new")} className="mx-auto -mt-5 grid h-16 w-16 place-items-center rounded-[1.35rem] border-4 border-background bg-primary text-primary-foreground shadow-overlay premium-focus"><Plus size={27}/></button>
+      {navItem(navigation[2])}
+      <button onClick={() => setSheet("more")} className="flex min-h-[4.25rem] flex-col items-center justify-center gap-1.5 rounded-2xl text-xs font-semibold text-muted-foreground premium-focus"><Menu size={22}/><span>Mais</span></button>
+    </nav>
+    {sheet && <div className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[2px] lg:hidden" onClick={() => setSheet(null)}>
+      <section role="dialog" aria-modal="true" aria-label={sheet === "new" ? "Ações rápidas" : "Mais opções"} className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-auto rounded-t-[2rem] bg-card px-5 pt-3 shadow-overlay pb-[max(1.5rem,env(safe-area-inset-bottom))]" onClick={(event) => event.stopPropagation()}>
+        <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-border"/>
+        <p className="text-xs font-semibold uppercase tracking-[.18em] text-muted-foreground">ESADS Beauty</p>
+        <h2 className="mt-1 text-2xl font-semibold tracking-[-.035em]">{sheet === "new" ? "O que deseja criar?" : "Mais opções"}</h2>
+        <div className="mt-5 grid gap-2">
+          {sheet === "new" ? actions.map(({label, detail, to, icon: Icon}) => <Link onClick={() => setSheet(null)} className="flex min-h-16 items-center gap-4 rounded-2xl border border-border/60 px-4 py-3 premium-focus active:bg-muted" key={to} to={to}><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-champagne-soft"><Icon size={21}/></span><span><b className="block text-base">{label}</b><span className="text-sm text-muted-foreground">{detail}</span></span></Link>) : more.filter((item) => can(item.permission)).map(({to,label,icon:Icon}) => <Link onClick={() => setSheet(null)} className="flex min-h-14 items-center gap-4 rounded-2xl px-3 text-base font-semibold premium-focus active:bg-muted" key={to} to={to}><Icon size={22}/>{label}</Link>)}
+        </div>
+      </section>
+    </div>}
+  </>;
 }
