@@ -88,9 +88,9 @@ describe("configuração de deployment", () => {
     const result = spawnSync(process.execPath, ["scripts/audit-supabase-migrations.mjs"], { encoding: "utf8" });
     expect(result.status).toBe(0);
     const audit = JSON.parse(result.stdout) as { migrations: number; ordered: string[]; destructive: string[] };
-    expect(audit.migrations).toBe(20);
+    expect(audit.migrations).toBe(21);
     expect(audit.ordered[0]).toBe("202607290001_initial_crm.sql");
-    expect(audit.ordered.at(-1)).toBe("202608210002_diagnostic_admin_access.sql");
+    expect(audit.ordered.at(-1)).toBe("202608210003_simplify_diagnostic_capture.sql");
     expect(audit.destructive).toEqual([]);
   });
 });
