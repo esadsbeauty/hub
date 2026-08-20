@@ -105,7 +105,7 @@ export function TaskForm({
           </Button>
         ))}
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-5 md:grid-cols-2 md:gap-3">
         <Select {...register("type")}>
           {typeLabels.map((item) => (
             <option key={item.value} value={item.value}>
@@ -181,7 +181,7 @@ export function TaskForm({
         {errors.assignedTo && <p>{errors.assignedTo.message}</p>}
         {errors.meetingUrl && <p>{errors.meetingUrl.message}</p>}
       </div>
-      <div className="flex justify-end gap-2">
+      <div className="grid grid-cols-2 gap-3 md:flex md:justify-end md:gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancelar
         </Button>

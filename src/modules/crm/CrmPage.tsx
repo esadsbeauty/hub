@@ -37,6 +37,7 @@ import { CompanyForm } from "./components/company-form";
 import { FollowUpQuickForm } from "./components/simple-forms";
 import { OpportunityForm } from "./components/opportunity-form";
 import { OpportunityDetails } from "./components/opportunity-details";
+import { MobileCrmView } from "./components/mobile-crm-view";
 import { useCrmActions, useCrmData } from "./hooks";
 import type { CompanyFormData } from "./schema";
 import type {
@@ -50,8 +51,8 @@ import type {
 } from "./types";
 import { currency, formatDateTime } from "./utils/formatters";
 type View = "kanban" | "list";
-type Sort = "newest" | "oldest" | "name" | "activity" | "followup" | "priority";
-type Filters = {
+export type CrmSort = "newest" | "oldest" | "name" | "activity" | "followup" | "priority";
+export type CrmFilters = {
   owner: string;
   source: string;
   temperature: string;
@@ -62,7 +63,7 @@ type Filters = {
   activity: string;
   created: string;
 };
-const emptyFilters: Filters = {
+const emptyFilters: CrmFilters = {
   owner: "all",
   source: "all",
   temperature: "all",
@@ -84,8 +85,8 @@ export function CrmPage() {
   );
   const deferredQuery = useDeferredValue(query);
   const [view, setView] = useState<View>("kanban");
-  const [sort, setSort] = useState<Sort>("newest");
-  const [filters, setFilters] = useState<Filters>(() => {
+  const [sort, setSort] = useState<CrmSort>("newest");
+  const [filters, setFilters] = useState<CrmFilters>(() => {
     const saved = sessionStorage.getItem("crm-filters");
     return saved ? { ...emptyFilters, ...JSON.parse(saved) } : emptyFilters;
   });
@@ -101,7 +102,7 @@ export function CrmPage() {
   useEffect(() => { const requested = searchParams.get("new"); if (requested === "company" || requested === "opportunity") setModal(requested); }, [searchParams]);
   useEffect(() => { const requestedQuery = searchParams.get("q"); if (requestedQuery !== null) { setQuery(requestedQuery); sessionStorage.setItem("crm-query", requestedQuery); } }, [searchParams]);
   const closeModal = () => { setModal(null); if (searchParams.has("new")) { const next = new URLSearchParams(searchParams); next.delete("new"); next.delete("quick"); setSearchParams(next, { replace: true }); } };
-  const updateFilters = (next: Filters) => {
+  const updateFilters = (next: CrmFilters) => {
     setFilters(next);
     sessionStorage.setItem("crm-filters", JSON.stringify(next));
   };
@@ -298,6 +299,26 @@ export function CrmPage() {
   };
   return (
     <PageContainer>
+      <MobileCrmView
+        companies={filtered}
+        contacts={contacts}
+        opportunities={opportunities.filter((item)=>filtered.some((company)=>company.id===item.companyId))}
+        tasks={tasks}
+        stages={data.stages}
+        query={query}
+        filters={filters}
+        sort={sort}
+        activeFilters={activeFilters}
+        onQueryChange={(value)=>{setQuery(value);sessionStorage.setItem("crm-query",value)}}
+        onFiltersChange={updateFilters}
+        onSortChange={setSort}
+        onOpenCompany={(company)=>navigate(`/crm/companies/${company.id}`)}
+        onOpenOpportunity={setSelected}
+        onCreateOpportunity={()=>setModal("opportunity")}
+        onMoveOpportunity={(opportunity,stageId)=>actions.moveOpportunity.mutate({opportunityId:opportunity.id,stageId},{onError:()=>notify({title:"Não foi possível mover",description:"A oportunidade voltou para a etapa anterior."})})}
+        nextTask={nextTask}
+      />
+      <div className="hidden md:contents">
       <PageHeader
         title="CRM"
         description="Empresas, oportunidades e próximos passos."
@@ -505,7 +526,7 @@ export function CrmPage() {
         </div>
       </Modal>
       <Modal open={mobileSortOpen} title="Ordenar CRM" onClose={()=>setMobileSortOpen(false)}>
-        <div className="space-y-4"><Label htmlFor="crm-mobile-sort">Ordenar empresas por</Label><Select id="crm-mobile-sort" value={sort} onChange={(event)=>setSort(event.target.value as Sort)}><option value="newest">Mais recentes</option><option value="oldest">Mais antigos</option><option value="name">Nome</option><option value="activity">Última atividade</option><option value="followup">Próximo follow-up</option><option value="priority">Prioridade</option></Select><Button className="w-full" onClick={()=>setMobileSortOpen(false)}>Aplicar ordenação</Button></div>
+        <div className="space-y-4"><Label htmlFor="crm-mobile-sort">Ordenar empresas por</Label><Select id="crm-mobile-sort" value={sort} onChange={(event)=>setSort(event.target.value as CrmSort)}><option value="newest">Mais recentes</option><option value="oldest">Mais antigos</option><option value="name">Nome</option><option value="activity">Última atividade</option><option value="followup">Próximo follow-up</option><option value="priority">Prioridade</option></Select><Button className="w-full" onClick={()=>setMobileSortOpen(false)}>Aplicar ordenação</Button></div>
       </Modal>
       {filtered.length === 0 ? (
         <EmptyState
@@ -597,7 +618,7 @@ export function CrmPage() {
             },
           ]}
         /></div></>
-      )}
+      )}</div>
       <Modal
         open={modal === "company"}
         title="Nova empresa"

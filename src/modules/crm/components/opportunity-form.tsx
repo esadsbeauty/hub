@@ -79,7 +79,7 @@ export function OpportunityForm({
   }, [stageId, stages, setValue]);
   return (
     <form
-      className="grid gap-3 md:grid-cols-2"
+      className="grid gap-5 md:grid-cols-2 md:gap-3"
       onSubmit={handleSubmit(onSubmit)}
     >
       <Select disabled={Boolean(companyId)} {...register("companyId")}>
@@ -141,7 +141,7 @@ export function OpportunityForm({
         {errors.value && <p>{errors.value.message}</p>}
         {errors.probability && <p>{errors.probability.message}</p>}
       </div>
-      <div className="flex justify-end gap-2 md:col-span-2">
+      <div className="grid grid-cols-2 gap-3 md:flex md:justify-end md:gap-2 md:col-span-2">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancelar
         </Button>

@@ -1,1 +1,1 @@
-import {cn}from'@/lib/utils';export function Badge({className,...props}:React.HTMLAttributes<HTMLSpanElement>){return <span className={cn('inline-flex items-center rounded-lg bg-muted px-2 py-1 text-xs font-medium text-muted-foreground',className)}{...props}/>}
+import {cn}from'@/lib/utils';export function Badge({className,...props}:React.HTMLAttributes<HTMLSpanElement>){return <span className={cn('inline-flex min-h-8 items-center rounded-lg bg-muted px-2.5 py-1 text-sm font-medium text-muted-foreground md:min-h-0 md:px-2 md:text-xs',className)}{...props}/>}

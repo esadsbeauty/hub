@@ -4,10 +4,10 @@ import { readFileSync } from "node:fs";
 describe("experiência operacional mobile", () => {
   test("dashboard prioriza KPIs, agenda, follow-ups e pipeline", () => {
     const page = readFileSync("src/modules/dashboard/DashboardPage.tsx", "utf8");
-    const kpis = page.indexOf('className="grid grid-cols-1');
+    const kpis = page.indexOf('aria-label="Indicadores do dashboard"');
     const agenda = page.indexOf("Agenda de hoje", kpis);
     const followups = page.indexOf('className="flex min-h-[5.75rem]', agenda);
-    const pipeline = page.indexOf('<div className="md:hidden"><PipelineOverview', followups);
+    const pipeline = page.indexOf('Pipeline resumido', followups);
     expect(kpis).toBeGreaterThan(-1);
     expect(agenda).toBeGreaterThan(kpis);
     expect(followups).toBeGreaterThan(agenda);
@@ -54,19 +54,21 @@ describe("experiência operacional mobile", () => {
   });
 
   test("kanban usa uma coluna larga por viewport no telefone", () => {
-    const crm = readFileSync("src/modules/crm/CrmPage.tsx", "utf8");
-    expect(crm).toContain("min-w-[90vw]");
-    expect(crm).toContain("md:min-w-72");
-    expect(crm).toContain("snap-x snap-mandatory");
+    const mobile = readFileSync("src/modules/crm/components/mobile-crm-view.tsx", "utf8");
+    expect(mobile).toContain("min-w-[90vw]");
+    expect(mobile).toContain("snap-x snap-mandatory");
+    expect(mobile).toContain("Mover etapa");
   });
 
   test("CRM mobile reduz densidade com carrossel, sheets e lista em cards", () => {
     const crm = readFileSync("src/modules/crm/CrmPage.tsx", "utf8");
+    const mobile = readFileSync("src/modules/crm/components/mobile-crm-view.tsx", "utf8");
     const topbar = readFileSync("src/shared/components/layout/topbar.tsx", "utf8");
-    expect(crm).toContain('aria-label="Indicadores do CRM"');
-    expect(crm).toContain('title="Ordenar CRM"');
-    expect(crm).toContain('className="grid gap-4 md:hidden"');
-    expect(topbar).toContain('className="mt-4 md:hidden"');
-    expect(topbar).not.toContain('Novo</Link>\n      </form>');
+    expect(crm).toContain('<MobileCrmView');
+    expect(mobile).toContain('aria-label="Indicadores do CRM"');
+    expect(mobile).toContain('title="Ordenar CRM"');
+    expect(mobile).toContain('aria-label="Empresas em lista"');
+    expect(topbar).toContain('function MobileHeader');
+    expect(topbar).toContain('function DesktopHeader');
   });
 });

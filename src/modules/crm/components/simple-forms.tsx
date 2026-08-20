@@ -90,7 +90,7 @@ export function ContactQuickForm({
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="grid gap-3 md:grid-cols-2"
+      className="grid gap-5 md:grid-cols-2 md:gap-3"
     >
       <Input placeholder="Nome" {...register("name")} />
       <Input placeholder="Cargo" {...register("role")} />
@@ -144,7 +144,7 @@ export function FollowUpQuickForm({
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="grid gap-3 md:grid-cols-2"
+      className="grid gap-5 md:grid-cols-2 md:gap-3"
     >
       <Input placeholder="Título" {...register("title")} />
       <Input type="date" {...register("date")} />
@@ -198,7 +198,7 @@ export function ActivityQuickForm({
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="grid gap-3 md:grid-cols-2"
+      className="grid gap-5 md:grid-cols-2 md:gap-3"
     >
       <Input placeholder="Título" {...register("title")} />
       <Select {...register("type")}>
