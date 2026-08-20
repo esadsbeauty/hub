@@ -1,0 +1,1 @@
+import type{Attribution,DiagnosticAnswers,DiagnosticLead,DiagnosticSubmission}from"./types";export interface DiagnosticRepository{submit(input:{idempotencyKey:string;lead:DiagnosticLead;answers:DiagnosticAnswers;attribution:Attribution;startedAt:string;honeypot?:string}):Promise<DiagnosticSubmission>;get(token:string):Promise<DiagnosticSubmission|null>}

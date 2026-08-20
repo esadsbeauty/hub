@@ -5,7 +5,7 @@ import "./styles/globals.css";
 
 console.info("[ESADS APP MODE]", { appMode, isLocalMode });
 
-const isPublicRoute = /^\/blog(?:\/|$)/.test(window.location.pathname);
+const isPublicRoute = /^\/(?:blog|diagnostico|privacidade|termos)(?:\/|$)/.test(window.location.pathname);
 const ApplicationRoot = lazy(() => isPublicRoute ? import("./app/public-app-root") : isLocalMode ? import("./app/local-app-root") : import("./app/supabase-app-root"));
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

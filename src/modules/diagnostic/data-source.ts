@@ -1,0 +1,1 @@
+import{isSupabaseConfigured}from"@/config/env";import{localDiagnosticRepository}from"./repository";import{supabaseDiagnosticRepository}from"./supabase-repository";export const diagnosticDataSource=isSupabaseConfigured?supabaseDiagnosticRepository:localDiagnosticRepository;

@@ -217,6 +217,8 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      submit_public_diagnostic: { Args: { submission_data: Json }; Returns: Json };
+      public_diagnostic_result: { Args: { result_token: string }; Returns: Json };
       public_blog_posts: { Args: { search_term?: string | null; category_slug?: string | null; page_offset?: number; page_limit?: number }; Returns: Json };
       public_blog_post: { Args: { post_slug: string }; Returns: Json };
       save_blog_post: { Args: { post_id: string | null; post_title: string; post_slug: string; post_excerpt: string; post_content: string; post_cover_image_path: string | null; post_category_id: string | null; post_seo_title: string | null; post_seo_description: string | null }; Returns: string };

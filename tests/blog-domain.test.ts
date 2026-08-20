@@ -19,7 +19,7 @@ describe("fundação pública do blog", () => {
   test("separa rotas públicas antes dos providers autenticados", () => {
     const main = readFileSync("src/main.tsx", "utf8");
     const root = readFileSync("src/app/public-app-root.tsx", "utf8");
-    expect(main).toContain('const isPublicRoute = /^\\/blog');
+    expect(main).toContain('blog|diagnostico');
     expect(main).toContain('isPublicRoute ? import("./app/public-app-root")');
     expect(root).toContain('path="/blog"');
     expect(root).toContain('path="/blog/:slug"');
