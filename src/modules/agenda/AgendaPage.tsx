@@ -336,7 +336,7 @@ export function AgendaPage() {
                 onClick={() => setSelectedDay(localDateKey(day))}
               >
                 <b className="text-sm">{dayTitle(day)}</b>
-                <div className="mt-4 space-y-1 text-xs text-muted-foreground">
+                <div className="mt-4 space-y-2 text-base leading-6 text-muted-foreground md:space-y-1 md:text-xs">
                   <p>{items.length} atividades</p>
                   <p>{meetings} reuniões</p>
                 </div>
@@ -460,7 +460,7 @@ function AgendaGroup({
 }) {
   return (
     <section>
-      <h2 className="mb-3 text-xs font-bold uppercase tracking-[.18em] text-muted-foreground">
+      <h2 className="mb-3 text-sm font-bold uppercase md:text-xs tracking-[.18em] text-muted-foreground">
         {title}
       </h2>
       <div className="space-y-3">

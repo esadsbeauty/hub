@@ -35,20 +35,22 @@ describe("experiência operacional mobile", () => {
     const button = readFileSync("src/components/ui/button.tsx", "utf8");
     const input = readFileSync("src/components/ui/input.tsx", "utf8");
     const select = readFileSync("src/components/ui/select.tsx", "utf8");
-    expect(button).toContain("h-14");
-    expect(input).toContain("h-14");
-    expect(select).toContain("h-14");
+    expect(button).toContain("h-[var(--mobile-button-height)]");
+    expect(input).toContain("h-[3.75rem]");
+    expect(select).toContain("h-[3.75rem]");
   });
 
   test("escala confortável é responsiva e não usa zoom global", () => {
     const tokens = readFileSync("src/design-system/tokens.ts", "utf8");
     const styles = readFileSync("src/styles/globals.css", "utf8");
     const header = readFileSync("src/shared/components/layout/page-header.tsx", "utf8");
-    expect(tokens).toContain("controlHeight: '3.5rem'");
+    expect(tokens).toContain("inputHeight: '3.75rem'");
+    expect(tokens).toContain("buttonHeight: '3.5rem'");
     expect(tokens).toContain("pageTitle: '2.125rem'");
-    expect(header).toContain("text-[2rem]");
+    expect(header).toContain("text-[2.125rem]");
     expect(styles).not.toMatch(/zoom\s*:/);
     expect(styles).not.toContain("transform:scale");
+    expect(styles).toContain("--mobile-bottom-nav-height:5.25rem");
   });
 
   test("kanban usa uma coluna larga por viewport no telefone", () => {

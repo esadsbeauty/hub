@@ -25,7 +25,7 @@ export function Topbar() {
   return <header className="sticky top-0 z-20 border-b border-border/60 bg-background/95 px-[1.125rem] pb-5 pt-[max(1rem,env(safe-area-inset-top))] min-[430px]:px-5 backdrop-blur-xl md:px-6 md:py-3 lg:px-8">
     <div className="mx-auto max-w-[90rem]">
       <div className="flex items-center gap-3">
-        <div className="text-lg font-bold tracking-[.2em] lg:hidden">ESADS</div>
+        <div className="text-xl font-bold tracking-[.18em] lg:hidden">ESADS</div>
         {appMode === "local" && <span title="Os dados ficam somente neste navegador" className="rounded-full bg-champagne-soft px-2.5 py-1 text-[11px] font-semibold">Modo local</span>}
         <div className="relative hidden flex-1 sm:block sm:max-w-md"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={17}/><Input className="border-transparent bg-muted/70 pl-10 shadow-none focus-visible:bg-card" placeholder="Buscar empresa, contato ou telefone…"/></div>
         <div className="ml-auto flex items-center gap-1.5">
@@ -36,7 +36,7 @@ export function Topbar() {
       </div>
       <form onSubmit={submitSearch} className="mt-4 grid grid-cols-[1fr_auto] gap-2.5 sm:hidden">
         <label className="relative"><span className="sr-only">Buscar no CRM</span><Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={19}/><Input value={mobileSearch} onChange={(event)=>setMobileSearch(event.target.value)} enterKeyHint="search" className="border-transparent bg-card pl-11 shadow-soft" placeholder="Buscar lead…"/></label>
-        <Link to="/crm?new=company&quick=1" className="inline-flex min-h-[3.25rem] items-center gap-2 rounded-xl bg-primary px-4 text-base font-semibold text-primary-foreground shadow-soft"><Plus size={20}/> Novo</Link>
+        <Link to="/crm?new=company&quick=1" className="inline-flex min-h-[3.75rem] items-center gap-2 rounded-2xl bg-primary px-5 text-base font-semibold text-primary-foreground shadow-soft"><Plus size={22}/> Novo</Link>
       </form>
     </div>
   </header>;

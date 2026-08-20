@@ -3,13 +3,13 @@
 @tailwind components;
 @tailwind utilities;
 @layer base {
-  :root {--background:36 23% 97%;--foreground:30 7% 10%;--card:0 0% 100%;--card-foreground:30 7% 10%;--muted:36 16% 94%;--muted-foreground:30 5% 43%;--border:35 13% 88%;--primary:30 7% 9%;--primary-foreground:36 23% 97%;--accent:39 43% 60%;--sidebar:0 0% 4%;--sidebar-muted:0 0% 65%;--success:151 32% 36%;--warning:26 58% 47%;--danger:3 48% 48%;--radius-card:1.125rem;--radius-control:.75rem}
+  :root {--background:36 23% 97%;--foreground:30 7% 10%;--card:0 0% 100%;--card-foreground:30 7% 10%;--muted:36 16% 94%;--muted-foreground:30 5% 43%;--border:35 13% 88%;--primary:30 7% 9%;--primary-foreground:36 23% 97%;--accent:39 43% 60%;--sidebar:0 0% 4%;--sidebar-muted:0 0% 65%;--success:151 32% 36%;--warning:26 58% 47%;--danger:3 48% 48%;--radius-card:1.125rem;--radius-control:.75rem;--mobile-page-title:2.125rem;--mobile-section-title:1.5rem;--mobile-body:1.125rem;--mobile-card-padding:1.5rem;--mobile-input-height:3.75rem;--mobile-button-height:3.5rem;--mobile-bottom-nav-height:5.25rem}
   .dark {--background:30 7% 8%;--foreground:36 23% 96%;--card:30 6% 11%;--card-foreground:36 23% 96%;--muted:30 5% 15%;--muted-foreground:35 8% 68%;--border:30 5% 20%;--primary:36 23% 96%;--primary-foreground:30 7% 9%}
   *{@apply border-border} html{@apply bg-background} body{@apply bg-background font-sans text-foreground antialiased;font-feature-settings:'ss01' 1,'cv11' 1}button,input,select,textarea{font:inherit}::selection{background:hsl(var(--accent)/.22)}
 }
 @layer components {.glass{@apply bg-card shadow-soft}.premium-focus{@apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-champagne/55 focus-visible:ring-offset-2 focus-visible:ring-offset-background}.smooth{@apply transition-colors duration-200 ease-out}.subtle-divider{@apply border-border/70}}
 @layer components {
-  .blog-prose{@apply text-[17px] leading-8 text-foreground md:text-lg md:leading-9}
+  .blog-prose{@apply text-lg leading-8 text-foreground md:text-lg md:leading-9}
   .blog-prose p{@apply my-6}
   .blog-prose h2{@apply mb-4 mt-12 text-[1.75rem] font-semibold leading-tight tracking-[-.04em] md:text-3xl}
   .blog-prose h3{@apply mb-3 mt-9 text-[1.35rem] font-semibold leading-tight tracking-[-.025em] md:text-2xl}
@@ -18,8 +18,9 @@
   .blog-prose a{@apply font-semibold text-champagne-dark underline decoration-champagne/50 underline-offset-4}
 }
 @media (max-width: 767px) {
-  body { font-size: 17px; line-height: 1.6; }
+  body { font-size: var(--mobile-body); line-height: 1.65; overflow-x: clip; }
   input, select, textarea { font-size: 16px; }
-  input, select { min-height: 3.5rem; }
-  dialog, [role="dialog"] { font-size: 17px; }
+  input, select { min-height: var(--mobile-input-height); }
+  button, a { -webkit-tap-highlight-color: transparent; }
+  dialog, [role="dialog"] { font-size: var(--mobile-body); }
 }
