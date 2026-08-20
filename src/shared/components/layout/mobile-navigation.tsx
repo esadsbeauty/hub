@@ -17,7 +17,7 @@ const more = [
   { to: "/configuracoes", label: "Configurações", icon: Settings, permission: "settings.view" as const },
 ];
 const actions = [
-  { label: "Novo lead", detail: "Cadastre nome e contato", to: "/crm?new=company&quick=1", icon: UserPlus },
+  { label: "Nova empresa", detail: "Cadastre um lead com nome e contato", to: "/crm?new=company&quick=1", icon: UserPlus },
   { label: "Nova oportunidade", detail: "Adicione ao pipeline", to: "/crm?new=opportunity", icon: Handshake },
   { label: "Novo follow-up", detail: "Programe o próximo contato", to: "/agenda?new=follow_up", icon: Calendar },
   { label: "Nova tarefa", detail: "Organize uma ação", to: "/agenda?new=task", icon: Plus },

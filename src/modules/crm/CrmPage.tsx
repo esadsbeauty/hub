@@ -6,6 +6,7 @@ import {
   FilterX,
   Kanban,
   List,
+  ArrowDownUp,
   Plus,
   SlidersHorizontal,
   TrendingUp,
@@ -14,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { DataTable } from "@/shared/components/data-display/data-table";
 import { MetricCard } from "@/shared/components/data-display/metric-card";
 import {
@@ -81,7 +83,7 @@ export function CrmPage() {
     () => searchParams.get("q") ?? sessionStorage.getItem("crm-query") ?? "",
   );
   const deferredQuery = useDeferredValue(query);
-  const [view, setView] = useState<View>(() => typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches ? "list" : "kanban");
+  const [view, setView] = useState<View>("kanban");
   const [sort, setSort] = useState<Sort>("newest");
   const [filters, setFilters] = useState<Filters>(() => {
     const saved = sessionStorage.getItem("crm-filters");
@@ -95,6 +97,7 @@ export function CrmPage() {
   const [selected, setSelected] = useState<Opportunity>();
   const [quickCompanyId, setQuickCompanyId] = useState("");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [mobileSortOpen, setMobileSortOpen] = useState(false);
   useEffect(() => { const requested = searchParams.get("new"); if (requested === "company" || requested === "opportunity") setModal(requested); }, [searchParams]);
   useEffect(() => { const requestedQuery = searchParams.get("q"); if (requestedQuery !== null) { setQuery(requestedQuery); sessionStorage.setItem("crm-query", requestedQuery); } }, [searchParams]);
   const closeModal = () => { setModal(null); if (searchParams.has("new")) { const next = new URLSearchParams(searchParams); next.delete("new"); next.delete("quick"); setSearchParams(next, { replace: true }); } };
@@ -306,36 +309,48 @@ export function CrmPage() {
             <Button className="hidden md:inline-flex" variant="outline" onClick={() => setModal("opportunity")}>
               Nova oportunidade
             </Button>
-            <Button onClick={() => setModal("company")}>
+            <Button className="hidden md:inline-flex" onClick={() => setModal("company")}>
               <Plus size={17} /> <span className="md:hidden">Novo lead</span><span className="hidden md:inline">Nova empresa</span>
             </Button>
           </>
         }
       />
-      <section className="grid grid-cols-1 gap-4 min-[430px]:grid-cols-2 xl:grid-cols-4">
+      <section aria-label="Indicadores do CRM" className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-4">
+        <div className="min-w-[82vw] snap-center md:min-w-0">
         <MetricCard
           label="Empresas"
           value={companies.length}
+          hint="Contas no relacionamento comercial"
           icon={Building2}
         />
+        </div>
+        <div className="min-w-[82vw] snap-center md:min-w-0">
         <MetricCard
           label="Clientes"
           value={
             companies.filter((item) => item.lifecycleStage === "customer")
               .length
           }
+          hint="Relacionamentos já convertidos"
           icon={Users}
         />
+        </div>
+        <div className="min-w-[82vw] snap-center md:min-w-0">
         <MetricCard
           label="Oportunidades abertas"
           value={opportunities.filter((item) => item.status === "open").length}
+          hint="Negociações em andamento"
           icon={TrendingUp}
         />
+        </div>
+        <div className="min-w-[82vw] snap-center md:min-w-0">
         <MetricCard
           label="Follow-ups pendentes"
           value={tasks.filter((item) => item.status === "pending").length}
+          hint="Ações que ainda precisam acontecer"
           icon={CalendarClock}
         />
+        </div>
       </section>
       <div className="flex flex-col justify-between gap-3 sm:flex-row">
         <div className="inline-flex rounded-xl border bg-muted/50 p-1">
@@ -354,8 +369,9 @@ export function CrmPage() {
             <List size={15} /> Lista
           </Button>
         </div>
+        <Button className="md:hidden" variant="outline" onClick={()=>setMobileSortOpen(true)}><ArrowDownUp size={19}/> Ordenar</Button>
         <Select
-          className="sm:w-52"
+          className="hidden md:block md:w-52"
           value={sort}
           onChange={(event) => {
             const value = event.target.value;
@@ -378,7 +394,7 @@ export function CrmPage() {
           <option value="priority">Prioridade</option>
         </Select>
       </div>
-      <div className="grid grid-cols-[1fr_auto] gap-2 md:hidden"><SearchInput value={query} onChange={(event) => { setQuery(event.target.value); sessionStorage.setItem("crm-query", event.target.value); }} placeholder="Buscar lead ou contato…"/><Button variant="outline" aria-label="Abrir filtros" onClick={()=>setMobileFiltersOpen(true)}><SlidersHorizontal size={18}/>{activeFilters > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-primary px-1 text-[11px] text-primary-foreground">{activeFilters}</span>}</Button></div>
+      <div className="space-y-3 md:hidden"><SearchInput value={query} onChange={(event) => { setQuery(event.target.value); sessionStorage.setItem("crm-query", event.target.value); }} placeholder="Buscar lead ou contato…"/><Button className="w-full" variant="outline" aria-label="Abrir filtros" onClick={()=>setMobileFiltersOpen(true)}><SlidersHorizontal size={20}/> Filtros{activeFilters > 0 && <span className="grid h-7 min-w-7 place-items-center rounded-full bg-primary px-2 text-sm text-primary-foreground">{activeFilters}</span>}</Button>{activeFilters>0&&<p className="text-sm text-muted-foreground">{activeFilters} filtro(s) ativo(s)</p>}</div>
       <FilterBar className="hidden md:flex">
         <SearchInput
           value={query}
@@ -475,15 +491,21 @@ export function CrmPage() {
         )}
       </FilterBar>
       <Modal open={mobileFiltersOpen} title="Filtrar CRM" onClose={()=>setMobileFiltersOpen(false)}>
-        <div className="grid gap-3">
-          <FilterSelect value={filters.owner} label="Responsável" values={companies.map((item) => item.owner)} onChange={(owner) => updateFilters({ ...filters, owner })}/>
-          <FilterSelect value={filters.source} label="Origem" values={companies.map((item) => item.leadSource)} onChange={(source) => updateFilters({ ...filters, source })}/>
-          <FilterSelect value={filters.state} label="Estado" values={companies.map((item) => item.state)} onChange={(state) => updateFilters({ ...filters, state })}/>
-          <Select aria-label="Temperatura" value={filters.temperature} onChange={(event)=>updateFilters({...filters,temperature:event.target.value})}><option value="all">Todas as temperaturas</option><option value="frio">Frio</option><option value="morno">Morno</option><option value="quente">Quente</option></Select>
-          <Select aria-label="Prioridade" value={filters.priority} onChange={(event)=>updateFilters({...filters,priority:event.target.value})}><option value="all">Todas as prioridades</option><option value="baixa">Baixa</option><option value="media">Média</option><option value="alta">Alta</option></Select>
-          <Select aria-label="Follow-ups" value={filters.overdue} onChange={(event)=>updateFilters({...filters,overdue:event.target.value})}><option value="all">Todos os follow-ups</option><option value="true">Com follow-up atrasado</option><option value="false">Sem follow-up atrasado</option></Select>
-          <div className="mt-2 grid grid-cols-2 gap-2"><Button variant="outline" onClick={()=>updateFilters(emptyFilters)}>Limpar</Button><Button onClick={()=>setMobileFiltersOpen(false)}>Aplicar filtros</Button></div>
+        <div className="grid gap-5">
+          <MobileFilterField label="Responsável"><FilterSelect value={filters.owner} label="Todos os responsáveis" values={companies.map((item) => item.owner)} onChange={(owner) => updateFilters({ ...filters, owner })}/></MobileFilterField>
+          <MobileFilterField label="Origem"><FilterSelect value={filters.source} label="Todas as origens" values={companies.map((item) => item.leadSource)} onChange={(source) => updateFilters({ ...filters, source })}/></MobileFilterField>
+          <MobileFilterField label="Estado"><FilterSelect value={filters.state} label="Todos os estados" values={companies.map((item) => item.state)} onChange={(state) => updateFilters({ ...filters, state })}/></MobileFilterField>
+          <MobileFilterField label="Temperatura"><Select value={filters.temperature} onChange={(event)=>updateFilters({...filters,temperature:event.target.value})}><option value="all">Todas as temperaturas</option><option value="frio">Frio</option><option value="morno">Morno</option><option value="quente">Quente</option></Select></MobileFilterField>
+          <MobileFilterField label="Prioridade"><Select value={filters.priority} onChange={(event)=>updateFilters({...filters,priority:event.target.value})}><option value="all">Todas as prioridades</option><option value="baixa">Baixa</option><option value="media">Média</option><option value="alta">Alta</option></Select></MobileFilterField>
+          <MobileFilterField label="Oportunidade"><Select value={filters.openOpportunity} onChange={(event)=>updateFilters({...filters,openOpportunity:event.target.value})}><option value="all">Todas as empresas</option><option value="true">Com oportunidade aberta</option><option value="false">Sem oportunidade aberta</option></Select></MobileFilterField>
+          <MobileFilterField label="Follow-up"><Select value={filters.overdue} onChange={(event)=>updateFilters({...filters,overdue:event.target.value})}><option value="all">Todos os follow-ups</option><option value="true">Com follow-up atrasado</option><option value="false">Sem follow-up atrasado</option></Select></MobileFilterField>
+          <MobileFilterField label="Atividade"><Select value={filters.activity} onChange={(event)=>updateFilters({...filters,activity:event.target.value})}><option value="all">Qualquer atividade</option><option value="true">Sem atividade recente</option><option value="false">Com atividade recente</option></Select></MobileFilterField>
+          <MobileFilterField label="Período"><Select value={filters.created} onChange={(event)=>updateFilters({...filters,created:event.target.value})}><option value="all">Qualquer período</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option></Select></MobileFilterField>
+          <div className="sticky bottom-0 -mx-5 mt-2 grid grid-cols-2 gap-3 border-t bg-card px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4"><Button variant="outline" onClick={()=>updateFilters(emptyFilters)}>Limpar</Button><Button onClick={()=>setMobileFiltersOpen(false)}>Aplicar filtros</Button></div>
         </div>
+      </Modal>
+      <Modal open={mobileSortOpen} title="Ordenar CRM" onClose={()=>setMobileSortOpen(false)}>
+        <div className="space-y-4"><Label htmlFor="crm-mobile-sort">Ordenar empresas por</Label><Select id="crm-mobile-sort" value={sort} onChange={(event)=>setSort(event.target.value as Sort)}><option value="newest">Mais recentes</option><option value="oldest">Mais antigos</option><option value="name">Nome</option><option value="activity">Última atividade</option><option value="followup">Próximo follow-up</option><option value="priority">Prioridade</option></Select><Button className="w-full" onClick={()=>setMobileSortOpen(false)}>Aplicar ordenação</Button></div>
       </Modal>
       {filtered.length === 0 ? (
         <EmptyState
@@ -513,7 +535,7 @@ export function CrmPage() {
           onOpen={setSelected}
         />
       ) : (
-        <DataTable<Company>
+        <><div className="grid gap-4 md:hidden">{filtered.map(company=><button key={company.id} onClick={()=>navigate(`/crm/companies/${company.id}`)} className="rounded-[1.5rem] bg-card p-5 text-left shadow-soft premium-focus"><div className="flex items-start justify-between gap-3"><div><h2 className="text-xl font-semibold tracking-[-.025em]">{company.fantasyName}</h2><p className="mt-1 text-base text-muted-foreground">{contacts.find(item=>item.companyId===company.id&&item.isPrimary)?.name??"Sem contato principal"}</p></div><span className="rounded-full bg-muted px-3 py-1.5 text-sm font-semibold">{openCount(company.id)} abertas</span></div><div className="mt-5 flex flex-wrap gap-2"><TemperatureBadge temperature={company.temperature}/><PriorityBadge priority={company.priority}/></div><div className="mt-5 border-t pt-4 text-base"><p>{company.whatsapp??company.phone??"Contato não informado"}</p><p className="mt-2 text-muted-foreground">Próximo passo: {nextTask(company.id)?formatDateTime(nextTask(company.id)?.dueAt):"Nenhum"}</p></div></button>)}</div><div className="hidden md:block"><DataTable<Company>
           data={filtered}
           onRowClick={(company) => navigate(`/crm/companies/${company.id}`)}
           columns={[
@@ -574,7 +596,7 @@ export function CrmPage() {
               ),
             },
           ]}
-        />
+        /></div></>
       )}
       <Modal
         open={modal === "company"}
@@ -748,6 +770,9 @@ function FilterSelect({
     </Select>
   );
 }
+function MobileFilterField({label,children}:{label:string;children:React.ReactNode}) {
+  return <label className="grid gap-2"><span className="text-base font-semibold">{label}</span>{children}</label>;
+}
 function OpportunityKanban({
   opportunities,
   stages,
@@ -765,7 +790,7 @@ function OpportunityKanban({
 }) {
   const [dragging, setDragging] = useState<Opportunity>();
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4">
+    <div aria-label="Pipeline por etapas" className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-5 md:mx-0 md:snap-none md:px-0">
       {[...stages]
         .sort((a, b) => a.position - b.position)
         .map((stage) => {
@@ -775,19 +800,19 @@ function OpportunityKanban({
           return (
             <section
               key={stage.id}
-              className="min-w-[88vw] max-w-[24rem] rounded-[1.5rem] bg-muted/55 p-5 md:min-w-72 md:max-w-none md:rounded-2xl md:p-3"
+              className="min-w-[90vw] max-w-[24rem] snap-center rounded-[1.75rem] bg-muted/55 p-5 md:min-w-72 md:max-w-none md:rounded-2xl md:p-3"
               onDragOver={(event) => event.preventDefault()}
               onDrop={() => dragging && onMove(dragging, stage.id)}
             >
-              <header className="mb-3">
-                <h2 className="text-lg font-semibold md:text-sm">{stage.name} · {rows.length}</h2>
-                <p className="mt-1 text-base text-muted-foreground md:text-xs">
+              <header className="mb-5 border-b border-border/60 pb-4 md:mb-3 md:border-0 md:pb-0">
+                <div className="flex items-center justify-between gap-3"><h2 className="text-xl font-semibold md:text-sm">{stage.name}</h2><span className="grid h-9 min-w-9 place-items-center rounded-full bg-card px-2 text-base font-semibold shadow-soft md:h-auto md:min-w-0 md:bg-transparent md:p-0 md:text-xs md:shadow-none">{rows.length}</span></div>
+                <p className="mt-2 text-lg font-semibold md:mt-1 md:text-xs md:font-normal md:text-muted-foreground">
                   {currency.format(
                     rows.reduce((sum, item) => sum + item.value, 0),
                   )}
                 </p>
               </header>
-              <div className="space-y-3">
+              <div className="space-y-4 md:space-y-3">
                 {rows.length === 0 ? (
                   <p className="rounded-xl border border-dashed p-5 text-base leading-6 text-muted-foreground md:p-4 md:text-xs">
                     Nenhuma oportunidade. Arraste uma para cá.
@@ -809,17 +834,15 @@ function OpportunityKanban({
                             className="w-full text-left"
                             onClick={() => onOpen(item)}
                           >
-                            <p className="text-base font-semibold text-muted-foreground md:text-xs">
+                            <p className="text-base font-medium text-muted-foreground md:text-xs">
                               {company?.fantasyName}
                             </p>
-                            <h3 className="mt-2 text-lg font-semibold md:mt-1 md:text-sm">{item.title}</h3>
+                            <h3 className="mt-2 text-xl font-semibold leading-snug tracking-[-.02em] md:mt-1 md:text-sm">{item.title}</h3>
                             <div className="mt-3 flex items-center justify-between gap-2">
                               <p className="text-lg font-semibold md:text-sm">
                                 {currency.format(item.value)}
                               </p>
-                              {company && (
-                                <PriorityBadge priority={company.priority} />
-                              )}
+                              {company && <div className="flex flex-wrap justify-end gap-2"><TemperatureBadge temperature={company.temperature}/><PriorityBadge priority={company.priority}/></div>}
                             </div>
                             <p className="mt-3 text-base text-muted-foreground md:mt-2 md:text-xs">
                               {item.owner ?? "Sem responsável"}

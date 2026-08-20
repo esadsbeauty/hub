@@ -19,7 +19,7 @@ describe("experiência operacional mobile", () => {
     const navigation = readFileSync("src/shared/components/layout/mobile-navigation.tsx", "utf8");
     expect(navigation).toContain("grid-cols-5");
     expect(navigation).toContain('aria-label="Abrir ações rápidas"');
-    expect(navigation).toContain("Novo lead");
+    expect(navigation).toContain("Nova empresa");
     expect(navigation).toContain("Novo follow-up");
     expect(navigation).toContain("safe-area-inset-bottom");
   });
@@ -55,7 +55,18 @@ describe("experiência operacional mobile", () => {
 
   test("kanban usa uma coluna larga por viewport no telefone", () => {
     const crm = readFileSync("src/modules/crm/CrmPage.tsx", "utf8");
-    expect(crm).toContain("min-w-[88vw]");
+    expect(crm).toContain("min-w-[90vw]");
     expect(crm).toContain("md:min-w-72");
+    expect(crm).toContain("snap-x snap-mandatory");
+  });
+
+  test("CRM mobile reduz densidade com carrossel, sheets e lista em cards", () => {
+    const crm = readFileSync("src/modules/crm/CrmPage.tsx", "utf8");
+    const topbar = readFileSync("src/shared/components/layout/topbar.tsx", "utf8");
+    expect(crm).toContain('aria-label="Indicadores do CRM"');
+    expect(crm).toContain('title="Ordenar CRM"');
+    expect(crm).toContain('className="grid gap-4 md:hidden"');
+    expect(topbar).toContain('className="mt-4 md:hidden"');
+    expect(topbar).not.toContain('Novo</Link>\n      </form>');
   });
 });
