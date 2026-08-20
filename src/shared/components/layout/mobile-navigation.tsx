@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BarChart3, BookOpen, Calendar, Handshake, Home, Menu, Megaphone, Plus, Settings, UserPlus, Users, Wallet } from "lucide-react";
+import { BarChart3, BookOpen, Calendar, ClipboardCheck, Handshake, Home, Menu, Megaphone, Plus, Settings, UserPlus, Users, Wallet } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
 import { useAppState } from "@/shared/state/app-state-context";
 
@@ -12,6 +12,7 @@ const more = [
   { to: "/clientes", label: "Clientes", icon: Users, permission: "customers.view" as const },
   { to: "/financeiro", label: "Financeiro", icon: Wallet, permission: "finance.view" as const },
   { to: "/marketing", label: "Marketing", icon: Megaphone, permission: "marketing.view" as const },
+  { to: "/marketing/diagnosticos", label: "Diagnósticos", icon: ClipboardCheck, permission: "marketing.view" as const },
   { to: "/marketing/blog", label: "Blog", icon: BookOpen, permission: "blog.view" as const },
   { to: "/relatorios", label: "Relatórios", icon: BarChart3, permission: "reports.view" as const },
   { to: "/configuracoes", label: "Configurações", icon: Settings, permission: "settings.view" as const },
