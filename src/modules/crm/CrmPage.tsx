@@ -289,8 +289,8 @@ export function CrmPage() {
     await actions.createCompany.mutateAsync(form);
     setModal(null);
     notify({
-      title: "Empresa criada",
-      description: "Empresa e contato principal registrados.",
+      title: "Lead criado",
+      description: "Empresa registrada e oportunidade adicionada em Novo Lead.",
     });
   };
   return (
@@ -312,7 +312,7 @@ export function CrmPage() {
           </>
         }
       />
-      <section className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+      <section className="grid grid-cols-1 gap-4 min-[430px]:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           label="Empresas"
           value={companies.length}
@@ -775,13 +775,13 @@ function OpportunityKanban({
           return (
             <section
               key={stage.id}
-              className="min-w-72 rounded-2xl bg-muted/55 p-3"
+              className="min-w-[88vw] max-w-[24rem] rounded-[1.5rem] bg-muted/55 p-5 md:min-w-72 md:max-w-none md:rounded-2xl md:p-3"
               onDragOver={(event) => event.preventDefault()}
               onDrop={() => dragging && onMove(dragging, stage.id)}
             >
               <header className="mb-3">
-                <h2 className="text-sm font-semibold">{stage.name} · {rows.length}</h2>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <h2 className="text-lg font-semibold md:text-sm">{stage.name} · {rows.length}</h2>
+                <p className="mt-1 text-base text-muted-foreground md:text-xs">
                   {currency.format(
                     rows.reduce((sum, item) => sum + item.value, 0),
                   )}
@@ -789,7 +789,7 @@ function OpportunityKanban({
               </header>
               <div className="space-y-3">
                 {rows.length === 0 ? (
-                  <p className="rounded-xl border border-dashed p-4 text-xs text-muted-foreground">
+                  <p className="rounded-xl border border-dashed p-5 text-base leading-6 text-muted-foreground md:p-4 md:text-xs">
                     Nenhuma oportunidade. Arraste uma para cá.
                   </p>
                 ) : (
@@ -804,28 +804,28 @@ function OpportunityKanban({
                         onDragEnd={() => setDragging(undefined)}
                         className="cursor-grab ring-1 ring-black/[.025] transition-shadow hover:shadow-[0_10px_30px_rgba(24,20,16,.08)]"
                       >
-                        <CardContent className="p-4">
+                        <CardContent className="p-5 md:p-4">
                           <button
                             className="w-full text-left"
                             onClick={() => onOpen(item)}
                           >
-                            <p className="text-xs font-semibold text-muted-foreground">
+                            <p className="text-base font-semibold text-muted-foreground md:text-xs">
                               {company?.fantasyName}
                             </p>
-                            <h3 className="mt-1 text-sm font-semibold">{item.title}</h3>
+                            <h3 className="mt-2 text-lg font-semibold md:mt-1 md:text-sm">{item.title}</h3>
                             <div className="mt-3 flex items-center justify-between gap-2">
-                              <p className="text-sm font-semibold">
+                              <p className="text-lg font-semibold md:text-sm">
                                 {currency.format(item.value)}
                               </p>
                               {company && (
                                 <PriorityBadge priority={company.priority} />
                               )}
                             </div>
-                            <p className="mt-2 text-xs text-muted-foreground">
+                            <p className="mt-3 text-base text-muted-foreground md:mt-2 md:text-xs">
                               {item.owner ?? "Sem responsável"}
                             </p>
                             {task && (
-                              <p className="mt-2 text-xs">
+                              <p className="mt-3 text-base md:mt-2 md:text-xs">
                                 Próximo: {formatDateTime(task.dueAt)}
                               </p>
                             )}

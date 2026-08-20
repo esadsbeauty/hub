@@ -216,6 +216,9 @@ export const crmRepository = defineCrmRepository({
   async createCompany(input: CompanyFormData) {
     const data = read();
     const createdAt = now();
+    const defaultPipeline = data.pipelines.find((pipeline) => pipeline.isDefault);
+    const initialStage = data.stages.find((stage) => stage.pipelineId === defaultPipeline?.id && (stage.slug === "novo_lead" || stage.name.toLowerCase() === "novo lead"));
+    if (!defaultPipeline || !initialStage) throw new Error("Pipeline padrão ou etapa Novo Lead não configurados.");
     const company: Company = {
       id: id(),
       organizationId: ORGANIZATION_ID,
@@ -226,6 +229,14 @@ export const crmRepository = defineCrmRepository({
       updatedAt: createdAt,
     };
     data.companies.unshift(company);
+    const opportunity: Opportunity = {
+      id: id(), organizationId: ORGANIZATION_ID, companyId: company.id,
+      pipelineId: defaultPipeline.id, stageId: initialStage.id, title: company.fantasyName,
+      value: 0, probability: initialStage.probability, ownerId: company.ownerId ?? USER_ID,
+      owner: "Administrador", status: "open", createdBy: USER_ID,
+      createdAt, updatedAt: createdAt, stageEnteredAt: createdAt,
+    };
+    data.opportunities.unshift(opportunity);
     data.events.unshift(
       activity(
         "company_created",
@@ -235,6 +246,7 @@ export const crmRepository = defineCrmRepository({
         company.fantasyName,
       ),
     );
+    data.events.unshift(activity("opportunity_created", "Oportunidade criada", company.id, opportunity.id, opportunity.title, { value: 0 }));
     if (input.responsibleName) {
       const contact: CompanyContact = {
         id: id(),

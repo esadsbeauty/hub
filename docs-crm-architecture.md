@@ -1,5 +1,9 @@
 # Fundação arquitetural do CRM
 
+## Entrada manual de lead
+
+`create_company_with_primary_contact` é a fronteira transacional do cadastro manual. A função resolve o profile autenticado, o pipeline padrão da organização e sua etapa `novo_lead` antes de gravar; depois insere empresa, contato principal opcional e oportunidade inicial com valor zero. Os triggers existentes registram `company_created` e `opportunity_created`. A edição de uma empresa não chama esse RPC e, portanto, não cria outra oportunidade.
+
 ## Limites de domínio
 
 - **Organization** é o tenant e delimita segurança, usuários e dados comerciais.

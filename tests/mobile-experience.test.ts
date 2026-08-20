@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 describe("experiência operacional mobile", () => {
   test("dashboard prioriza KPIs, agenda, follow-ups e pipeline", () => {
     const page = readFileSync("src/modules/dashboard/DashboardPage.tsx", "utf8");
-    const kpis = page.indexOf('className="grid grid-cols-2');
+    const kpis = page.indexOf('className="grid grid-cols-1');
     const agenda = page.indexOf("Agenda de hoje", kpis);
     const followups = page.indexOf('className="flex min-h-[5.75rem]', agenda);
     const pipeline = page.indexOf('<div className="md:hidden"><PipelineOverview', followups);
@@ -35,19 +35,25 @@ describe("experiência operacional mobile", () => {
     const button = readFileSync("src/components/ui/button.tsx", "utf8");
     const input = readFileSync("src/components/ui/input.tsx", "utf8");
     const select = readFileSync("src/components/ui/select.tsx", "utf8");
-    expect(button).toContain("h-[3.25rem]");
-    expect(input).toContain("h-[3.25rem]");
-    expect(select).toContain("h-[3.25rem]");
+    expect(button).toContain("h-14");
+    expect(input).toContain("h-14");
+    expect(select).toContain("h-14");
   });
 
   test("escala confortável é responsiva e não usa zoom global", () => {
     const tokens = readFileSync("src/design-system/tokens.ts", "utf8");
     const styles = readFileSync("src/styles/globals.css", "utf8");
     const header = readFileSync("src/shared/components/layout/page-header.tsx", "utf8");
-    expect(tokens).toContain("controlHeight: '3.25rem'");
-    expect(tokens).toContain("pageTitle: '2rem'");
+    expect(tokens).toContain("controlHeight: '3.5rem'");
+    expect(tokens).toContain("pageTitle: '2.125rem'");
     expect(header).toContain("text-[2rem]");
     expect(styles).not.toMatch(/zoom\s*:/);
     expect(styles).not.toContain("transform:scale");
+  });
+
+  test("kanban usa uma coluna larga por viewport no telefone", () => {
+    const crm = readFileSync("src/modules/crm/CrmPage.tsx", "utf8");
+    expect(crm).toContain("min-w-[88vw]");
+    expect(crm).toContain("md:min-w-72");
   });
 });

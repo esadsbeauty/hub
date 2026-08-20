@@ -29,17 +29,17 @@ export function MobileNavigation() {
   const navItem = (item: (typeof navigation)[number]) => {
     const Icon = item.icon;
     return can(item.permission) && (
-      <NavLink end={item.to === "/"} key={item.to} to={item.to} className={({ isActive }) => `flex min-h-[4.75rem] flex-col items-center justify-center gap-1.5 rounded-2xl text-[13px] font-semibold ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
-        <Icon size={24} strokeWidth={1.8}/><span>{item.label}</span>
+      <NavLink end={item.to === "/"} key={item.to} to={item.to} className={({ isActive }) => `flex min-h-[5.25rem] flex-col items-center justify-center gap-1.5 rounded-2xl text-sm font-semibold ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
+        <Icon size={26} strokeWidth={1.8}/><span>{item.label}</span>
       </NavLink>
     );
   };
   return <>
     <nav aria-label="Navegação principal" className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border/60 bg-card/95 px-2.5 pt-2 shadow-[0_-12px_40px_rgba(25,20,15,.06)] backdrop-blur-xl lg:hidden pb-[max(.45rem,env(safe-area-inset-bottom))]">
       {navItem(navigation[0])}{navItem(navigation[1])}
-      <button aria-label="Abrir ações rápidas" onClick={() => setSheet("new")} className="mx-auto -mt-5 grid h-[4.25rem] w-[4.25rem] place-items-center rounded-[1.35rem] border-4 border-background bg-primary text-primary-foreground shadow-overlay premium-focus"><Plus size={29}/></button>
+      <button aria-label="Abrir ações rápidas" onClick={() => setSheet("new")} className="mx-auto -mt-5 grid h-[4.75rem] w-[4.75rem] place-items-center rounded-[1.5rem] border-4 border-background bg-primary text-primary-foreground shadow-overlay premium-focus"><Plus size={32}/></button>
       {navItem(navigation[2])}
-      <button onClick={() => setSheet("more")} className="flex min-h-[4.75rem] flex-col items-center justify-center gap-1.5 rounded-2xl text-[13px] font-semibold text-muted-foreground premium-focus"><Menu size={24}/><span>Mais</span></button>
+      <button onClick={() => setSheet("more")} className="flex min-h-[5.25rem] flex-col items-center justify-center gap-1.5 rounded-2xl text-sm font-semibold text-muted-foreground premium-focus"><Menu size={26}/><span>Mais</span></button>
     </nav>
     {sheet && <div className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[2px] lg:hidden" onClick={() => setSheet(null)}>
       <section role="dialog" aria-modal="true" aria-label={sheet === "new" ? "Ações rápidas" : "Mais opções"} className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-auto rounded-t-[2rem] bg-card px-5 pt-3 shadow-overlay pb-[max(1.5rem,env(safe-area-inset-bottom))]" onClick={(event) => event.stopPropagation()}>

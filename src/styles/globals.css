@@ -17,3 +17,9 @@
   .blog-prose blockquote{@apply my-8 border-l-4 border-champagne bg-champagne-soft/60 px-5 py-4 text-lg italic leading-8}
   .blog-prose a{@apply font-semibold text-champagne-dark underline decoration-champagne/50 underline-offset-4}
 }
+@media (max-width: 767px) {
+  body { font-size: 17px; line-height: 1.6; }
+  input, select, textarea { font-size: 16px; }
+  input, select { min-height: 3.5rem; }
+  dialog, [role="dialog"] { font-size: 17px; }
+}

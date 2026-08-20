@@ -70,7 +70,19 @@ describe("fundação pública do blog", () => {
     expect(migration).toContain("create or replace function public.save_blog_post");
     expect(migration).toContain("(storage.foldername(name))[1]=public.current_organization_id()::text");
     expect(repository).toContain('.rpc("save_blog_post"');
+    expect(repository).toContain("post_category_id:input.categoryId?.trim()||null");
     expect(repository).toContain("details:error.details,hint:error.hint");
     expect(repository).toContain('`${organization.data}/covers/${crypto.randomUUID()}.${extension}`');
+  });
+
+  test("entrada manual cria empresa e oportunidade em uma única transação", () => {
+    const migration = readFileSync("supabase/migrations/202608200004_company_initial_opportunity.sql", "utf8");
+    const localRepository = readFileSync("src/modules/crm/repository.ts", "utf8");
+    expect(migration).toContain("is_default=true");
+    expect(migration).toContain("slug='novo_lead'");
+    expect(migration).toContain("insert into public.opportunities");
+    expect(migration).toContain("new_company.id,default_pipeline.id,initial_stage.id,new_company.name");
+    expect(localRepository).toContain('stage.slug === "novo_lead"');
+    expect(localRepository).toContain("data.opportunities.unshift(opportunity)");
   });
 });

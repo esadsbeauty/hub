@@ -2,7 +2,7 @@
 
 ## Migration inventory
 
-The repository contains 17 ordered migrations. They must be applied as one history; never apply the first migration in isolation.
+The repository contains 18 ordered migrations. They must be applied as one history; never apply the first migration in isolation.
 
 | Order | Migration | Scope and dependencies | Classification |
 |---:|---|---|---|
@@ -23,6 +23,7 @@ The repository contains 17 ordered migrations. They must be applied as one histo
 | 15 | `202608200001_blog_foundation.sql` | Adds the organization-aware public blog, editorial permissions, publication RLS, safe public RPCs, audit events and the dedicated public image bucket. | Acquisition foundation. |
 | 16 | `202608200002_blog_production_hardening.sql` | Reconciles Blog RBAC grants and recreates the public bucket plus authenticated Storage policies for remote Preview/Production. | Production hardening. |
 | 17 | `202608200003_blog_remote_reconciliation.sql` | Seeds the five editorial categories, adds the permission-checked save RPC and scopes media writes to the active organization path. | Remote reconciliation. |
+| 18 | `202608200004_company_initial_opportunity.sql` | Replaces manual company creation with one transaction that also resolves the default pipeline and creates an opportunity in Novo Lead. | CRM operational invariant. |
 
 There is no `seed.sql`: structural seeds are idempotent statements inside migrations. No commercial demo data is inserted. The checked-in history contains no migration whose final company security model is `auth.uid() = companies.user_id`; the foundational schema already uses `organization_id`, `created_by` and `owner_id`.
 
