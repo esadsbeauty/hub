@@ -9,6 +9,13 @@ describe("fundação pública do blog", () => {
     expect(readingMinutes("")).toBe(1);
   });
 
+  test("modo local também oferece as categorias editoriais estruturais", () => {
+    const repository = readFileSync("src/modules/blog/repository.ts", "utf8");
+    expect(repository).toContain('"Vendas|vendas"');
+    expect(repository).toContain('"Gestão Comercial|gestao-comercial"');
+    expect(repository).toContain("state.categories?.length?state.categories:initialCategories()");
+  });
+
   test("separa rotas públicas antes dos providers autenticados", () => {
     const main = readFileSync("src/main.tsx", "utf8");
     const root = readFileSync("src/app/public-app-root.tsx", "utf8");

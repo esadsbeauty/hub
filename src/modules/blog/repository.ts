@@ -3,8 +3,9 @@ import type { BlogCategory, BlogPost } from "./types";
 import { blogSlug } from "./types";
 const STORAGE="esads-hub-local-v1:blog";
 type State={posts:BlogPost[];categories:BlogCategory[]};
-const empty=():State=>({posts:[],categories:[]});
-const read=():State=>{const value=localStorage.getItem(STORAGE);return value?JSON.parse(value) as State:empty()};
+const initialCategories=():BlogCategory[]=>["Vendas|vendas","Atendimento|atendimento","Gestão Comercial|gestao-comercial","Marketing|marketing","CRM|crm"].map((value,index)=>{const[name,slug]=value.split("|");return{id:`local-blog-category-${index+1}`,name,slug,createdAt:new Date(0).toISOString(),updatedAt:new Date(0).toISOString()}});
+const empty=():State=>({posts:[],categories:initialCategories()});
+const read=():State=>{const value=localStorage.getItem(STORAGE);if(!value)return empty();const state=JSON.parse(value) as State;return{...state,categories:state.categories?.length?state.categories:initialCategories()}};
 const write=(state:State)=>localStorage.setItem(STORAGE,JSON.stringify(state));
 const stamp=()=>new Date().toISOString();
 export const localBlogRepository:BlogRepository={
