@@ -7,7 +7,7 @@ export type DiagnosticAdminRow = {
   name: string;
   businessName: string;
   whatsapp: string;
-  email: string;
+  email?: string;
   instagram: string;
   totalScore: number;
   resultLevel: string;
@@ -25,7 +25,7 @@ const localRows = (): DiagnosticAdminRow[] => {
   const submissions = JSON.parse(localStorage.getItem("esads-diagnostic-results") ?? "[]") as DiagnosticSubmission[];
   return submissions.map((submission) => ({
     id: String(submission.token), name: submission.lead.name, businessName: submission.lead.name,
-    whatsapp: submission.lead.whatsapp, email: submission.lead.email, instagram: "",
+    whatsapp: submission.lead.whatsapp, email: "", instagram: submission.lead.instagram,
     totalScore: submission.result.totalScore, resultLevel: submission.result.level,
     businessStage: submission.result.businessStage, primaryNeed: submission.result.primaryNeed,
     primaryBottleneck: submission.result.primaryBottleneck, completedAt: submission.createdAt,

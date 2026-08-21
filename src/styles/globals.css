@@ -3,7 +3,7 @@
 @tailwind components;
 @tailwind utilities;
 @layer base {
-  :root {--background:36 23% 97%;--foreground:30 7% 10%;--card:0 0% 100%;--card-foreground:30 7% 10%;--muted:36 16% 94%;--muted-foreground:30 5% 43%;--border:35 13% 88%;--primary:30 7% 9%;--primary-foreground:36 23% 97%;--accent:39 43% 60%;--sidebar:0 0% 4%;--sidebar-muted:0 0% 65%;--success:151 32% 36%;--warning:26 58% 47%;--danger:3 48% 48%;--radius-card:1.125rem;--radius-control:.75rem;--mobile-page-title:2.125rem;--mobile-section-title:1.5rem;--mobile-body:1.125rem;--mobile-card-padding:1.5rem;--mobile-input-height:3.75rem;--mobile-button-height:3.5rem;--mobile-bottom-nav-height:5.25rem}
+  :root {--brand-black:#050505;--brand-gold:#D4AA6F;--brand-gold-light:#F1D39B;--brand-ivory:#F7F5F0;--brand-gray:#B8B4AE;--background:36 23% 97%;--foreground:30 7% 10%;--card:0 0% 100%;--card-foreground:30 7% 10%;--muted:36 16% 94%;--muted-foreground:30 5% 43%;--border:35 13% 88%;--primary:30 7% 9%;--primary-foreground:36 23% 97%;--accent:39 43% 60%;--sidebar:0 0% 4%;--sidebar-muted:0 0% 65%;--success:151 32% 36%;--warning:26 58% 47%;--danger:3 48% 48%;--radius-card:1.125rem;--radius-control:.75rem;--mobile-page-title:2.125rem;--mobile-section-title:1.5rem;--mobile-body:1.125rem;--mobile-card-padding:1.5rem;--mobile-input-height:3.75rem;--mobile-button-height:3.5rem;--mobile-bottom-nav-height:5.25rem}
   .dark {--background:30 7% 8%;--foreground:36 23% 96%;--card:30 6% 11%;--card-foreground:36 23% 96%;--muted:30 5% 15%;--muted-foreground:35 8% 68%;--border:30 5% 20%;--primary:36 23% 96%;--primary-foreground:30 7% 9%}
   *{@apply border-border} html{@apply bg-background} body{@apply bg-background font-sans text-foreground antialiased;font-feature-settings:'ss01' 1,'cv11' 1}button,input,select,textarea{font:inherit}::selection{background:hsl(var(--accent)/.22)}
 }
@@ -11,9 +11,14 @@
 @layer components {
   .blog-prose{@apply text-lg leading-8 text-foreground md:text-lg md:leading-9}
   .blog-prose p{@apply my-6}
+  .blog-prose h1{@apply mb-5 mt-14 text-4xl font-semibold leading-tight tracking-[-.05em] md:text-5xl}
   .blog-prose h2{@apply mb-4 mt-12 text-[1.75rem] font-semibold leading-tight tracking-[-.04em] md:text-3xl}
   .blog-prose h3{@apply mb-3 mt-9 text-[1.35rem] font-semibold leading-tight tracking-[-.025em] md:text-2xl}
   .blog-prose ul{@apply my-6 list-disc space-y-2 pl-6}
+  .blog-prose ol{@apply my-6 list-decimal space-y-2 pl-6}
+  .blog-prose hr{@apply my-12 border-champagne/35}
+  .blog-prose strong{@apply font-bold text-foreground}
+  .blog-callout{@apply my-8 rounded-2xl border border-champagne/30 bg-champagne-soft/60 p-5 font-medium leading-8}
   .blog-prose blockquote{@apply my-8 border-l-4 border-champagne bg-champagne-soft/60 px-5 py-4 text-lg italic leading-8}
   .blog-prose a{@apply font-semibold text-champagne-dark underline decoration-champagne/50 underline-offset-4}
 }

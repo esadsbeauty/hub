@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 240" role="img" aria-labelledby="title desc">
+  <title id="title">ESADS Beauty</title><desc id="desc">Monograma EB dourado e nome ESADS Beauty sobre fundo preto.</desc>
+  <rect width="640" height="240" rx="20" fill="#050505"/>
+  <g fill="none" stroke="#D4AA6F" stroke-width="5"><circle cx="120" cy="104" r="66"/><path d="M91 65v78h39c27 0 27-39 2-39 21 0 21-39-2-39H91zm0 39h39M149 65v78"/></g>
+  <text x="220" y="105" fill="#F7F5F0" font-family="Georgia,serif" font-size="45" letter-spacing="8">ESADS</text>
+  <text x="222" y="151" fill="#D4AA6F" font-family="Arial,sans-serif" font-size="20" letter-spacing="12">BEAUTY</text>
+</svg>

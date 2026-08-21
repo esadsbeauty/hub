@@ -1,5 +1,5 @@
 export const designTokens = {
-  colors: { background:'#FAF9F7',sidebar:'#0B0B0B',foreground:'#1C1A18',card:'#FFFFFF',muted:'#F3F1ED',champagne:'#C7A86B',success:'#3E7B5C',warning:'#A96632',danger:'#A94D47' },
+  colors: { brandBlack:'#050505',brandGold:'#D4AA6F',brandGoldLight:'#F1D39B',brandIvory:'#F7F5F0',brandGray:'#B8B4AE',background:'#FAF9F7',sidebar:'#0B0B0B',foreground:'#1C1A18',card:'#FFFFFF',muted:'#F3F1ED',champagne:'#C7A86B',success:'#3E7B5C',warning:'#A96632',danger:'#A94D47' },
   spacing: { xs:'.25rem',sm:'.5rem',md:'.75rem',lg:'1rem',xl:'1.5rem','2xl':'2rem','3xl':'2.5rem','4xl':'3rem' },
   radii: { sm:'.625rem',control:'.75rem',card:'1.125rem',overlay:'1.5rem' },
   shadows: { soft:'0 1px 2px rgba(24,20,16,.025), 0 8px 28px rgba(24,20,16,.045)',overlay:'0 24px 70px -28px rgba(11,11,11,.34)' },
