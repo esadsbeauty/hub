@@ -3,7 +3,7 @@ import { normalizeInstagram, normalizeWhatsapp } from "../crm/utils/contact-norm
 export const diagnosticLeadSchema = z.object({
   name: z.string().trim().min(2, "Informe seu nome."),
   whatsapp: z.string().transform(normalizeWhatsapp).pipe(z.string().min(10, "Informe um WhatsApp válido.")),
-  instagram: z.string().transform(normalizeInstagram).pipe(z.string().min(2, "Informe seu Instagram.")),
+  instagram: z.string().transform(normalizeInstagram).transform(value=>value.replace(/^@/, "").toLowerCase()).pipe(z.string().min(2, "Informe seu Instagram.")),
 });
 export const diagnosticCaptureSchema = diagnosticLeadSchema.extend({ website: z.string().max(0).optional() });
 export type DiagnosticCaptureForm = z.input<typeof diagnosticCaptureSchema>;
