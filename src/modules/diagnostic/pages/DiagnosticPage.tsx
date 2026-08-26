@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, ArrowRight, Check, Download, MessageCircle, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, BarChart3, Building2, Check, Clock3, Compass, Download, Eye, Hand, HeartHandshake, ListChecks, Megaphone, MessageCircle, Paintbrush, ScanSearch, Scissors, Sparkles, Sprout, Store, Target, TrendingUp, UserRound, Workflow, Zap, type LucideIcon } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { diagnosticWhatsappUrl } from "@/config/contact";
 import { categoryContent } from "../content";
-import { DiagnosticResultPreview } from "../components/diagnostic-result-preview";
 import { diagnosticQuestions } from "../questions";
 import { diagnosticCaptureSchema, diagnosticLeadSchema, formatBrazilianWhatsapp, type DiagnosticCaptureForm } from "../schema";
 import { captureAttribution, clearAttribution } from "../attribution";
@@ -40,46 +39,67 @@ export function DiagnosticPage(){
 }
 
 function BrandLogo({className=""}:{className?:string}){return <img className={className} src="/brand/esads-beauty-logo.svg" alt="ESADS Beauty" width="320" height="120"/>}
+type LandingCard={title:string;description:string;icon:LucideIcon};
+const quickHighlights:LandingCard[]=[
+  {title:"Diagnóstico rápido",description:"Entenda seu momento atual.",icon:Zap},
+  {title:"Análise personalizada",description:"Resultado baseado nas suas respostas.",icon:ScanSearch},
+  {title:"Foco em crescimento",description:"Identifique seus próximos passos.",icon:TrendingUp},
+  {title:"Feito para estética",description:"Pensado para negócios da beleza.",icon:HeartHandshake},
+];
+const audienceCards:LandingCard[]=[
+  {title:"Esteticistas",description:"Profissionais que querem atrair e atender melhor.",icon:UserRound},
+  {title:"Clínicas de estética",description:"Operações que buscam organização e crescimento.",icon:Building2},
+  {title:"Cabeleireiras",description:"Especialistas que desejam uma agenda mais constante.",icon:Scissors},
+  {title:"Lash designers",description:"Profissionais focadas em fidelização e recorrência.",icon:Eye},
+  {title:"Designers de sobrancelha",description:"Negócios que querem transformar interesse em agenda.",icon:Paintbrush},
+  {title:"Nail designers e manicures",description:"Profissionais que desejam crescer com mais clareza.",icon:Hand},
+  {title:"Espaços de beleza",description:"Equipes que precisam alinhar atendimento e gestão.",icon:Store},
+  {title:"Profissionais iniciantes",description:"Quem está construindo as primeiras bases do negócio.",icon:Sprout},
+];
+const discoveryItems:LandingCard[]=[
+  {title:"Oportunidades de crescimento",description:"Onde seu negócio pode evoluir.",icon:TrendingUp},
+  {title:"Gargalos do negócio",description:"O que pode estar dificultando seu crescimento.",icon:Target},
+  {title:"Próximas prioridades",description:"O que merece sua atenção primeiro.",icon:ListChecks},
+  {title:"Organização comercial",description:"Como você acompanha interessados e clientes.",icon:Workflow},
+  {title:"Divulgação e atração",description:"Como está sua capacidade de gerar oportunidades.",icon:Megaphone},
+  {title:"Momento atual",description:"Uma visão geral de como seu negócio está hoje.",icon:BarChart3},
+];
+const authorityHighlights:Pick<LandingCard,"title"|"icon">[]=[
+  {title:"Estratégia",icon:Compass},
+  {title:"Captação",icon:Target},
+  {title:"Crescimento",icon:TrendingUp},
+];
+function LandingCta({start,className=""}:{start:()=>void;className?:string}){return <div className={className}><Button size="lg" className="w-full px-7 sm:w-auto" onClick={start}>Iniciar diagnóstico <ArrowRight size={19}/></Button><p className="mt-3 flex items-center justify-center gap-1.5 text-sm text-muted-foreground"><Clock3 size={15}/>Leva menos de 2 minutos</p></div>}
 function Landing({start}:{start:()=>void}) {
-  const benefits=[
-    ["Clientes e vendas","Entenda como seu negócio está atraindo clientes e convertendo oportunidades."],
-    ["Atendimento e organização","Descubra se seu processo comercial está ajudando ou fazendo você perder clientes."],
-    ["Gestão e crescimento","Veja como estão sua agenda, visão financeira e prioridades para crescer."],
-  ];
-  const resultBenefits=["Onde estão seus principais gargalos","Quais áreas precisam de atenção","O que você deveria priorizar primeiro"];
-  return <>
-    <section className="overflow-hidden border-b border-black/5">
-      <div className="mx-auto grid max-w-6xl items-center gap-9 px-4 pb-11 pt-8 min-[375px]:px-5 md:grid-cols-[1.02fr_.98fr] md:gap-12 md:px-8 md:py-20">
-        <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-[.17em] text-champagne-dark sm:text-sm">Diagnóstico gratuito · ESADS Beauty</p>
-          <h1 className="mt-4 max-w-[14ch] text-[clamp(2rem,9vw,3.75rem)] font-semibold leading-[1.04] tracking-[-.055em]">Descubra o que está impedindo seu negócio de estética de <span className="text-champagne-dark">crescer.</span></h1>
-          <p className="mt-5 max-w-xl text-[clamp(1rem,4.3vw,1.125rem)] leading-7 text-muted-foreground md:mt-6 md:leading-8">Em poucos minutos, descubra os principais pontos de atenção do seu negócio e o que você deveria priorizar agora.</p>
-          <Button size="lg" className="mt-6 w-full whitespace-normal px-4 sm:w-auto sm:px-6 md:mt-8" onClick={start}>Fazer meu diagnóstico gratuito <ArrowRight size={20}/></Button>
-          <p className="mt-3 text-center text-[13px] font-medium leading-5 text-muted-foreground sm:text-left sm:text-sm"><span className="text-success">✓</span> Gratuito <span aria-hidden>•</span> <span className="text-success">✓</span> Rápido <span aria-hidden>•</span> <span className="text-success">✓</span> Resultado personalizado</p>
-        </div>
-        <DiagnosticResultPreview/>
+  return <div className="overflow-x-clip bg-[linear-gradient(180deg,#fbfaf8_0%,#f6f8fa_42%,#fbfaf8_100%)]">
+    <section className="relative overflow-hidden px-4 pb-14 pt-10 min-[375px]:px-5 md:pb-20 md:pt-20">
+      <div aria-hidden className="absolute left-1/2 top-8 -z-0 h-72 w-72 -translate-x-1/2 rounded-full bg-champagne/10 blur-3xl md:h-[30rem] md:w-[30rem]"/>
+      <div className="lp-reveal relative mx-auto max-w-4xl text-center">
+        <span className="inline-flex rounded-full border border-champagne/30 bg-champagne-soft/70 px-3.5 py-2 text-[11px] font-bold uppercase tracking-[.14em] text-champagne-dark sm:text-xs">Diagnóstico para negócios de estética</span>
+        <h1 className="mx-auto mt-5 max-w-[18ch] text-[clamp(2.25rem,10vw,4.5rem)] font-semibold leading-[1.02] tracking-[-.06em]">Descubra o que está travando o <span className="text-champagne-dark">crescimento da sua estética</span></h1>
+        <p className="mx-auto mt-5 max-w-2xl text-[clamp(1rem,4.2vw,1.2rem)] leading-7 text-muted-foreground md:mt-6 md:leading-8">Responda algumas perguntas rápidas e receba uma análise do momento atual do seu negócio, dos principais gargalos e do que você deveria priorizar para crescer.</p>
+        <LandingCta start={start} className="mx-auto mt-7 max-w-sm md:mt-8"/>
+      </div>
+      <div className="lp-reveal lp-reveal-delay mx-auto mt-12 grid max-w-6xl grid-cols-2 gap-3 md:mt-16 md:grid-cols-4 md:gap-4">{quickHighlights.map(({title,description,icon:Icon})=><article key={title} className="rounded-2xl bg-white p-4 shadow-soft ring-1 ring-black/[.035] transition duration-200 motion-reduce:transition-none md:p-5 md:hover:-translate-y-1 md:hover:shadow-overlay"><span className="grid h-9 w-9 place-items-center rounded-xl bg-champagne-soft text-champagne-dark"><Icon size={18}/></span><h2 className="mt-4 text-base font-semibold leading-5 md:text-lg">{title}</h2><p className="mt-2 text-sm leading-5 text-muted-foreground">{description}</p></article>)}</div>
+    </section>
+
+    <section className="border-y border-black/5 bg-white/65 px-4 py-14 min-[375px]:px-5 md:py-24">
+      <div className="mx-auto max-w-6xl"><header className="mx-auto max-w-3xl text-center"><p className="text-xs font-bold uppercase tracking-[.18em] text-champagne-dark">Para quem é</p><h2 className="mt-3 text-[clamp(1.9rem,7.5vw,3.25rem)] font-semibold leading-tight tracking-[-.05em]">Esse diagnóstico é ideal para:</h2><p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-muted-foreground md:text-lg">Profissionais e negócios da estética que querem crescer com mais clareza, organização e estratégia.</p></header><div className="mt-9 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{audienceCards.map(({title,description,icon:Icon})=><article key={title} className="group rounded-2xl border border-black/[.055] bg-white p-5 transition duration-200 motion-reduce:transition-none md:hover:-translate-y-1 md:hover:border-champagne/35 md:hover:shadow-soft"><span className="grid h-10 w-10 place-items-center rounded-xl bg-champagne-soft text-champagne-dark transition group-hover:bg-champagne/20"><Icon size={20}/></span><h3 className="mt-4 text-lg font-semibold">{title}</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">{description}</p></article>)}</div><LandingCta start={start} className="mx-auto mt-10 max-w-sm text-center"/></div>
+    </section>
+
+    <section className="px-4 py-14 min-[375px]:px-5 md:py-24">
+      <div className="mx-auto grid max-w-6xl items-center gap-9 md:grid-cols-[.92fr_1.08fr] md:gap-16">
+        <div className="relative min-h-[21rem] overflow-hidden rounded-[2rem] bg-primary p-7 text-primary-foreground shadow-overlay md:min-h-[32rem] md:p-10"><div aria-hidden className="absolute -right-16 -top-16 h-56 w-56 rounded-full border border-champagne/25"/><div aria-hidden className="absolute -bottom-24 -left-12 h-72 w-72 rounded-full bg-champagne/[.08]"/><BrandLogo className="relative h-auto w-48"/><div className="absolute bottom-7 left-7 right-7 md:bottom-10 md:left-10 md:right-10"><p className="text-xs font-bold uppercase tracking-[.18em] text-champagne">ESADS Beauty</p><p className="mt-3 max-w-sm text-2xl font-semibold leading-tight md:text-3xl">Estratégia para transformar potencial em crescimento.</p></div></div>
+        <div><p className="text-xs font-bold uppercase tracking-[.18em] text-champagne-dark">Sobre</p><h2 className="mt-3 text-[clamp(1.9rem,7.5vw,3.25rem)] font-semibold leading-tight tracking-[-.05em]">Quem está por trás desse diagnóstico</h2><p className="mt-5 text-base leading-7 text-muted-foreground md:text-lg md:leading-8">A ESADS Beauty é especializada em marketing, aquisição e organização comercial para negócios de estética. Reunimos estratégia e visão de operação para ajudar profissionais da beleza a crescer com mais clareza.</p><p className="mt-4 text-base leading-7 text-muted-foreground">Este diagnóstico traduz fundamentos importantes de crescimento em uma análise simples, prática e adequada ao momento do seu negócio.</p><div className="mt-7 grid grid-cols-3 gap-2">{authorityHighlights.map(({title,icon:Icon})=><div key={title} className="rounded-2xl bg-white p-3 text-center shadow-soft md:p-4"><Icon className="mx-auto text-champagne-dark" size={20}/><strong className="mt-2 block text-sm md:text-base">{title}</strong></div>)}</div><LandingCta start={start} className="mt-8 max-w-sm text-center sm:text-left [&_p]:sm:justify-start"/></div>
       </div>
     </section>
 
-    <section className="mx-auto max-w-6xl px-4 py-12 min-[375px]:px-5 md:px-8 md:py-20">
-      <div className="max-w-3xl"><p className="text-xs font-bold uppercase tracking-[.17em] text-champagne-dark">O que você vai descobrir</p><h2 className="mt-3 text-[clamp(1.75rem,7vw,3rem)] font-semibold leading-tight tracking-[-.045em]">Ao final, você vai entender o que merece sua atenção agora.</h2></div>
-      <div className="mt-7 grid gap-3 md:mt-9 md:grid-cols-3 md:gap-5">{benefits.map(([title,text],index)=><article key={title} className="rounded-[1.35rem] bg-white p-5 shadow-soft md:p-6"><span className="text-xs font-bold tracking-[.16em] text-champagne-dark">0{index+1}</span><h3 className="mt-3 text-xl font-semibold">{title}</h3><p className="mt-2 text-base leading-7 text-muted-foreground">{text}</p></article>)}</div>
+    <section className="border-y border-black/5 bg-white/65 px-4 py-14 min-[375px]:px-5 md:py-24">
+      <div className="mx-auto max-w-6xl"><header className="mx-auto max-w-3xl text-center"><p className="text-xs font-bold uppercase tracking-[.18em] text-champagne-dark">O que você recebe</p><h2 className="mt-3 text-[clamp(1.9rem,7.5vw,3.25rem)] font-semibold leading-tight tracking-[-.05em]">O que você vai descobrir no diagnóstico</h2></header><div className="mt-9 grid gap-3 md:grid-cols-2 lg:grid-cols-3">{discoveryItems.map(({title,description,icon:Icon})=><article key={title} className="rounded-2xl bg-white p-5 shadow-soft ring-1 ring-black/[.035] transition duration-200 motion-reduce:transition-none md:p-6 md:hover:-translate-y-1"><span className="grid h-10 w-10 place-items-center rounded-xl bg-champagne-soft text-champagne-dark"><Icon size={20}/></span><h3 className="mt-4 text-lg font-semibold">{title}</h3><p className="mt-2 text-base leading-6 text-muted-foreground">{description}</p></article>)}</div><LandingCta start={start} className="mx-auto mt-10 max-w-sm text-center"/></div>
     </section>
 
-    <section className="bg-primary text-primary-foreground">
-      <div className="mx-auto max-w-6xl px-4 py-12 min-[375px]:px-5 md:grid md:grid-cols-[1.1fr_.9fr] md:gap-16 md:px-8 md:py-20">
-        <div><p className="text-xs font-bold uppercase tracking-[.18em] text-champagne">Seu resultado</p><h2 className="mt-3 text-[clamp(1.8rem,7vw,3rem)] font-semibold leading-tight tracking-[-.045em]">No final, você recebe uma análise do seu negócio.</h2><p className="mt-4 max-w-xl text-base leading-7 text-white/65 md:text-lg md:leading-8">Com base nas suas respostas, vamos mostrar os pontos que merecem mais atenção e quais deveriam ser suas prioridades agora.</p></div>
-        <ul className="mt-8 grid gap-3 md:mt-0">{resultBenefits.map(item=><li key={item} className="flex min-h-16 items-center gap-4 rounded-2xl bg-white/[.065] px-4 py-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-champagne/15 text-champagne"><Check size={18}/></span><strong className="text-base leading-6">{item}</strong></li>)}</ul>
-      </div>
-    </section>
-
-    <section className="mx-auto max-w-3xl px-4 py-14 text-center min-[375px]:px-5 md:px-8 md:py-24">
-      <h2 className="text-[clamp(1.9rem,8vw,3.25rem)] font-semibold leading-tight tracking-[-.045em]">Vamos descobrir como está seu negócio?</h2>
-      <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-muted-foreground md:text-lg">Não existem respostas certas ou erradas. O objetivo é entender o seu momento atual.</p>
-      <Button size="lg" className="mt-7 w-full sm:w-auto" onClick={start}>Começar diagnóstico <ArrowRight size={20}/></Button>
-      <p className="mt-3 text-sm text-muted-foreground">Leva apenas alguns minutos.</p>
-    </section>
-  </>;
+    <section className="px-4 py-16 text-center min-[375px]:px-5 md:py-28"><div className="mx-auto max-w-3xl rounded-[2rem] bg-primary px-5 py-10 text-primary-foreground shadow-overlay md:px-12 md:py-16"><Sparkles className="mx-auto text-champagne" size={30}/><h2 className="mt-5 text-[clamp(2rem,8vw,3.5rem)] font-semibold leading-tight tracking-[-.05em]">Pronta para entender o próximo passo do seu negócio?</h2><p className="mx-auto mt-4 max-w-xl text-base leading-7 text-white/65 md:text-lg">Receba uma análise personalizada e descubra onde concentrar sua atenção agora.</p><LandingCta start={start} className="mx-auto mt-7 max-w-sm [&_p]:text-white/55"/></div></section>
+  </div>;
 }
 
 function Quiz({index,answers,choose,advance,back}:{index:number;answers:DiagnosticAnswers;choose:(key:AnswerKey)=>void;advance:()=>void;back:()=>void}){const question=diagnosticQuestions[index],selected=answers[question.key],[transitioning,setTransitioning]=useState(false),timer=useRef<number | undefined>(undefined);useEffect(()=>()=>clearTimeout(timer.current),[]);const answer=(key:AnswerKey)=>{if(transitioning)return;choose(key);setTransitioning(true);timer.current=window.setTimeout(()=>{setTransitioning(false);advance()},320)};return <main className="mx-auto max-w-3xl px-5 py-10 md:px-8 md:py-16"><p className="text-sm font-semibold uppercase tracking-[.16em] text-muted-foreground">Diagnóstico do seu negócio</p><div className="mt-4 flex items-center justify-between text-base"><b>Pergunta {index+1} de 10</b><span>{(index+1)*10}%</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-champagne transition-all" style={{width:`${(index+1)*10}%`}}/></div><h1 className="mt-10 text-[1.75rem] font-semibold leading-tight md:text-4xl">{question.title}</h1><div role="radiogroup" aria-label={question.title} className="mt-8 grid gap-3">{question.options.map((option,optionIndex)=><button disabled={transitioning} role="radio" aria-checked={selected===option.key} key={option.key} onClick={()=>answer(option.key)} className={`flex min-h-[4.75rem] w-full items-center gap-4 rounded-2xl border p-4 text-left text-[17px] leading-6 transition ${selected===option.key?"border-champagne bg-champagne-soft shadow-soft":"bg-white hover:border-champagne/50"}`}><span className={`grid h-10 w-10 shrink-0 place-items-center rounded-full font-bold ${selected===option.key?"bg-primary text-white":"bg-muted"}`}>{String.fromCharCode(65+optionIndex)}</span>{option.label}</button>)}</div><button type="button" className="mt-8 inline-flex min-h-12 items-center gap-2 font-semibold" onClick={back}><ArrowLeft size={19}/>Voltar</button></main>}
