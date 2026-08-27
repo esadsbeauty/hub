@@ -258,6 +258,7 @@ export type Database = {
       upsert_marketing_spend:{Args:{spend_data:Json};Returns:Database["public"]["Tables"]["marketing_spend"]["Row"]};
       capture_lead_acquisition:{Args:{acquisition_data:Json};Returns:Database["public"]["Tables"]["lead_acquisitions"]["Row"]};
       has_permission:{Args:{required_permission:string};Returns:boolean};
+      set_active_organization:{Args:{target_organization_id:string};Returns:undefined};
       current_authorization:{Args:Record<string,never>;Returns:Json};
       accept_own_invitation:{Args:Record<string,never>;Returns:undefined};
       governance_snapshot:{Args:{audit_limit?:number;audit_offset?:number};Returns:Json};

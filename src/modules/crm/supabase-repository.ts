@@ -65,12 +65,14 @@ async function context() {
   const api = client();
   const { data: auth } = await api.auth.getUser();
   if (!auth.user) throw new Error("Sessão expirada. Entre novamente.");
-  const result = await api
+  const [result, activeOrganization] = await Promise.all([api
     .from("profiles")
     .select("*")
     .eq("id", auth.user.id)
-    .single();
-  return ensure(result.data, result.error);
+    .single(), api.rpc("current_organization_id")]);
+  const profile = ensure(result.data, result.error);
+  if (activeOrganization.error || !activeOrganization.data) throw new Error("Selecione uma organização ativa.");
+  return { ...profile, organization_id: activeOrganization.data };
 }
 
 function activityType(value: string): ActivityType {
@@ -285,25 +287,29 @@ async function list(): Promise<CrmData> {
     api
       .from("companies")
       .select("*")
+      .eq("organization_id", profile.organization_id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
-    api.from("contacts").select("*").is("deleted_at", null),
-    api.from("pipelines").select("*"),
+    api.from("contacts").select("*").eq("organization_id", profile.organization_id).is("deleted_at", null),
+    api.from("pipelines").select("*").eq("organization_id", profile.organization_id),
     api.from("pipeline_stages").select("*").order("position"),
-    api.from("opportunities").select("*").is("deleted_at", null),
+    api.from("opportunities").select("*").eq("organization_id", profile.organization_id).is("deleted_at", null),
     api
       .from("opportunity_stage_history")
       .select("*")
+      .eq("organization_id", profile.organization_id)
       .order("changed_at", { ascending: false }),
     api
       .from("activities")
       .select("*")
+      .eq("organization_id", profile.organization_id)
       .order("created_at", { ascending: false })
       .limit(500),
-    api.from("tasks").select("*").is("deleted_at", null),
+    api.from("tasks").select("*").eq("organization_id", profile.organization_id).is("deleted_at", null),
     api
       .from("notes")
       .select("*")
+      .eq("organization_id", profile.organization_id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
   ]);

@@ -1,29 +1,14 @@
 export const crmKeys = {
-  all: ["crm"] as const,
-  companies: () => [...crmKeys.all, "companies"] as const,
-  company: (companyId: string) => [...crmKeys.companies(), companyId] as const,
-  pipeline: () => [...crmKeys.all, "pipeline"] as const,
-  opportunities: () => [...crmKeys.all, "opportunities"] as const,
-  opportunity: (opportunityId: string) =>
-    [...crmKeys.opportunities(), opportunityId] as const,
-  activities: (companyId: string) =>
-    [...crmKeys.company(companyId), "activities"] as const,
-  tasks: (companyId: string) =>
-    [...crmKeys.company(companyId), "tasks"] as const,
-  taskOperations: () => [...crmKeys.all, "tasks"] as const,
-  taskRanges: () => [...crmKeys.taskOperations(), "range"] as const,
-  tasksRange: (from: string, to: string, assigneeId?: string) =>
-    [...crmKeys.taskRanges(), from, to, assigneeId ?? "all"] as const,
-  tasksOverdue: (until: string) =>
-    [...crmKeys.taskOperations(), "overdue", until] as const,
-  activitiesCompany: (companyId: string, pageSize: number) =>
-    [...crmKeys.all, "activities", "company", companyId, pageSize] as const,
-  activitiesOpportunity: (opportunityId: string, pageSize: number) =>
-    [
-      ...crmKeys.all,
-      "activities",
-      "opportunity",
-      opportunityId,
-      pageSize,
-    ] as const,
+  root: ["crm"] as const,
+  all: (organizationId: string) => [...crmKeys.root, organizationId] as const,
+  companies: (organizationId: string) => [...crmKeys.all(organizationId), "companies"] as const,
+  company: (organizationId: string, companyId: string) => [...crmKeys.companies(organizationId), companyId] as const,
+  opportunities: (organizationId: string) => [...crmKeys.all(organizationId), "opportunities"] as const,
+  opportunity: (organizationId: string, opportunityId: string) => [...crmKeys.opportunities(organizationId), opportunityId] as const,
+  taskOperations: (organizationId: string) => [...crmKeys.all(organizationId), "tasks"] as const,
+  taskRanges: (organizationId: string) => [...crmKeys.taskOperations(organizationId), "range"] as const,
+  tasksRange: (organizationId: string, from: string, to: string, assigneeId?: string) => [...crmKeys.taskRanges(organizationId), from, to, assigneeId ?? "all"] as const,
+  tasksOverdue: (organizationId: string, until: string) => [...crmKeys.taskOperations(organizationId), "overdue", until] as const,
+  activitiesCompany: (organizationId: string, companyId: string, pageSize: number) => [...crmKeys.all(organizationId), "activities", "company", companyId, pageSize] as const,
+  activitiesOpportunity: (organizationId: string, opportunityId: string, pageSize: number) => [...crmKeys.all(organizationId), "activities", "opportunity", opportunityId, pageSize] as const,
 };
