@@ -503,44 +503,28 @@ export const supabaseCrmRepository = defineCrmRepository({
   list,
   async listTasksRange(from: string, to: string) {
     const profile = await context();
-    const profilesResult = await client().from("profiles").select("*");
-    const profiles: ProfileRow[] = ensure(
-      profilesResult.data,
-      profilesResult.error,
-    );
+    const [profilesResult,result] = await Promise.all([
+      client().from("profiles").select("id,name"),
+      client().from("tasks").select("*").eq("organization_id", profile.organization_id).gte("due_at", from).lt("due_at", to).is("deleted_at", null).order("due_at"),
+    ]);
+    const profiles = ensure(profilesResult.data, profilesResult.error);
     const owners = new Map<string, string>(
       profiles.map((item) => [item.id, item.name]),
     );
-    const result = await client()
-      .from("tasks")
-      .select("*")
-      .eq("organization_id", profile.organization_id)
-      .gte("due_at", from)
-      .lt("due_at", to)
-      .is("deleted_at", null)
-      .order("due_at");
     return ensure(result.data, result.error).map((item) => task(item, owners));
   },
   async listOverdueTasks(until: string) {
     const profile = await context();
-    const profilesResult = await client().from("profiles").select("*");
-    const profiles: ProfileRow[] = ensure(
-      profilesResult.data,
-      profilesResult.error,
-    );
+    const [profilesResult,result] = await Promise.all([
+      client().from("profiles").select("id,name"),
+      client().from("tasks").select("*").eq("organization_id", profile.organization_id).eq("status", "pending").lt("due_at", until).is("deleted_at", null).order("due_at", { ascending: true }),
+    ]);
+    const profiles = ensure(profilesResult.data, profilesResult.error);
     const owners = new Map<string, string>(
       profiles.map((item) => [item.id, item.name]),
     );
-    const { data, error } = await client()
-      .from("tasks")
-      .select("*")
-      .eq("organization_id", profile.organization_id)
-      .eq("status", "pending")
-      .lt("due_at", until)
-      .is("deleted_at", null)
-      .order("due_at", { ascending: true });
-    if (error) throw friendlyError(error);
-    return (data ?? []).map((row) => task(row, owners));
+    if (result.error) throw friendlyError(result.error);
+    return (result.data ?? []).map((row) => task(row, owners));
   },
   async createCompany(input: CompanyFormData) {
     const profile = await context();
