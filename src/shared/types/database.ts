@@ -209,6 +209,7 @@ export type Database = {
       marketing_connections: Table<Base&{provider:string;external_account_id:string;name:string;status:"connected"|"disconnected"|"error"|"syncing";last_sync_at:string|null;last_successful_sync_at:string|null;sync_error:string|null}>;
       blog_categories: Table<{id:string;organization_id:string;name:string;slug:string;created_at:string;updated_at:string}>;
       blog_posts: Table<{id:string;organization_id:string;title:string;slug:string;excerpt:string;content:string;cover_image_path:string|null;category_id:string|null;status:"draft"|"published"|"archived";author_id:string;published_at:string|null;seo_title:string|null;seo_description:string|null;created_at:string;updated_at:string;deleted_at:string|null}>;
+      blog_post_categories: Table<{post_id:string;category_id:string;created_at:string}>;
       permissions: Table<{id:string;key:string;name:string;description:string;module:string;created_at:string}>;
       roles: Table<{id:string;organization_id:string|null;name:string;slug:string;is_system:boolean;created_at:string;updated_at:string}>;
       role_permissions: Table<{role_id:string;permission_id:string}>;
@@ -222,7 +223,7 @@ export type Database = {
       list_diagnostic_submissions: { Args: { page_limit?: number; page_offset?: number }; Returns: Json };
       public_blog_posts: { Args: { search_term?: string | null; category_slug?: string | null; page_offset?: number; page_limit?: number }; Returns: Json };
       public_blog_post: { Args: { post_slug: string }; Returns: Json };
-      save_blog_post: { Args: { post_id: string | null; post_title: string; post_slug: string; post_excerpt: string; post_content: string; post_cover_image_path: string | null; post_category_id: string | null; post_seo_title: string | null; post_seo_description: string | null }; Returns: string };
+      save_blog_post: { Args: { post_id: string | null; post_title: string; post_slug: string; post_excerpt: string; post_content: string; post_cover_image_path: string | null; post_category_ids: string[]; post_seo_title: string | null; post_seo_description: string | null }; Returns: string };
       set_blog_post_status: { Args: { post_id: string; next_status: string }; Returns: undefined };
       current_organization_id: { Args: Record<string, never>; Returns: string };
       create_default_pipeline: {
@@ -249,7 +250,7 @@ export type Database = {
         Args: { target_task_id: string };
         Returns: Database["public"]["Tables"]["tasks"]["Row"];
       };
-      activate_customer_from_won_opportunity: { Args: { target_opportunity_id: string }; Returns: Database["public"]["Tables"]["customer_accounts"]["Row"] };
+      activate_customer_from_won_opportunity: { Args: { target_opportunity_id: string; closed_value: number }; Returns: Database["public"]["Tables"]["customer_accounts"]["Row"] };
       complete_onboarding_step: { Args: { target_step_id: string }; Returns: Database["public"]["Tables"]["onboarding_steps"]["Row"] };
       register_financial_payment: { Args:{ entry_kind:string; target_entry_id:string; target_account_id:string; payment_amount:number; payment_occurred_at:string; payment_method_value:string; payment_reference:string; payment_notes?:string }; Returns:string };
       reverse_financial_transaction: { Args:{target_transaction_id:string}; Returns:undefined };

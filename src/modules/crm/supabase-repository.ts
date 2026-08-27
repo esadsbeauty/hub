@@ -7,6 +7,7 @@ import type {
   FollowUpFormData,
   LostOpportunityFormData,
   OpportunityFormData,
+  WonOpportunityFormData,
   TaskFormData,
 } from "./schema";
 import type {
@@ -671,6 +672,8 @@ export const supabaseCrmRepository = defineCrmRepository({
       .eq("id", stageId)
       .single();
     const stage = ensure(stageResult.data, stageResult.error);
+    if (stage.is_won || stage.is_lost)
+      throw new Error("Use a ação de ganho ou perda para encerrar a oportunidade.");
     const status = stage.is_won ? "won" : stage.is_lost ? "lost" : "open";
     const changedAt = new Date().toISOString();
     const result = await client()
@@ -687,10 +690,10 @@ export const supabaseCrmRepository = defineCrmRepository({
       .single();
     return opportunity(ensure(result.data, result.error), new Map());
   },
-  async markOpportunityWon(id: string) {
+  async markOpportunityWon(id: string, input: WonOpportunityFormData) {
     const activation = await client().rpc(
       "activate_customer_from_won_opportunity",
-      { target_opportunity_id: id },
+      { target_opportunity_id: id, closed_value: input.value },
     );
     if (activation.error) throw friendlyError(activation.error);
     const updated = await client()

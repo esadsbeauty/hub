@@ -14,6 +14,7 @@ import type {
   FollowUpFormData,
   LostOpportunityFormData,
   OpportunityFormData,
+  WonOpportunityFormData,
   TaskFormData,
 } from "./schema";
 import type { CompanyFile, CrmData, Task } from "./types";
@@ -124,9 +125,10 @@ export function useCrmActions() {
       onError,
     }),
     markOpportunityWon: useMutation({
-      mutationFn: crmDataSource.markOpportunityWon,
+      mutationFn: ({id,data}:{id:string;data:WonOpportunityFormData}) => crmDataSource.markOpportunityWon(id,data),
       onSuccess: async () => {
         await client.invalidateQueries({ queryKey: ["customers"] });
+        await client.invalidateQueries({ queryKey: ["analytics"] });
         await refresh();
       },
       onError,

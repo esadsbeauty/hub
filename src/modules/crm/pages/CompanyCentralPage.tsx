@@ -438,9 +438,9 @@ export function CompanyCentralPage() {
             },
           })
         }
-        onWon={() =>
+        onWon={(value) =>
           selected &&
-          actions.markOpportunityWon.mutate(selected.id, {
+          actions.markOpportunityWon.mutate({id:selected.id,data:{value}}, {
             onSuccess: () => {
               setSelected(undefined);
               success("Negócio marcado como ganho");

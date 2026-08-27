@@ -26,7 +26,7 @@ export const crmDataSource = {
   ) => source.updateOpportunity(id, input),
   moveOpportunity: (id: string, stageId: string) =>
     source.moveOpportunity(id, stageId),
-  markOpportunityWon: (id: string) => source.markOpportunityWon(id),
+  markOpportunityWon: (id: string, input: import("./schema").WonOpportunityFormData) => source.markOpportunityWon(id,input),
   markOpportunityLost: (
     id: string,
     input: Parameters<typeof source.markOpportunityLost>[1],

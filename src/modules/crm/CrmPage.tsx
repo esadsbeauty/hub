@@ -744,9 +744,9 @@ export function CrmPage() {
             onSuccess: () => setSelected(undefined),
           })
         }
-        onWon={() =>
+        onWon={(value) =>
           selected &&
-          actions.markOpportunityWon.mutate(selected.id, {
+          actions.markOpportunityWon.mutate({id:selected.id,data:{value}}, {
             onSuccess: () => setSelected(undefined),
           })
         }
