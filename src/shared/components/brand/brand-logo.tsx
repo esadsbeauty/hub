@@ -1,4 +1,4 @@
-﻿import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const sizes = { sm: "w-28", md: "w-36", lg: "w-48" } as const;
 
@@ -12,7 +12,7 @@ type BrandLogoProps = {
 export function BrandLogo({ className, size = "md", compact = false }: BrandLogoProps) {
   return (
     <img
-      src="/brand/esads-beauty-logo.svg"
+      src="/brand/esads-beauty-logo.png"
       alt="ESADS Beauty"
       width="640"
       height="240"
