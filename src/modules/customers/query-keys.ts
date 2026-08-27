@@ -1,9 +1,10 @@
 export const customerKeys = {
-  all: ["customers"] as const,
-  lists: () => [...customerKeys.all, "list"] as const,
-  detail: (id: string) => [...customerKeys.all, "detail", id] as const,
-  company: (companyId: string) => [...customerKeys.all, "company", companyId] as const,
-  services: () => [...customerKeys.all, "services"] as const,
-  onboarding: (id: string) => [...customerKeys.all, "onboarding", id] as const,
-  contracts: (id: string) => [...customerKeys.all, "contracts", id] as const,
+  root: ["customers"] as const,
+  all: (organizationId: string) => [...customerKeys.root, organizationId] as const,
+  lists: (organizationId: string) => [...customerKeys.all(organizationId), "list"] as const,
+  detail: (organizationId: string, id: string) => [...customerKeys.all(organizationId), "detail", id] as const,
+  company: (organizationId: string, companyId: string) => [...customerKeys.all(organizationId), "company", companyId] as const,
+  services: (organizationId: string) => [...customerKeys.all(organizationId), "services"] as const,
+  onboarding: (organizationId: string, id: string) => [...customerKeys.all(organizationId), "onboarding", id] as const,
+  contracts: (organizationId: string, id: string) => [...customerKeys.all(organizationId), "contracts", id] as const,
 };

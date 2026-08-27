@@ -7,6 +7,7 @@ import type {
   FollowUpFormData,
   LostOpportunityFormData,
   OpportunityFormData,
+  WonOpportunityFormData,
   TaskFormData,
 } from "./schema";
 import type {
@@ -64,12 +65,14 @@ async function context() {
   const api = client();
   const { data: auth } = await api.auth.getUser();
   if (!auth.user) throw new Error("Sessão expirada. Entre novamente.");
-  const result = await api
+  const [result, activeOrganization] = await Promise.all([api
     .from("profiles")
     .select("*")
     .eq("id", auth.user.id)
-    .single();
-  return ensure(result.data, result.error);
+    .single(), api.rpc("current_organization_id")]);
+  const profile = ensure(result.data, result.error);
+  if (activeOrganization.error || !activeOrganization.data) throw new Error("Selecione uma organização ativa.");
+  return { ...profile, organization_id: activeOrganization.data };
 }
 
 function activityType(value: string): ActivityType {
@@ -284,25 +287,29 @@ async function list(): Promise<CrmData> {
     api
       .from("companies")
       .select("*")
+      .eq("organization_id", profile.organization_id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
-    api.from("contacts").select("*").is("deleted_at", null),
-    api.from("pipelines").select("*"),
+    api.from("contacts").select("*").eq("organization_id", profile.organization_id).is("deleted_at", null),
+    api.from("pipelines").select("*").eq("organization_id", profile.organization_id),
     api.from("pipeline_stages").select("*").order("position"),
-    api.from("opportunities").select("*").is("deleted_at", null),
+    api.from("opportunities").select("*").eq("organization_id", profile.organization_id).is("deleted_at", null),
     api
       .from("opportunity_stage_history")
       .select("*")
+      .eq("organization_id", profile.organization_id)
       .order("changed_at", { ascending: false }),
     api
       .from("activities")
       .select("*")
+      .eq("organization_id", profile.organization_id)
       .order("created_at", { ascending: false })
       .limit(500),
-    api.from("tasks").select("*").is("deleted_at", null),
+    api.from("tasks").select("*").eq("organization_id", profile.organization_id).is("deleted_at", null),
     api
       .from("notes")
       .select("*")
+      .eq("organization_id", profile.organization_id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
   ]);
@@ -496,44 +503,28 @@ export const supabaseCrmRepository = defineCrmRepository({
   list,
   async listTasksRange(from: string, to: string) {
     const profile = await context();
-    const profilesResult = await client().from("profiles").select("*");
-    const profiles: ProfileRow[] = ensure(
-      profilesResult.data,
-      profilesResult.error,
-    );
+    const [profilesResult,result] = await Promise.all([
+      client().from("profiles").select("id,name"),
+      client().from("tasks").select("*").eq("organization_id", profile.organization_id).gte("due_at", from).lt("due_at", to).is("deleted_at", null).order("due_at"),
+    ]);
+    const profiles = ensure(profilesResult.data, profilesResult.error);
     const owners = new Map<string, string>(
       profiles.map((item) => [item.id, item.name]),
     );
-    const result = await client()
-      .from("tasks")
-      .select("*")
-      .eq("organization_id", profile.organization_id)
-      .gte("due_at", from)
-      .lt("due_at", to)
-      .is("deleted_at", null)
-      .order("due_at");
     return ensure(result.data, result.error).map((item) => task(item, owners));
   },
   async listOverdueTasks(until: string) {
     const profile = await context();
-    const profilesResult = await client().from("profiles").select("*");
-    const profiles: ProfileRow[] = ensure(
-      profilesResult.data,
-      profilesResult.error,
-    );
+    const [profilesResult,result] = await Promise.all([
+      client().from("profiles").select("id,name"),
+      client().from("tasks").select("*").eq("organization_id", profile.organization_id).eq("status", "pending").lt("due_at", until).is("deleted_at", null).order("due_at", { ascending: true }),
+    ]);
+    const profiles = ensure(profilesResult.data, profilesResult.error);
     const owners = new Map<string, string>(
       profiles.map((item) => [item.id, item.name]),
     );
-    const { data, error } = await client()
-      .from("tasks")
-      .select("*")
-      .eq("organization_id", profile.organization_id)
-      .eq("status", "pending")
-      .lt("due_at", until)
-      .is("deleted_at", null)
-      .order("due_at", { ascending: true });
-    if (error) throw friendlyError(error);
-    return (data ?? []).map((row) => task(row, owners));
+    if (result.error) throw friendlyError(result.error);
+    return (result.data ?? []).map((row) => task(row, owners));
   },
   async createCompany(input: CompanyFormData) {
     const profile = await context();
@@ -671,6 +662,8 @@ export const supabaseCrmRepository = defineCrmRepository({
       .eq("id", stageId)
       .single();
     const stage = ensure(stageResult.data, stageResult.error);
+    if (stage.is_won || stage.is_lost)
+      throw new Error("Use a ação de ganho ou perda para encerrar a oportunidade.");
     const status = stage.is_won ? "won" : stage.is_lost ? "lost" : "open";
     const changedAt = new Date().toISOString();
     const result = await client()
@@ -687,10 +680,10 @@ export const supabaseCrmRepository = defineCrmRepository({
       .single();
     return opportunity(ensure(result.data, result.error), new Map());
   },
-  async markOpportunityWon(id: string) {
+  async markOpportunityWon(id: string, input: WonOpportunityFormData) {
     const activation = await client().rpc(
       "activate_customer_from_won_opportunity",
-      { target_opportunity_id: id },
+      { target_opportunity_id: id, closed_value: input.value },
     );
     if (activation.error) throw friendlyError(activation.error);
     const updated = await client()

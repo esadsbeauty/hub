@@ -143,6 +143,11 @@ export const opportunitySchema = z.object({
 });
 export type OpportunityFormData = z.infer<typeof opportunitySchema>;
 
+export const wonOpportunitySchema = z.object({
+  value: z.number().positive("Informe o valor fechado"),
+});
+export type WonOpportunityFormData = z.infer<typeof wonOpportunitySchema>;
+
 export const lostOpportunitySchema = z.object({
   reason: z.enum([
     "price",

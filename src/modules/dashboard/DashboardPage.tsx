@@ -10,8 +10,6 @@ import { TaskCard } from "@/modules/crm/components/task-card";
 import {
   useCrmActions,
   useCrmData,
-  useOverdueTasks,
-  useTasksRange,
 } from "@/modules/crm/hooks";
 import { AnalyticsFiltersBar } from "@/modules/analytics/components/analytics-filters";
 import { AnalyticsMetric } from "@/modules/analytics/components/analytics-metric";
@@ -50,8 +48,6 @@ export function DashboardPage() {
   start.setHours(0, 0, 0, 0);
   const end = new Date(start);
   end.setDate(end.getDate() + 1);
-  const today = useTasksRange(start.toISOString(), end.toISOString());
-  const overdue = useOverdueTasks(start.toISOString());
   if (crm.isError || report.isError)
     return (
       <PageContainer>
@@ -78,8 +74,11 @@ export function DashboardPage() {
       </PageContainer>
     );
   const analytics = report.analytics;
-  const pendingToday = (today.data ?? []).filter(
-    (task) => task.status === "pending",
+  const pendingToday = crm.data.tasks.filter(
+    (task) => task.dueAt >= start.toISOString() && task.dueAt < end.toISOString() && task.status === "pending",
+  );
+  const overdue = crm.data.tasks.filter(
+    (task) => task.dueAt < start.toISOString() && task.status === "pending",
   );
   const open = (title: string, opportunities: Drilldown["opportunities"]) =>
     setDrilldown({ title, opportunities });
@@ -104,14 +103,14 @@ export function DashboardPage() {
         <div className="min-w-[84vw] snap-center md:min-w-0"><AnalyticsMetric label="Follow-ups" value={String(analytics.attention.overdueFollowups.length)} detail="atrasados" definition="Follow-ups pendentes com prazo vencido." onClick={() => navigate("/agenda")} /></div>
         <div className="min-w-[84vw] snap-center md:min-w-0"><AnalyticsMetric label="Clientes" value={String(activeClients)} detail="ativos no relacionamento" definition="Empresas na etapa de relacionamento com clientes." onClick={() => navigate("/clientes")} /></div>
       </section>
-      <Card className="md:hidden"><CardHeader className="flex-row items-center justify-between"><div><p className="text-[13px] font-semibold uppercase tracking-[.16em] text-muted-foreground">Prioridade</p><CardTitle className="mt-1">Agenda de hoje</CardTitle></div><Link aria-label="Criar atividade" to="/agenda?new=task" className="grid h-[3.25rem] w-[3.25rem] place-items-center rounded-2xl bg-champagne-soft"><CalendarPlus size={23}/></Link></CardHeader><CardContent className="space-y-4 sm:space-y-3">{today.isLoading?<Skeleton className="h-32"/>:pendingToday.length?pendingToday.slice(0,3).map((task)=><TaskCard key={task.id} task={task} compact onComplete={()=>actions.completeTask.mutate(task.id)}/>):<div className="rounded-2xl bg-muted/55 px-5 py-8 text-center"><p className="font-semibold">Nenhuma atividade para hoje</p><p className="mt-1.5 text-[15px] leading-6 text-muted-foreground">Aproveite para organizar o próximo contato.</p><Link to="/agenda?new=task" className="mt-4 inline-flex min-h-12 items-center rounded-xl bg-card px-4 text-sm font-semibold shadow-soft">Nova tarefa</Link></div>}<Link className="flex min-h-[3.25rem] items-center justify-between border-t border-border/60 pt-3 text-[15px] font-semibold" to="/agenda">Abrir agenda <ArrowRight size={18}/></Link></CardContent></Card>
-      <Link to="/agenda" className="flex min-h-[5.75rem] items-center gap-4 rounded-[1.25rem] bg-primary p-5 text-primary-foreground shadow-soft md:hidden"><span className="grid h-[3.25rem] w-[3.25rem] shrink-0 place-items-center rounded-2xl bg-white/10"><Clock3 size={24}/></span><span className="min-w-0 flex-1"><b className="block text-[17px]">Follow-ups</b><span className="text-[15px] leading-5 text-white/65">{overdue.data?.length ?? 0} atrasados · {pendingToday.filter((task)=>task.type === "follow_up").length} para hoje</span></span><ArrowRight size={20}/></Link>
+      <Card className="md:hidden"><CardHeader className="flex-row items-center justify-between"><div><p className="text-[13px] font-semibold uppercase tracking-[.16em] text-muted-foreground">Prioridade</p><CardTitle className="mt-1">Agenda de hoje</CardTitle></div><Link aria-label="Criar atividade" to="/agenda?new=task" className="grid h-[3.25rem] w-[3.25rem] place-items-center rounded-2xl bg-champagne-soft"><CalendarPlus size={23}/></Link></CardHeader><CardContent className="space-y-4 sm:space-y-3">{pendingToday.length?pendingToday.slice(0,3).map((task)=><TaskCard key={task.id} task={task} compact onComplete={()=>actions.completeTask.mutate(task.id)}/>):<div className="rounded-2xl bg-muted/55 px-5 py-8 text-center"><p className="font-semibold">Nenhuma atividade para hoje</p><p className="mt-1.5 text-[15px] leading-6 text-muted-foreground">Aproveite para organizar o próximo contato.</p><Link to="/agenda?new=task" className="mt-4 inline-flex min-h-12 items-center rounded-xl bg-card px-4 text-sm font-semibold shadow-soft">Nova tarefa</Link></div>}<Link className="flex min-h-[3.25rem] items-center justify-between border-t border-border/60 pt-3 text-[15px] font-semibold" to="/agenda">Abrir agenda <ArrowRight size={18}/></Link></CardContent></Card>
+      <Link to="/agenda" className="flex min-h-[5.75rem] items-center gap-4 rounded-[1.25rem] bg-primary p-5 text-primary-foreground shadow-soft md:hidden"><span className="grid h-[3.25rem] w-[3.25rem] shrink-0 place-items-center rounded-2xl bg-white/10"><Clock3 size={24}/></span><span className="min-w-0 flex-1"><b className="block text-[17px]">Follow-ups</b><span className="text-[15px] leading-5 text-white/65">{overdue.length} atrasados · {pendingToday.filter((task)=>task.type === "follow_up").length} para hoje</span></span><ArrowRight size={20}/></Link>
       <Card className="md:hidden"><CardHeader><CardTitle>Pipeline resumido</CardTitle></CardHeader><CardContent className="space-y-3">{crm.data.stages.slice(0,3).map(stage=>{const count=crm.data.opportunities.filter(item=>item.stageId===stage.id&&item.status==="open"&&!item.deletedAt).length;return <div key={stage.id} className="flex min-h-14 items-center justify-between rounded-xl bg-muted/60 px-4"><span className="text-base font-semibold">{stage.name}</span><span className="text-base text-muted-foreground">{count}</span></div>})}<Link className="flex min-h-14 items-center justify-between border-t pt-3 text-base font-semibold" to="/crm">Ver pipeline <ArrowRight size={20}/></Link></CardContent></Card>
       <div className="md:hidden"><ForecastCard analytics={analytics}/></div>
       <Card className="md:hidden"><CardHeader><CardTitle>Performance</CardTitle></CardHeader><CardContent className="grid gap-4"><div><p className="text-base text-muted-foreground">Pipeline ponderado</p><p className="mt-1 text-2xl font-semibold">{compactCurrency(analytics.weighted.value)}</p></div><div><p className="text-base text-muted-foreground">Win rate</p><p className="mt-1 text-2xl font-semibold">{analytics.winRate===undefined?"—":percentage.format(analytics.winRate)}</p></div></CardContent></Card>
       <div className="hidden gap-6 md:grid xl:grid-cols-[1.15fr_.85fr]">
         <PipelineOverview analytics={analytics}/>
-        <Card><CardHeader><CardTitle>Agenda de hoje</CardTitle></CardHeader><CardContent className="space-y-3">{today.isLoading?<Skeleton className="h-32"/>:pendingToday.length?pendingToday.slice(0,4).map((task)=><TaskCard key={task.id} task={task} compact onComplete={()=>actions.completeTask.mutate(task.id)}/>):<p className="py-8 text-center text-sm text-muted-foreground">Nenhuma atividade para hoje.</p>}{(overdue.data?.length??0)>0&&<Link className="block rounded-xl bg-amber-50 p-3 text-sm font-medium text-amber-900" to="/agenda">{overdue.data?.length} atividades atrasadas</Link>}</CardContent></Card>
+        <Card><CardHeader><CardTitle>Agenda de hoje</CardTitle></CardHeader><CardContent className="space-y-3">{pendingToday.length?pendingToday.slice(0,4).map((task)=><TaskCard key={task.id} task={task} compact onComplete={()=>actions.completeTask.mutate(task.id)}/>):<p className="py-8 text-center text-sm text-muted-foreground">Nenhuma atividade para hoje.</p>}{overdue.length>0&&<Link className="block rounded-xl bg-amber-50 p-3 text-sm font-medium text-amber-900" to="/agenda">{overdue.length} atividades atrasadas</Link>}</CardContent></Card>
       </div>
       <div className="hidden gap-6 md:grid xl:grid-cols-[.8fr_1.2fr]">
         <Card><CardHeader><CardTitle>Performance comercial</CardTitle></CardHeader><CardContent className="grid gap-5 sm:grid-cols-2"><div><p className="text-xs text-muted-foreground">Pipeline ponderado</p><p className="mt-1 text-xl font-semibold">{compactCurrency(analytics.weighted.value)}</p></div><div><p className="text-xs text-muted-foreground">Win rate</p><p className="mt-1 text-xl font-semibold">{analytics.winRate===undefined?"—":percentage.format(analytics.winRate)}</p></div><div><p className="text-xs text-muted-foreground">Ticket médio</p><p className="mt-1 text-xl font-semibold">{analytics.averageTicket===undefined?"—":compactCurrency(analytics.averageTicket)}</p></div><div><p className="text-xs text-muted-foreground">Ciclo médio</p><p className="mt-1 text-xl font-semibold">{analytics.averageCycleDays===undefined?"—":`${Math.round(analytics.averageCycleDays)} dias`}</p></div></CardContent></Card>

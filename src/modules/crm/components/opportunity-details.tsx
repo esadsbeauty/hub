@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Drawer } from "@/shared/components/overlays/drawer";
@@ -61,12 +63,13 @@ export function OpportunityDetails({
   onEdit: () => void;
   onDuplicate: () => void;
   onArchive: () => void;
-  onWon: () => void;
+  onWon: (value: number) => void;
   onLost: (data: LostOpportunityFormData) => void;
   onAddNote: () => void;
   onAddFollowUp: () => void;
 }) {
   const [confirmWon, setConfirmWon] = useState(false);
+  const [closedValue, setClosedValue] = useState(() => opportunity?.value ? opportunity.value.toFixed(2).replace(".",",") : "");
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [lossOpen, setLossOpen] = useState(false);
   const {
@@ -77,6 +80,7 @@ export function OpportunityDetails({
     resolver: zodResolver(lostOpportunitySchema),
     defaultValues: { reason: "no_response", notes: "" },
   });
+  useEffect(()=>setClosedValue(opportunity?.value?opportunity.value.toFixed(2).replace(".",","):""),[opportunity?.id,opportunity?.value]);
   if (!opportunity) return null;
   const stage = stages.find((item) => item.id === opportunity.stageId);
   return (
@@ -117,6 +121,7 @@ export function OpportunityDetails({
           >
             {stages
               .filter((item) => item.pipelineId === opportunity.pipelineId)
+              .filter((item) => !item.isWon && !item.isLost)
               .sort((a, b) => a.position - b.position)
               .map((item) => (
                 <option key={item.id} value={item.id}>
@@ -238,15 +243,7 @@ export function OpportunityDetails({
           setConfirmArchive(false);
         }}
       />
-      <ConfirmDialog
-        open={confirmWon}
-        title={`Marcar “${opportunity.title}” como ganha por ${currency.format(opportunity.value)}?`}
-        onCancel={() => setConfirmWon(false)}
-        onConfirm={() => {
-          onWon();
-          setConfirmWon(false);
-        }}
-      />
+      {confirmWon&&<div className="fixed inset-0 z-[70] grid place-items-center bg-black/45 p-5"><form className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-overlay" onSubmit={event=>{event.preventDefault();const value=Number(closedValue.replace(/\./g,"").replace(",","."));if(value>0){onWon(value);setConfirmWon(false)}}}><h2 className="text-xl font-bold">Marcar como ganha</h2><p className="mt-2 text-sm text-muted-foreground">Registre o valor efetivamente fechado para manter os indicadores sincronizados.</p><div className="mt-5"><Label htmlFor="closed-value">Valor fechado</Label><Input id="closed-value" autoFocus inputMode="decimal" placeholder="R$ 3.500,00" value={closedValue} onChange={event=>setClosedValue(event.target.value.replace(/[^\d.,]/g,""))}/></div><div className="mt-6 flex justify-end gap-2"><Button type="button" variant="outline" onClick={()=>setConfirmWon(false)}>Cancelar</Button><Button type="submit" disabled={!(Number(closedValue.replace(/\./g,"").replace(",","."))>0)}>Confirmar ganho</Button></div></form></div>}
     </>
   );
 }
