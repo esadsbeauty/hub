@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BarChart3, BookOpen, Calendar, ClipboardCheck, Handshake, Home, Menu, Megaphone, Plus, Settings, UserPlus, Users, Wallet } from "lucide-react";
+import { BarChart3, BookOpen, Calendar, ClipboardCheck, Handshake, Home, Menu, Megaphone, Plus, ShieldCheck, Settings, UserPlus, Users, Wallet } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
 import { useAppState } from "@/shared/state/app-state-context";
 import { BrandLogo } from "@/shared/components/brand/brand-logo";
@@ -26,7 +26,7 @@ const actions = [
 ];
 
 export function MobileNavigation() {
-  const { can } = useAppState();
+  const { can, isPlatformAdmin } = useAppState();
   const [sheet, setSheet] = useState<"new" | "more" | null>(null);
   const navItem = (item: (typeof navigation)[number]) => {
     const Icon = item.icon;
@@ -49,6 +49,7 @@ export function MobileNavigation() {
         <BrandLogo compact/>
         <h2 className="mt-1 text-2xl font-semibold tracking-[-.035em]">{sheet === "new" ? "O que deseja criar?" : "Mais opções"}</h2>
         <div className="mt-5 grid gap-2">
+          {sheet === "more" && isPlatformAdmin && <Link onClick={() => setSheet(null)} className="flex min-h-16 items-center gap-4 rounded-2xl px-3 text-[17px] font-semibold premium-focus active:bg-muted" to="/plataforma"><ShieldCheck size={24}/>Plataforma</Link>}
           {sheet === "new" ? actions.map(({label, detail, to, icon: Icon}) => <Link onClick={() => setSheet(null)} className="flex min-h-[4.5rem] items-center gap-4 rounded-2xl border border-border/60 px-4 py-3 premium-focus active:bg-muted" key={to} to={to}><span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-champagne-soft"><Icon size={23}/></span><span><b className="block text-[17px]">{label}</b><span className="text-[15px] leading-5 text-muted-foreground">{detail}</span></span></Link>) : more.filter((item) => can(item.permission)).map(({to,label,icon:Icon}) => <Link onClick={() => setSheet(null)} className="flex min-h-16 items-center gap-4 rounded-2xl px-3 text-[17px] font-semibold premium-focus active:bg-muted" key={to} to={to}><Icon size={24}/>{label}</Link>)}
         </div>
       </section>

@@ -258,6 +258,8 @@ export type Database = {
       capture_lead_acquisition:{Args:{acquisition_data:Json};Returns:Database["public"]["Tables"]["lead_acquisitions"]["Row"]};
       has_permission:{Args:{required_permission:string};Returns:boolean};
       current_authorization:{Args:Record<string,never>;Returns:Json};
+      platform_admin_snapshot:{Args:Record<string,never>;Returns:Json};
+      platform_assign_organization_plan:{Args:{target_organization_id:string;target_plan_id:string};Returns:undefined};
       accept_own_invitation:{Args:Record<string,never>;Returns:undefined};
       governance_snapshot:{Args:{audit_limit?:number;audit_offset?:number};Returns:Json};
       change_member_role:{Args:{target_member_id:string;target_role_id:string};Returns:undefined};
