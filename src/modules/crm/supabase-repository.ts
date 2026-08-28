@@ -39,38 +39,38 @@ type ActivityRow = Tables["activities"]["Row"];
 type NoteRow = Tables["notes"]["Row"];
 
 function client() {
-  if (!supabase) throw new Error("Supabase nÃ£o configurado");
+  if (!supabase) throw new Error("Supabase não configurado");
   return supabase;
 }
 function friendlyError(error: { message: string; code?: string }) {
   console.error("[CRM]", error);
   if (error.code === "23505")
-    return new Error("JÃ¡ existe um registro com essas informaÃ§Ãµes.");
+    return new Error("Já existe um registro com essas informações.");
   if (error.code === "23503")
     return new Error(
-      "NÃ£o foi possÃ­vel concluir porque existem dados relacionados.",
+      "Não foi possível concluir porque existem dados relacionados.",
     );
-  return new Error("NÃ£o foi possÃ­vel concluir esta aÃ§Ã£o. Tente novamente.");
+  return new Error("Não foi possível concluir esta ação. Tente novamente.");
 }
 function ensure<T>(
   data: T | null,
   error: { message: string; code?: string } | null,
 ): T {
   if (error) throw friendlyError(error);
-  if (data === null) throw new Error("Registro nÃ£o encontrado.");
+  if (data === null) throw new Error("Registro não encontrado.");
   return data;
 }
 async function context() {
   const api = client();
   const { data: auth } = await api.auth.getUser();
-  if (!auth.user) throw new Error("SessÃ£o expirada. Entre novamente.");
+  if (!auth.user) throw new Error("Sessão expirada. Entre novamente.");
   const [result, activeOrganization] = await Promise.all([api
     .from("profiles")
     .select("*")
     .eq("id", auth.user.id)
     .single(), api.rpc("current_organization_id")]);
   const profile = ensure(result.data, result.error);
-  if (activeOrganization.error || !activeOrganization.data) throw new Error("Selecione uma organizaÃ§Ã£o ativa.");
+  if (activeOrganization.error || !activeOrganization.data) throw new Error("Selecione uma organização ativa.");
   return { ...profile, organization_id: activeOrganization.data };
 }
 
@@ -438,7 +438,7 @@ async function list(): Promise<CrmData> {
         opportunityId: item.opportunity_id ?? undefined,
         userId: item.user_id ?? "",
         user: item.user_id
-          ? (owners.get(item.user_id) ?? "UsuÃ¡rio")
+          ? (owners.get(item.user_id) ?? "Usuário")
           : "Sistema",
         type: activityType(item.type),
         title: item.title,
@@ -457,7 +457,7 @@ async function list(): Promise<CrmData> {
         companyId: item.company_id,
         opportunityId: item.opportunity_id ?? undefined,
         text: item.body,
-        author: owners.get(item.created_by) ?? "UsuÃ¡rio",
+        author: owners.get(item.created_by) ?? "Usuário",
         createdAt: item.created_at,
         updatedAt: item.updated_at,
       }),
@@ -578,7 +578,7 @@ export const supabaseCrmRepository = defineCrmRepository({
       new Map([[profile.id, profile.name]]),
     );
     return this.createCompany({
-      fantasyName: `${source.fantasyName} (cÃ³pia)`,
+      fantasyName: `${source.fantasyName} (cópia)`,
       legalName: source.legalName,
       cnpj: source.cnpj,
       phone: source.phone,
@@ -662,7 +662,7 @@ export const supabaseCrmRepository = defineCrmRepository({
       .single();
     const stage = ensure(stageResult.data, stageResult.error);
     if (stage.is_won || stage.is_lost)
-      throw new Error("Use a aÃ§Ã£o de ganho ou perda para encerrar a oportunidade.");
+      throw new Error("Use a ação de ganho ou perda para encerrar a oportunidade.");
     const status = stage.is_won ? "won" : stage.is_lost ? "lost" : "open";
     const changedAt = new Date().toISOString();
     const result = await client()
@@ -743,7 +743,7 @@ export const supabaseCrmRepository = defineCrmRepository({
       companyId: source.companyId,
       pipelineId: source.pipelineId,
       stageId: source.stageId,
-      title: `${source.title} (cÃ³pia)`,
+      title: `${source.title} (cópia)`,
       description: source.description,
       value: source.value,
       probability: source.probability,
