@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "@/layouts/app-layout";
 import { ProtectedRoute } from "@/routes/protected-route";
 import { PermissionRoute } from "@/routes/permission-route";
+import { PlatformAdminRoute } from "@/routes/platform-admin-route";
 import { useAuth } from "@/providers/auth-context";
 import { UnderDevelopment } from "@/modules/placeholder/UnderDevelopment";
 
@@ -23,6 +24,7 @@ const MarketingPage=page(()=>import("@/modules/marketing/MarketingPage"),"Market
 const BlogCmsPage=page(()=>import("@/modules/blog/pages/BlogCmsPage"),"BlogCmsPage");
 const DiagnosticAdminPage=page(()=>import("@/modules/diagnostic/pages/DiagnosticAdminPage"),"DiagnosticAdminPage");
 const SettingsPage=page(()=>import("@/modules/settings/SettingsPage"),"SettingsPage");
+const PlatformPage=page(()=>import("@/modules/platform/PlatformPage"),"PlatformPage");
 
 function LoginRoute() {
   const { user, passwordRecovery } = useAuth();
@@ -58,6 +60,7 @@ export function App() {
           <Route path="marketing/diagnosticos" element={<PermissionRoute permission="marketing.view"><DiagnosticAdminPage /></PermissionRoute>} />
           <Route path="marketing/blog" element={<PermissionRoute permission="blog.view"><BlogCmsPage /></PermissionRoute>} />
           <Route path="configuracoes" element={<PermissionRoute permission="settings.view"><SettingsPage /></PermissionRoute>} />
+          <Route path="plataforma" element={<PlatformAdminRoute><PlatformPage /></PlatformAdminRoute>} />
           {["ia"].map(
             (path) => (
               <Route
