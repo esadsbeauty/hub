@@ -1,4 +1,4 @@
-$path = "C:\Users\Elielson\Documents\hub\tests\deployment-env.test.ts"
+$path = "C:\Users\Elielson\Documents\hub\tests\crm-tenant-performance-regression.test.ts"
 
 $content = Get-Clipboard -Raw
 
