@@ -1,0 +1,2 @@
+import{trackingKeys}from"./content";import type{SalesAttribution}from"./repository";const key="esads-sales-attribution";
+export function captureSalesAttribution(){const params=new URLSearchParams(location.search),saved=sessionStorage.getItem(key),previous=saved?JSON.parse(saved)as SalesAttribution:{};const value=Object.fromEntries(trackingKeys.map(name=>[name,params.get(name)??previous[name]]).filter(([,item])=>item))as SalesAttribution;sessionStorage.setItem(key,JSON.stringify(value));return value}

@@ -1,10 +1,11 @@
-import { Link, Outlet } from "react-router-dom";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import { BrandLogo } from "@/shared/components/brand/brand-logo";
 
 export function PublicLayout() {
+  const sales = useLocation().pathname === "/sistema";
   return (
     <div className="min-h-dvh bg-[#fbfaf8] text-foreground">
-      <header className="border-b border-black/5 bg-[#fbfaf8]/95 backdrop-blur-xl">
+      {!sales && <header className="border-b border-black/5 bg-[#fbfaf8]/95 backdrop-blur-xl">
         <div className="mx-auto flex h-20 max-w-6xl items-center px-5 md:px-8">
           <Link to="/blog" aria-label="ESADS Beauty">
             <BrandLogo compact className="w-24 sm:w-28" />
@@ -30,13 +31,13 @@ export function PublicLayout() {
             </a>
           </nav>
         </div>
-      </header>
+      </header>}
 
       <main>
         <Outlet />
       </main>
 
-      <footer className="mt-20 border-t border-black/5 bg-white">
+      {!sales && <footer className="mt-20 border-t border-black/5 bg-white">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-10 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:px-8">
           <BrandLogo size="sm" />
           <p>Conteúdo para operações de estética mais fortes.</p>
@@ -44,7 +45,7 @@ export function PublicLayout() {
             Acesso ao Hub
           </a>
         </div>
-      </footer>
+      </footer>}
     </div>
   );
 }
