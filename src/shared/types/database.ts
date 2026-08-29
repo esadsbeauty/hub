@@ -268,6 +268,7 @@ export type Database = {
       platform_suspend_subscription:{Args:{target_subscription_id:string};Returns:undefined};
       platform_reactivate_subscription:{Args:{target_subscription_id:string};Returns:undefined};
       platform_cancel_subscription:{Args:{target_subscription_id:string};Returns:undefined};
+      current_subscription_access:{Args:Record<string,never>;Returns:Json};
       accept_own_invitation:{Args:Record<string,never>;Returns:undefined};
       governance_snapshot:{Args:{audit_limit?:number;audit_offset?:number};Returns:Json};
       change_member_role:{Args:{target_member_id:string;target_role_id:string};Returns:undefined};
