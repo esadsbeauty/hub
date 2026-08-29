@@ -25,6 +25,7 @@ const BlogCmsPage=page(()=>import("@/modules/blog/pages/BlogCmsPage"),"BlogCmsPa
 const DiagnosticAdminPage=page(()=>import("@/modules/diagnostic/pages/DiagnosticAdminPage"),"DiagnosticAdminPage");
 const SettingsPage=page(()=>import("@/modules/settings/SettingsPage"),"SettingsPage");
 const PlatformPage=page(()=>import("@/modules/platform/PlatformPage"),"PlatformPage");
+const OnboardingPage=page(()=>import("@/modules/onboarding/OnboardingPage"),"OnboardingPage");
 
 function LoginRoute() {
   const { user, passwordRecovery } = useAuth();
@@ -60,6 +61,7 @@ export function App() {
           <Route path="marketing/diagnosticos" element={<PermissionRoute permission="marketing.view"><DiagnosticAdminPage /></PermissionRoute>} />
           <Route path="marketing/blog" element={<PermissionRoute permission="blog.view"><BlogCmsPage /></PermissionRoute>} />
           <Route path="configuracoes" element={<PermissionRoute permission="settings.view"><SettingsPage /></PermissionRoute>} />
+          <Route path="onboarding" element={<PermissionRoute permission="settings.manage"><OnboardingPage /></PermissionRoute>} />
           <Route path="plataforma" element={<PlatformAdminRoute><PlatformPage /></PlatformAdminRoute>} />
           {["ia"].map(
             (path) => (

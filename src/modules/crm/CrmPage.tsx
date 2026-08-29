@@ -296,6 +296,7 @@ export function CrmPage() {
       title: "Lead criado",
       description: "Empresa registrada e oportunidade adicionada em Novo Lead.",
     });
+    if (searchParams.get("onboarding") === "1") navigate("/onboarding");
   };
   return (
     <PageContainer>

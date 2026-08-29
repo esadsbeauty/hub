@@ -5,6 +5,7 @@ import {
   type QueryKey,
 } from "@tanstack/react-query";
 import { useToast } from "@/shared/components/feedback/toast";
+import { onboardingKey } from "@/modules/onboarding/hooks";
 import { crmDataSource } from "./data-source";
 import { crmKeys } from "./query-keys";
 import type {
@@ -73,7 +74,10 @@ export function useCrmActions() {
   return {
     createCompany: useMutation({
       mutationFn: crmDataSource.createCompany,
-      onSuccess: refresh,
+      onSuccess: async () => {
+        await refresh();
+        await client.invalidateQueries({ queryKey: onboardingKey });
+      },
       onError,
     }),
     updateCompany: useMutation({
