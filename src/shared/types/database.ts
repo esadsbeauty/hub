@@ -260,6 +260,9 @@ export type Database = {
       current_authorization:{Args:Record<string,never>;Returns:Json};
       platform_admin_snapshot:{Args:Record<string,never>;Returns:Json};
       platform_assign_organization_plan:{Args:{target_organization_id:string;target_plan_id:string};Returns:undefined};
+      organization_onboarding_snapshot:{Args:Record<string,never>;Returns:Json};
+      update_organization_onboarding_profile:{Args:{target_section:string;profile_data:Json};Returns:Json};
+      complete_organization_onboarding_step:{Args:{target_step:string};Returns:Json};
       accept_own_invitation:{Args:Record<string,never>;Returns:undefined};
       governance_snapshot:{Args:{audit_limit?:number;audit_offset?:number};Returns:Json};
       change_member_role:{Args:{target_member_id:string;target_role_id:string};Returns:undefined};

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ArrowRight, CalendarPlus, Clock3, SlidersHorizontal, X } from "lucide-react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageContainer } from "@/shared/components/layout/page-container";
 import { PageHeader } from "@/shared/components/layout/page-header";
@@ -22,6 +22,9 @@ import {
 import { PipelineOverview } from "@/modules/analytics/components/pipeline-overview";
 import { useAnalytics } from "@/modules/analytics/use-analytics";
 import { useAnalyticsFilters } from "@/modules/analytics/use-analytics-filters";
+import { OnboardingDashboardCard } from "@/modules/onboarding/OnboardingDashboardCard";
+import { useOnboarding } from "@/modules/onboarding/hooks";
+import { useAppState } from "@/shared/state/app-state-context";
 
 const percentage = new Intl.NumberFormat("pt-BR", {
   style: "percent",
@@ -35,6 +38,8 @@ function variation(current: number, previous: number) {
 
 export function DashboardPage() {
   const crm = useCrmData();
+  const onboarding = useOnboarding();
+  const { can } = useAppState();
   const location = useLocation();
   const navigate = useNavigate();
   const [filters, setFilters] = useAnalyticsFilters(
@@ -73,6 +78,7 @@ export function DashboardPage() {
         </div>
       </PageContainer>
     );
+  if (can("settings.manage") && onboarding.data && !onboarding.data.state.introSeenAt && !onboarding.data.state.completedAt) return <Navigate to="/onboarding" replace />;
   const analytics = report.analytics;
   const pendingToday = crm.data.tasks.filter(
     (task) => task.dueAt >= start.toISOString() && task.dueAt < end.toISOString() && task.status === "pending",
@@ -88,6 +94,7 @@ export function DashboardPage() {
     <PageContainer>
       <div className="md:hidden"><p className="text-[15px] font-medium text-muted-foreground">Sua operação hoje</p><div className="mt-1 flex items-end justify-between gap-3"><h1 className="text-[2.125rem] font-semibold leading-tight tracking-[-.05em]">Dashboard</h1><Link className="pb-1 text-sm font-semibold" to="/agenda">Ver agenda</Link></div></div>
       <div className="hidden md:block"><PageHeader title="Dashboard" description="Visão geral da sua operação." actions={<Link className="text-sm font-medium text-muted-foreground hover:text-foreground" to={`/relatorios${location.search}`}>Ver relatórios</Link>} /></div>
+      <OnboardingDashboardCard/>
       <div className="flex items-center gap-2">
         <span className="rounded-xl bg-card px-3.5 py-2.5 text-[15px] font-medium shadow-soft">{analytics.range.label}</span>
         <button onClick={() => setMobileFiltersOpen(true)} className="ml-auto inline-flex min-h-[3.25rem] items-center gap-2 rounded-xl border border-border/70 bg-card px-4 text-[15px] font-semibold md:hidden"><SlidersHorizontal size={17}/> Filtros</button>
