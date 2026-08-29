@@ -263,6 +263,11 @@ export type Database = {
       organization_onboarding_snapshot:{Args:Record<string,never>;Returns:Json};
       update_organization_onboarding_profile:{Args:{target_section:string;profile_data:Json};Returns:Json};
       complete_organization_onboarding_step:{Args:{target_step:string};Returns:Json};
+      platform_mark_subscription_paid:{Args:{target_subscription_id:string;payment_notes?:string|null};Returns:undefined};
+      platform_change_subscription_due_date:{Args:{target_subscription_id:string;new_due_at:string};Returns:undefined};
+      platform_suspend_subscription:{Args:{target_subscription_id:string};Returns:undefined};
+      platform_reactivate_subscription:{Args:{target_subscription_id:string};Returns:undefined};
+      platform_cancel_subscription:{Args:{target_subscription_id:string};Returns:undefined};
       accept_own_invitation:{Args:Record<string,never>;Returns:undefined};
       governance_snapshot:{Args:{audit_limit?:number;audit_offset?:number};Returns:Json};
       change_member_role:{Args:{target_member_id:string;target_role_id:string};Returns:undefined};
