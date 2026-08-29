@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "@/layouts/app-layout";
 import { ProtectedRoute } from "@/routes/protected-route";
 import { PermissionRoute } from "@/routes/permission-route";
+import { TenantSubscriptionRoute } from "@/routes/tenant-subscription-route";
 import { PlatformAdminRoute } from "@/routes/platform-admin-route";
 import { useAuth } from "@/providers/auth-context";
 import { UnderDevelopment } from "@/modules/placeholder/UnderDevelopment";
@@ -26,6 +27,8 @@ const DiagnosticAdminPage=page(()=>import("@/modules/diagnostic/pages/Diagnostic
 const SettingsPage=page(()=>import("@/modules/settings/SettingsPage"),"SettingsPage");
 const PlatformPage=page(()=>import("@/modules/platform/PlatformPage"),"PlatformPage");
 const OnboardingPage=page(()=>import("@/modules/onboarding/OnboardingPage"),"OnboardingPage");
+const SubscriptionBlockedPage=page(()=>import("@/modules/subscription/SubscriptionBlockedPage"),"SubscriptionBlockedPage");
+const SubscriptionContactPage=page(()=>import("@/modules/subscription/SubscriptionContactPage"),"SubscriptionContactPage");
 
 function LoginRoute() {
   const { user, passwordRecovery } = useAuth();
@@ -49,6 +52,8 @@ export function App() {
         >
           <Route path="acesso-restrito" element={<RestrictedAccessPage />} />
           <Route path="acesso-pendente" element={<RestrictedAccessPage />} />
+          <Route path="assinatura-suspensa" element={<SubscriptionBlockedPage />} />
+          <Route element={<TenantSubscriptionRoute />}>
           <Route index element={<PermissionRoute permission="dashboard.view"><DashboardPage /></PermissionRoute>} />
           <Route path="crm" element={<PermissionRoute permission="crm.view"><CrmPage /></PermissionRoute>} />
           <Route path="crm/empresas/:id" element={<PermissionRoute permission="crm.view"><CompanyCentralPage /></PermissionRoute>} />
@@ -62,7 +67,7 @@ export function App() {
           <Route path="marketing/blog" element={<PermissionRoute permission="blog.view"><BlogCmsPage /></PermissionRoute>} />
           <Route path="configuracoes" element={<PermissionRoute permission="settings.view"><SettingsPage /></PermissionRoute>} />
           <Route path="onboarding" element={<PermissionRoute permission="settings.manage"><OnboardingPage /></PermissionRoute>} />
-          <Route path="plataforma" element={<PlatformAdminRoute><PlatformPage /></PlatformAdminRoute>} />
+          <Route path="assinatura" element={<SubscriptionContactPage />} />
           {["ia"].map(
             (path) => (
               <Route
@@ -76,6 +81,8 @@ export function App() {
               />
             ),
           )}
+          </Route>
+          <Route path="plataforma" element={<PlatformAdminRoute><PlatformPage /></PlatformAdminRoute>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
