@@ -1,6 +1,10 @@
 ﻿import { isLocalMode } from "@/config/app-mode";
 import { supabase } from "@/lib/supabase";
-import type { PlatformSnapshot, ProvisionOrganizationInput } from "./types";
+import type {
+  PlatformCharge,
+  PlatformSnapshot,
+  ProvisionOrganizationInput,
+} from "./types";
 
 const modules = [
   "dashboard",
@@ -165,6 +169,80 @@ export const platformRepository = {
     }
 
     return result.data as { message: string };
+  },
+
+  async generateCharge(subscriptionId: string) {
+    const result = await client().functions.invoke(
+      "create-billing-charge",
+      {
+        body: {
+          subscriptionId,
+          action: "create",
+        },
+      },
+    );
+
+    if (result.error) {
+      throw new Error("Não foi possível gerar a cobrança Pix.");
+    }
+
+    return result.data as { message: string };
+  },
+
+  async syncCharge(subscriptionId: string) {
+    const result = await client().functions.invoke(
+      "create-billing-charge",
+      {
+        body: {
+          subscriptionId,
+          action: "sync",
+        },
+      },
+    );
+
+    if (result.error) {
+      throw new Error("Não foi possível sincronizar a cobrança.");
+    }
+
+    return result.data as { message: string };
+  },
+
+  async charge(
+    subscriptionId: string,
+  ): Promise<PlatformCharge | undefined> {
+    if (isLocalMode) return undefined;
+
+    const result = await client().rpc(
+      "platform_billing_charge_snapshot",
+      {
+        target_subscription_id: subscriptionId,
+      },
+    );
+
+    fail(result.error, "Não foi possível carregar a cobrança.");
+
+    if (!result.data) return undefined;
+
+    const charge = result.data as Record<string, unknown>;
+
+    return {
+      id: String(charge.id),
+      provider: String(charge.provider),
+      externalPaymentId: charge.external_payment_id
+        ? String(charge.external_payment_id)
+        : undefined,
+      status: String(charge.status),
+      amountCents: Number(charge.amount_cents),
+      currency: String(charge.currency),
+      dueAt: String(charge.due_at),
+      paymentMethod: String(charge.payment_method),
+      invoiceUrl: charge.invoice_url
+        ? String(charge.invoice_url)
+        : undefined,
+      errorMessage: charge.error_message
+        ? String(charge.error_message)
+        : undefined,
+    };
   },
 
   async markPaid(subscriptionId: string, notes?: string) {
