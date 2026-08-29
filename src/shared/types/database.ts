@@ -276,6 +276,7 @@ export type Database = {
       platform_fail_billing_charge:{Args:{target_charge_id:string;target_request_token:string;safe_error:string};Returns:undefined};
       platform_sync_billing_charge:{Args:{target_subscription_id:string;external_data:Json};Returns:undefined};
       platform_billing_charge_snapshot:{Args:{target_subscription_id:string};Returns:Json};
+      submit_public_sales_lead:{Args:{lead_data:Json};Returns:Json};
       accept_own_invitation:{Args:Record<string,never>;Returns:undefined};
       governance_snapshot:{Args:{audit_limit?:number;audit_offset?:number};Returns:Json};
       change_member_role:{Args:{target_member_id:string;target_role_id:string};Returns:undefined};
