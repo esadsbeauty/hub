@@ -26,6 +26,7 @@ const BlogCmsPage=page(()=>import("@/modules/blog/pages/BlogCmsPage"),"BlogCmsPa
 const DiagnosticAdminPage=page(()=>import("@/modules/diagnostic/pages/DiagnosticAdminPage"),"DiagnosticAdminPage");
 const SettingsPage=page(()=>import("@/modules/settings/SettingsPage"),"SettingsPage");
 const PlatformPage=page(()=>import("@/modules/platform/PlatformPage"),"PlatformPage");
+const ProductLeadsPage=page(()=>import("@/modules/platform/leads/ProductLeadsPage"),"ProductLeadsPage");
 const OnboardingPage=page(()=>import("@/modules/onboarding/OnboardingPage"),"OnboardingPage");
 const SubscriptionBlockedPage=page(()=>import("@/modules/subscription/SubscriptionBlockedPage"),"SubscriptionBlockedPage");
 const SubscriptionContactPage=page(()=>import("@/modules/subscription/SubscriptionContactPage"),"SubscriptionContactPage");
@@ -83,6 +84,7 @@ export function App() {
           )}
           </Route>
           <Route path="plataforma" element={<PlatformAdminRoute><PlatformPage /></PlatformAdminRoute>} />
+          <Route path="plataforma/leads" element={<PlatformAdminRoute><ProductLeadsPage /></PlatformAdminRoute>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
