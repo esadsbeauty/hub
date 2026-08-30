@@ -404,7 +404,7 @@ async function list(): Promise<CrmData> {
       createdAt: item.created_at,
       updatedAt: item.updated_at,
     })),
-    stages: stageRows.map(
+    stages: stageRows.filter(item=>item.is_active!==false).map(
       (item): PipelineStage => ({
         id: item.id,
         pipelineId: item.pipeline_id,
@@ -414,6 +414,7 @@ async function list(): Promise<CrmData> {
         probability: Number(item.probability),
         isWon: item.is_won,
         isLost: item.is_lost,
+        isActive: item.is_active,
         createdAt: item.created_at,
         updatedAt: item.updated_at,
       }),

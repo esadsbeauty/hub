@@ -393,6 +393,7 @@ export function CompanyCentralPage() {
       <OpportunityDetails
         opportunity={selected}
         company={company}
+        contact={related.contacts.find(item=>item.isPrimary&&!item.deletedAt)??related.contacts.find(item=>!item.deletedAt)}
         pipeline={data.pipelines.find(
           (item) => item.id === selected?.pipelineId,
         )}
@@ -447,8 +448,10 @@ export function CompanyCentralPage() {
             },
           })
         }
-        onAddNote={() => setModal("note")}
         onAddFollowUp={() => setModal("followup")}
+        onSaveNote={async(text)=>{if(!selected)return;await actions.addNote.mutateAsync({companyId:id,text,opportunityId:selected.id});success("Observação adicionada")}}
+        onCompleteNextTask={()=>{const task=related.tasks.filter(item=>item.opportunityId===selected?.id&&item.status==="pending").sort((a,b)=>a.dueAt.localeCompare(b.dueAt))[0];if(task)actions.completeTask.mutate(task.id,{onSuccess:()=>success("Próxima ação concluída")})}}
+        onRescheduleNextTask={(dueAt)=>{const task=related.tasks.filter(item=>item.opportunityId===selected?.id&&item.status==="pending").sort((a,b)=>a.dueAt.localeCompare(b.dueAt))[0];if(task)actions.rescheduleTask.mutate({id:task.id,dueAt},{onSuccess:()=>success("Próxima ação reagendada")})}}
         onLost={(form) =>
           selected &&
           actions.markOpportunityLost.mutate(

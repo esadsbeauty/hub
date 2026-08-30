@@ -104,6 +104,7 @@ export type Database = {
           probability: number;
           is_won: boolean;
           is_lost: boolean;
+          is_active: boolean;
         }
       >;
       opportunities: Table<

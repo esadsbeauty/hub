@@ -50,6 +50,7 @@ import type {
   TimelineEvent,
 } from "./types";
 import { currency, formatDateTime } from "./utils/formatters";
+import { contactWhatsappUrl } from "./utils/contact-links";
 type View = "kanban" | "list";
 export type CrmSort = "newest" | "oldest" | "name" | "activity" | "followup" | "priority";
 export type CrmFilters = {
@@ -97,6 +98,7 @@ export function CrmPage() {
   const [duplicates, setDuplicates] = useState<Company[]>([]);
   const [selected, setSelected] = useState<Opportunity>();
   const [quickCompanyId, setQuickCompanyId] = useState("");
+  const [quickOpportunityId, setQuickOpportunityId] = useState<string>();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [mobileSortOpen, setMobileSortOpen] = useState(false);
   useEffect(() => { const requested = searchParams.get("new"); if (requested === "company" || requested === "opportunity") setModal(requested); }, [searchParams]);
@@ -246,11 +248,12 @@ export function CrmPage() {
   const companyById = new Map<string, Company>(
     companies.map((item) => [item.id, item]),
   );
-  const nextTask = (companyId: string) =>
+  const nextTask = (companyId: string, opportunityId?: string) =>
     tasks
       .filter(
         (item) =>
           item.companyId === companyId &&
+          (!opportunityId || item.opportunityId === opportunityId) &&
           item.status === "pending" &&
           item.type === "follow_up",
       )
@@ -541,6 +544,7 @@ export function CrmPage() {
           )}
           stages={data.stages}
           companyById={companyById}
+          contacts={contacts}
           nextTask={nextTask}
           onMove={(opportunity, stageId) =>
             actions.moveOpportunity.mutate(
@@ -704,9 +708,11 @@ export function CrmPage() {
                 await actions.createFollowUp.mutateAsync({
                   companyId: quickCompanyId,
                   data: form,
+                  opportunityId: quickOpportunityId,
                 });
                 setModal(null);
                 setQuickCompanyId("");
+                setQuickOpportunityId(undefined);
                 notify({ title: "Follow-up criado" });
               }}
             />
@@ -716,6 +722,7 @@ export function CrmPage() {
       <OpportunityDetails
         opportunity={selected}
         company={companyById.get(selected?.companyId ?? "")}
+        contact={contacts.find(item=>item.companyId===selected?.companyId&&item.isPrimary&&!item.deletedAt)??contacts.find(item=>item.companyId===selected?.companyId&&!item.deletedAt)}
         pipeline={data.pipelines.find(
           (item) => item.id === selected?.pipelineId,
         )}
@@ -723,7 +730,7 @@ export function CrmPage() {
         activities={data.events.filter(
           (event) => event.opportunityId === selected?.id,
         )}
-        nextTask={selected ? nextTask(selected.companyId) : undefined}
+        nextTask={selected ? nextTask(selected.companyId,selected.id) : undefined}
         open={Boolean(selected)}
         onClose={() => setSelected(undefined)}
         onMove={(stageId) =>
@@ -751,12 +758,10 @@ export function CrmPage() {
             onSuccess: () => setSelected(undefined),
           })
         }
-        onAddNote={() =>
-          notify({ title: "Abra a empresa para adicionar uma nota" })
-        }
-        onAddFollowUp={() =>
-          notify({ title: "Abra a empresa para criar um follow-up" })
-        }
+        onSaveNote={async(text)=>{if(!selected)return;await actions.addNote.mutateAsync({companyId:selected.companyId,opportunityId:selected.id,text});notify({title:"Observação adicionada"})}}
+        onAddFollowUp={() => {if(!selected)return;setQuickCompanyId(selected.companyId);setQuickOpportunityId(selected.id);setModal("followup")}}
+        onCompleteNextTask={()=>{const task=selected?nextTask(selected.companyId,selected.id):undefined;if(task)actions.completeTask.mutate(task.id)}}
+        onRescheduleNextTask={(dueAt)=>{const task=selected?nextTask(selected.companyId,selected.id):undefined;if(task)actions.rescheduleTask.mutate({id:task.id,dueAt})}}
         onLost={(form) =>
           selected &&
           actions.markOpportunityLost.mutate(
@@ -799,6 +804,7 @@ function OpportunityKanban({
   opportunities,
   stages,
   companyById,
+  contacts,
   nextTask,
   onMove,
   onOpen,
@@ -806,7 +812,8 @@ function OpportunityKanban({
   opportunities: Opportunity[];
   stages: PipelineStage[];
   companyById: Map<string, Company>;
-  nextTask: (companyId: string) => Task | undefined;
+  contacts: CompanyContact[];
+  nextTask: (companyId: string, opportunityId?: string) => Task | undefined;
   onMove: (opportunity: Opportunity, stageId: string) => void;
   onOpen: (opportunity: Opportunity) => void;
 }) {
@@ -842,7 +849,9 @@ function OpportunityKanban({
                 ) : (
                   rows.map((item) => {
                     const company = companyById.get(item.companyId);
-                    const task = nextTask(item.companyId);
+                    const contact = contacts.find(value=>value.companyId===item.companyId&&value.isPrimary&&!value.deletedAt)??contacts.find(value=>value.companyId===item.companyId&&!value.deletedAt);
+                    const task = nextTask(item.companyId,item.id);
+                    const phone=contact?.whatsapp??contact?.phone??company?.whatsapp??company?.phone,whatsapp=contactWhatsappUrl(phone);
                     return (
                       <Card
                         key={item.id}
@@ -856,25 +865,22 @@ function OpportunityKanban({
                             className="w-full text-left"
                             onClick={() => onOpen(item)}
                           >
-                            <p className="text-base font-medium text-muted-foreground md:text-xs">
-                              {company?.fantasyName}
-                            </p>
-                            <h3 className="mt-2 text-xl font-semibold leading-snug tracking-[-.02em] md:mt-1 md:text-sm">{item.title}</h3>
+                            <h3 className="text-xl font-semibold leading-snug tracking-[-.02em] md:text-sm">{contact?.name??company?.responsibleName??item.title}</h3>
+                            {company?.fantasyName&&<p className="mt-1 text-sm text-muted-foreground md:text-xs">{company.fantasyName}</p>}
+                            {phone&&<p className="mt-2 text-sm font-medium md:text-xs">{phone}</p>}
                             <div className="mt-3 flex items-center justify-between gap-2">
                               <p className="text-lg font-semibold md:text-sm">
                                 {currency.format(item.value)}
                               </p>
                               {company && <div className="flex flex-wrap justify-end gap-2"><TemperatureBadge temperature={company.temperature}/><PriorityBadge priority={company.priority}/></div>}
                             </div>
-                            <p className="mt-3 text-base text-muted-foreground md:mt-2 md:text-xs">
-                              {item.owner ?? "Sem responsável"}
-                            </p>
                             {task && (
                               <p className="mt-3 text-base md:mt-2 md:text-xs">
                                 Próximo: {formatDateTime(task.dueAt)}
                               </p>
                             )}
                           </button>
+                          {whatsapp&&<a aria-label="Abrir WhatsApp do contato" className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#e8f7ee] text-sm font-semibold text-[#176b3a]" href={whatsapp} target="_blank" rel="noreferrer">WhatsApp</a>}
                         </CardContent>
                       </Card>
                     );
