@@ -1,3 +1,11 @@
+      submit_public_sales_lead:{Args:{lead_data:Json};Returns:Json};
+      platform_public_sales_leads_page:{Args:{filters?:Json};Returns:Json};
+      platform_update_public_sales_lead:{Args:{target_lead_id:string;new_status:string;new_notes:string};Returns:Json};
+      platform_organizations_page:{Args:{filters?:Json};Returns:Json};
+      platform_organization_details:{Args:{target_organization_id:string};Returns:Json};
+      platform_update_organization:{Args:{target_organization_id:string;organization_data:Json};Returns:Json};
+      platform_delete_test_organization:{Args:{target_organization_id:string;confirmation_name:string};Returns:undefined};
       calendar_agenda_range:{Args:{range_start:string;range_end:string;responsible_filter?:string|null};Returns:Json};
       upsert_calendar_event:{Args:{event_data:Json;allow_conflict?:boolean};Returns:Json};
       set_calendar_event_status:{Args:{target_event_id:string;next_status:string};Returns:undefined};
+      accept_own_invitation:{Args:Record<string,never>;Returns:undefined};
