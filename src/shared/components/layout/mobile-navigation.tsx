@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BarChart3, BookOpen, Calendar, ClipboardCheck, Handshake, Home, Menu, Megaphone, Plus, ShieldCheck, Settings, UserPlus, UserRoundSearch, Users, Wallet } from "lucide-react";
+import { BarChart3, BookOpen, Building2, Calendar, ClipboardCheck, Handshake, Home, Menu, Megaphone, Plus, ShieldCheck, Settings, UserPlus, UserRoundSearch, Users, Wallet } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
 import { useAppState } from "@/shared/state/app-state-context";
 import { BrandLogo } from "@/shared/components/brand/brand-logo";
@@ -51,6 +51,7 @@ export function MobileNavigation() {
         <div className="mt-4 grid gap-1.5">
           {sheet === "more" && isPlatformAdmin && <Link onClick={() => setSheet(null)} className="flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold premium-focus active:bg-muted" to="/plataforma"><ShieldCheck size={24}/>Plataforma</Link>}
           {sheet === "more" && isPlatformAdmin && <Link onClick={() => setSheet(null)} className="flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold premium-focus active:bg-muted" to="/plataforma/leads"><UserRoundSearch size={24}/>Leads do Produto</Link>}
+          {sheet === "more" && isPlatformAdmin && <Link onClick={() => setSheet(null)} className="flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold premium-focus active:bg-muted" to="/plataforma/organizacoes"><Building2 size={24}/>Organizações</Link>}
           {sheet === "new" ? actions.map(({label, detail, to, icon: Icon}) => <Link onClick={() => setSheet(null)} className="flex min-h-16 items-center gap-3 rounded-2xl border border-border/60 px-4 py-3 premium-focus active:bg-muted" key={to} to={to}><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-champagne-soft"><Icon size={23}/></span><span><b className="block text-base">{label}</b><span className="text-sm leading-5 text-muted-foreground">{detail}</span></span></Link>) : more.filter((item) => can(item.permission)).map(({to,label,icon:Icon}) => <Link onClick={() => setSheet(null)} className="flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold premium-focus active:bg-muted" key={to} to={to}><Icon size={21}/>{label}</Link>)}
         </div>
       </section>

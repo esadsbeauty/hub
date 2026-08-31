@@ -280,6 +280,10 @@ export type Database = {
       submit_public_sales_lead:{Args:{lead_data:Json};Returns:Json};
       platform_public_sales_leads_page:{Args:{filters?:Json};Returns:Json};
       platform_update_public_sales_lead:{Args:{target_lead_id:string;new_status:string;new_notes:string};Returns:Json};
+      platform_organizations_page:{Args:{filters?:Json};Returns:Json};
+      platform_organization_details:{Args:{target_organization_id:string};Returns:Json};
+      platform_update_organization:{Args:{target_organization_id:string;organization_data:Json};Returns:Json};
+      platform_delete_test_organization:{Args:{target_organization_id:string;confirmation_name:string};Returns:undefined};
       accept_own_invitation:{Args:Record<string,never>;Returns:undefined};
       governance_snapshot:{Args:{audit_limit?:number;audit_offset?:number};Returns:Json};
       change_member_role:{Args:{target_member_id:string;target_role_id:string};Returns:undefined};
