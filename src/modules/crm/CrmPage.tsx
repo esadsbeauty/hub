@@ -766,6 +766,7 @@ export function CrmPage() {
           })
         }
         onEditContact={()=>{if(selected)navigate(`/crm/companies/${selected.companyId}`)}}
+        onSaveValue={async(value)=>{if(!selected)return;const updated=await actions.updateOpportunity.mutateAsync({id:selected.id,data:{value}});setSelected(updated);notify({title:"Valor da oportunidade atualizado"})}}
         onSaveNote={async(text)=>{if(!selected)return;await actions.addNote.mutateAsync({companyId:selected.companyId,opportunityId:selected.id,text});notify({title:"Observação adicionada"})}}
         onAddFollowUp={() => {if(!selected)return;setQuickCompanyId(selected.companyId);setQuickOpportunityId(selected.id);setModal("followup")}}
         onCompleteNextTask={()=>{const task=selected?nextTask(selected.companyId,selected.id):undefined;if(task)actions.completeTask.mutate(task.id)}}

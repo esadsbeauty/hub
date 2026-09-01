@@ -434,6 +434,15 @@ export function CompanyCentralPage() {
           openOpportunityModal(selected);
           setSelected(undefined);
         }}
+        onSaveValue={async (value) => {
+          if (!selected) return;
+          const updated = await actions.updateOpportunity.mutateAsync({
+            id: selected.id,
+            data: { value },
+          });
+          setSelected(updated);
+          success("Valor da oportunidade atualizado");
+        }}
         onDuplicate={() =>
           selected &&
           actions.duplicateOpportunity.mutate(selected.id, {
