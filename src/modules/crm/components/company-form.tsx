@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { companySchema, type CompanyFormData } from "../schema";
-import type { Company } from "../types";
+import type { Company, Profile } from "../types";
 import { normalizeInstagram, normalizeWhatsapp } from "../utils/contact-normalizers";
 
 const defaultValues: CompanyFormData = {
@@ -31,6 +31,7 @@ const defaultValues: CompanyFormData = {
   businessArea: "",
   leadSource: "",
   owner: "Administrador",
+  ownerId: "",
   temperature: "morno",
   priority: "media",
   notes: "",
@@ -51,8 +52,10 @@ export function CompanyForm({
   company,
   onSubmit,
   onCancel,
+  profiles = [],
 }: {
   company?: Company;
+  profiles?: Profile[];
   onSubmit: SubmitHandler<CompanyFormData>;
   onCancel: () => void;
 }) {
@@ -81,7 +84,9 @@ export function CompanyForm({
         <Input inputMode="numeric" placeholder="CEP" {...register("zipCode")} /><Input placeholder="Endereço" {...register("address")} /><Input placeholder="Número" {...register("number")} />
         <Input placeholder="Complemento" {...register("complement")} /><Input placeholder="Bairro" {...register("district")} /><Input placeholder="Cidade" {...register("city")} /><Input placeholder="Estado" {...register("state")} />
         <Input placeholder="Cargo do contato" {...register("responsibleRole")} /><Input type="number" inputMode="numeric" placeholder="Funcionários" {...register("employees", { setValueAs: (value: string) => value === "" ? undefined : Number(value) })} />
-        <Input placeholder="Área de atuação" {...register("businessArea")} /><Input placeholder="Responsável interno" {...register("owner")} /><Input placeholder="Tags separadas por vírgula" {...register("tags")} />
+        <Input placeholder="Área de atuação" {...register("businessArea")} />
+        <Select aria-label="Responsável interno" {...register("ownerId")}><option value="">Responsável atual</option>{profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}</Select>
+        <Input placeholder="Tags separadas por vírgula" {...register("tags")} />
         <Select aria-label="Temperatura" {...register("temperature")}><option value="frio">Frio</option><option value="morno">Morno</option><option value="quente">Quente</option></Select>
         <Select aria-label="Prioridade" {...register("priority")}><option value="baixa">Baixa</option><option value="media">Média</option><option value="alta">Alta</option></Select>
       </div></details>

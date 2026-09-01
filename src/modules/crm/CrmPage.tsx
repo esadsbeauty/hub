@@ -630,6 +630,7 @@ export function CrmPage() {
         onClose={closeModal}
       >
         <CompanyForm
+          profiles={data?.profiles ?? []}
           onCancel={closeModal}
           onSubmit={(form) => submitCompany(form)}
         />
@@ -758,6 +759,7 @@ export function CrmPage() {
             onSuccess: () => setSelected(undefined),
           })
         }
+        onEditContact={()=>{if(selected)navigate(`/crm/companies/${selected.companyId}`)}}
         onSaveNote={async(text)=>{if(!selected)return;await actions.addNote.mutateAsync({companyId:selected.companyId,opportunityId:selected.id,text});notify({title:"Observação adicionada"})}}
         onAddFollowUp={() => {if(!selected)return;setQuickCompanyId(selected.companyId);setQuickOpportunityId(selected.id);setModal("followup")}}
         onCompleteNextTask={()=>{const task=selected?nextTask(selected.companyId,selected.id):undefined;if(task)actions.completeTask.mutate(task.id)}}

@@ -287,6 +287,7 @@ export type Database = {
       calendar_agenda_range:{Args:{range_start:string;range_end:string;responsible_filter?:string|null};Returns:Json};
       upsert_calendar_event:{Args:{event_data:Json;allow_conflict?:boolean};Returns:Json};
       set_calendar_event_status:{Args:{target_event_id:string;next_status:string};Returns:undefined};
+      archive_crm_company:{Args:{target_company_id:string};Returns:undefined};
       accept_own_invitation:{Args:Record<string,never>;Returns:undefined};
       governance_snapshot:{Args:{audit_limit?:number;audit_offset?:number};Returns:Json};
       change_member_role:{Args:{target_member_id:string;target_role_id:string};Returns:undefined};
