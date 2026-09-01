@@ -64,14 +64,9 @@ async function context() {
   const api = client();
   const { data: auth } = await api.auth.getUser();
   if (!auth.user) throw new Error("Sessão expirada. Entre novamente.");
-  const [result, activeOrganization] = await Promise.all([api
-    .from("profiles")
-    .select("*")
-    .eq("id", auth.user.id)
-    .single(), api.rpc("current_organization_id")]);
-  const profile = ensure(result.data, result.error);
-  if (activeOrganization.error || !activeOrganization.data) throw new Error("Selecione uma organização ativa.");
-  return { ...profile, organization_id: activeOrganization.data };
+  const result = await api.rpc("active_tenant_actor");
+  if (result.error || !result.data) throw new Error("Selecione uma organização ativa.");
+  return result.data as unknown as ProfileRow;
 }
 
 function activityType(value: string): ActivityType {
