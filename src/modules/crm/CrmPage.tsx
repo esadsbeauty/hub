@@ -855,6 +855,7 @@ function OpportunityKanban({
                     const contact = contacts.find(value=>value.companyId===item.companyId&&value.isPrimary&&!value.deletedAt)??contacts.find(value=>value.companyId===item.companyId&&!value.deletedAt);
                     const task = nextTask(item.companyId,item.id);
                     const phone=contact?.whatsapp??contact?.phone??company?.whatsapp??company?.phone,whatsapp=contactWhatsappUrl(phone);
+                    const leadName=contact?.name??company?.responsibleName??item.title;
                     return (
                       <Card
                         key={item.id}
@@ -868,8 +869,9 @@ function OpportunityKanban({
                             className="w-full text-left"
                             onClick={() => onOpen(item)}
                           >
-                            <h3 className="text-xl font-semibold leading-snug tracking-[-.02em] md:text-sm">{contact?.name??company?.responsibleName??item.title}</h3>
+                            <h3 className="text-xl font-semibold leading-snug tracking-[-.02em] md:text-sm">{leadName}</h3>
                             {company?.fantasyName&&<p className="mt-1 text-sm text-muted-foreground md:text-xs">{company.fantasyName}</p>}
+                            {item.title!==leadName&&<p className="mt-2 text-sm text-muted-foreground md:text-xs"><span className="font-medium text-foreground">Interesse:</span> {item.title}</p>}
                             {phone&&<p className="mt-2 text-sm font-medium md:text-xs">{phone}</p>}
                             <div className="mt-3 flex items-center justify-between gap-2">
                               <p className="text-lg font-semibold md:text-sm">
@@ -878,9 +880,7 @@ function OpportunityKanban({
                               {company && <div className="flex flex-wrap justify-end gap-2"><TemperatureBadge temperature={company.temperature}/><PriorityBadge priority={company.priority}/></div>}
                             </div>
                             {task && (
-                              <p className="mt-3 text-base md:mt-2 md:text-xs">
-                                Próximo: {formatDateTime(task.dueAt)}
-                              </p>
+                              <div className="mt-3 text-base md:mt-2 md:text-xs"><p className="font-medium">Próxima ação: {task.title||"Follow-up"}</p><p className="mt-1 text-muted-foreground">{formatDateTime(task.dueAt)}</p></div>
                             )}
                           </button>
                           {whatsapp&&<a aria-label="Abrir WhatsApp do contato" className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#e8f7ee] text-sm font-semibold text-[#176b3a]" href={whatsapp} target="_blank" rel="noreferrer">WhatsApp</a>}
