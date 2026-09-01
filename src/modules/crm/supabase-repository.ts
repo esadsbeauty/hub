@@ -492,6 +492,7 @@ function companyPayload(input: Partial<CompanyFormData>) {
     temperature: input.temperature,
     priority: input.priority,
     notes: input.notes,
+    owner_id: input.ownerId,
     tags: input.tags
       ?.split(",")
       .map((item) => item.trim())
@@ -560,10 +561,9 @@ export const supabaseCrmRepository = defineCrmRepository({
     return company(row, new Map([[profile.id, profile.name]]));
   },
   async deleteCompany(id: string) {
-    const result = await client()
-      .from("companies")
-      .update({ deleted_at: new Date().toISOString() })
-      .eq("id", id);
+    const result = await client().rpc("archive_crm_company", {
+      target_company_id: id,
+    });
     if (result.error) throw friendlyError(result.error);
   },
   async duplicateCompany(id: string) {

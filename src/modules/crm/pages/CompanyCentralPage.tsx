@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Edit, NotebookPen, Plus, UserPlus } from "lucide-react";
+import { ArrowLeft, Edit, NotebookPen, Plus, Trash2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Card, CardContent } from "@/components/ui/card";
@@ -63,6 +63,7 @@ export function CompanyCentralPage() {
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity>();
   const [editingContact, setEditingContact] = useState<CompanyContact>();
   const [deletingContact, setDeletingContact] = useState<CompanyContact>();
+  const [deletingCompany, setDeletingCompany] = useState(false);
   const company = data?.companies.find(
     (item) => item.id === id && !item.deletedAt,
   );
@@ -178,6 +179,9 @@ export function CompanyCentralPage() {
               <Button variant="ghost" onClick={() => setModal("contact")}>
                 <UserPlus size={15} /> Contato
               </Button>
+              <Button className="text-destructive hover:text-destructive" variant="ghost" onClick={() => setDeletingCompany(true)}>
+                <Trash2 size={15} /> Excluir empresa
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -263,6 +267,7 @@ export function CompanyCentralPage() {
       >
         <CompanyForm
           company={company}
+          profiles={data.profiles}
           onCancel={() => setModal(null)}
           onSubmit={async (form) => {
             await actions.updateCompany.mutateAsync({ id, data: form });
@@ -449,6 +454,7 @@ export function CompanyCentralPage() {
           })
         }
         onAddFollowUp={() => setModal("followup")}
+        onEditContact={() => { const contact=related.contacts.find(item=>item.isPrimary&&!item.deletedAt)??related.contacts.find(item=>!item.deletedAt); if(contact){setEditingContact(contact);setModal("contact");} }}
         onSaveNote={async(text)=>{if(!selected)return;await actions.addNote.mutateAsync({companyId:id,text,opportunityId:selected.id});success("Observação adicionada")}}
         onCompleteNextTask={()=>{const task=related.tasks.filter(item=>item.opportunityId===selected?.id&&item.status==="pending").sort((a,b)=>a.dueAt.localeCompare(b.dueAt))[0];if(task)actions.completeTask.mutate(task.id,{onSuccess:()=>success("Próxima ação concluída")})}}
         onRescheduleNextTask={(dueAt)=>{const task=related.tasks.filter(item=>item.opportunityId===selected?.id&&item.status==="pending").sort((a,b)=>a.dueAt.localeCompare(b.dueAt))[0];if(task)actions.rescheduleTask.mutate({id:task.id,dueAt},{onSuccess:()=>success("Próxima ação reagendada")})}}
@@ -464,6 +470,22 @@ export function CompanyCentralPage() {
             },
           )
         }
+      />
+      <ConfirmDialog
+        open={deletingCompany}
+        title={`Excluir empresa “${company.fantasyName}”?`}
+        description="A empresa será arquivada junto com contatos, oportunidades e pendências. O histórico será preservado."
+        confirmLabel="Excluir empresa"
+        onCancel={() => setDeletingCompany(false)}
+        onConfirm={() => {
+          actions.deleteCompany.mutate(company.id, {
+            onSuccess: () => {
+              setDeletingCompany(false);
+              notify({ title: "Empresa arquivada com segurança." });
+              navigate("/crm");
+            },
+          });
+        }}
       />
       <ConfirmDialog
         open={Boolean(deletingContact)}
