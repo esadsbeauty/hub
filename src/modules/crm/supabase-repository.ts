@@ -307,6 +307,18 @@ async function list(): Promise<CrmData> {
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
   ]);
+  if (import.meta.env.DEV) {
+    const sources = ["organization","profiles","companies","contacts","pipelines","pipeline_stages","opportunities","stage_history","activities","tasks","notes"];
+    results.forEach((result,index) => {
+      if (result.error) console.error(`[CRM tenant query:${sources[index]}]`, {
+        code: result.error.code,
+        message: result.error.message,
+        details: result.error.details,
+        hint: result.error.hint,
+        organizationId: profile.organization_id,
+      });
+    });
+  }
   const [
     organizationResult,
     profilesResult,
