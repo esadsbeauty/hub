@@ -51,7 +51,7 @@ describe("fundação pública do blog", () => {
     expect(cms).toContain("SEO Preview");
     expect(hooks).toContain("useQuery");
     expect(hooks).toContain("useMutation");
-    expect(seo).toContain('import { siteUrl }');
+    expect(seo).toContain('import { officialPublicSiteUrl }');
     expect(seo).toContain('og:type');
   });
 
@@ -60,7 +60,7 @@ describe("fundação pública do blog", () => {
     const hardening = readFileSync("supabase/migrations/202608200002_blog_production_hardening.sql", "utf8");
     const repository = readFileSync("src/modules/blog/supabase-repository.ts", "utf8");
     const cms = readFileSync("src/modules/blog/pages/BlogCmsPage.tsx", "utf8");
-    expect(vercel.rewrites[0]?.destination).toBe("/index.html");
+    expect(vercel.rewrites.some((rewrite) => rewrite.destination === "/index.html")).toBe(true);
     expect(hardening).toContain("values('blog','blog',true,5242880");
     expect(hardening).toContain("blog_media_editor_insert");
     expect(hardening).toContain("public.has_permission('blog.edit')");

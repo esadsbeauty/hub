@@ -19,6 +19,7 @@ import { usePublicPosts } from "@/modules/blog/hooks";
 import { BlogCard } from "@/modules/blog/components/blog-card";
 import { diagnosticRecommendedPosts } from "@/modules/blog/funnel";
 import { publicEventNames, trackPublicEvent } from "@/shared/analytics/public-events";
+import { SeoHead } from "@/modules/blog/components/seo-head";
 
 type Step="landing"|"quiz"|"analysis"|"capture"|"loading"|"thanks"|"error";
 const progressKey="esads-diagnostic-progress";
@@ -33,14 +34,14 @@ export function DiagnosticPage(){
   useEffect(()=>{if(step==="quiz")sessionStorage.setItem(progressKey,JSON.stringify({answers,index,startedAt}))},[answers,index,startedAt,step]);
   const finishAnalysis=()=>{calculateDiagnosticResult(answers);setStep("capture");track("diagnostic_form_viewed")};
   const submitted=(value:DiagnosticSubmission)=>{setSubmission(value);sessionStorage.removeItem(progressKey);sessionStorage.removeItem("esads-diagnostic-key");clearAttribution();navigate(`/diagnostico/obrigado/${value.token}`,{replace:true});setStep("thanks");trackPublicEvent(publicEventNames.diagnosticComplete,{bottleneck:value.result.primaryBottleneck});track("diagnostic_submitted");track("diagnostic_result_viewed")};
-  return <div className="min-h-[calc(100dvh-5rem)]">
+  return <><SeoHead title="Diagnóstico gratuito | ESADS Beauty" description="Descubra os principais gargalos comerciais do seu negócio de beleza e receba recomendações práticas." path="/diagnostico" noIndex={Boolean(token)}/><div className="min-h-[calc(100dvh-5rem)]">
     {step==="landing"&&<Landing start={()=>{setStep("quiz");trackPublicEvent(publicEventNames.diagnosticStart)}}/>}
     {step==="quiz"&&<Quiz index={index} answers={answers} choose={(key)=>{const next={...answers,[diagnosticQuestions[index].key]:key};setAnswers(next);sessionStorage.setItem(progressKey,JSON.stringify({answers:next,index,startedAt}));track("diagnostic_question_answered",{question:index+1})}} advance={()=>index===9?setStep("analysis"):setIndex(value=>value+1)} back={()=>index?setIndex(value=>value-1):setStep("landing")}/>}
     {step==="analysis"&&<Analysis complete={finishAnalysis}/>}
     {step==="capture"&&<Capture answers={answers} startedAt={startedAt} success={submitted} back={()=>{setIndex(9);setStep("quiz")}}/>}
     {step==="loading"&&<Loading/>}{step==="thanks"&&submission&&<ThankYou submission={submission}/>}
     {step==="error"&&<ErrorView message={error} retry={()=>location.assign("/diagnostico")}/>}
-  </div>;
+  </div></>;
 }
 
 type LandingCard={title:string;description:string;icon:LucideIcon};

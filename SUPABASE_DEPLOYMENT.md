@@ -47,7 +47,7 @@ Never use `db reset`, `migration repair`, manual history insertion or remote tru
 - The existing Auth user uses **Finalizar configuração**; `claim_initial_owner(text)` backfills its profile and active Owner membership atomically.
 - `current_authorization()` returns the organization, `owner`, `active` and the complete permission list.
 - RLS is enabled on every private business table and resolves tenant scope through an active `organization_members` row.
-- Supabase Auth has **Site URL** set to `https://esadsbeauty.vercel.app` and allowlists the production base, `/login` and `/aceitar-convite` redirects.
-- The `invite-user` Edge Function is deployed with `APP_ORIGIN=https://esadsbeauty.vercel.app`; administrative keys remain only in its server environment.
-- Vercel Production uses `VITE_APP_MODE=supabase`, `VITE_SITE_URL=https://esadsbeauty.vercel.app`, a public/publishable key, and no `service_role` variable.
+- Supabase Auth has **Site URL** set to `https://beauty.esads.com.br` and allowlists the production base, `/login` and `/aceitar-convite` redirects.
+- The `invite-user` Edge Function is deployed with `APP_ORIGIN=https://beauty.esads.com.br`; administrative keys remain only in its server environment.
+- Vercel Production uses `VITE_APP_MODE=supabase`, `VITE_SITE_URL=https://beauty.esads.com.br`, a public/publishable key, and no `service_role` variable.
 - Verify login, logout, refresh, CRM persistence, cross-device visibility and same-organization collaboration with real sessions before declaring rollout complete.

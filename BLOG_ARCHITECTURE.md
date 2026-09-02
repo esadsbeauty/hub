@@ -29,9 +29,9 @@ Migrations `202608200002_blog_production_hardening.sql` and `202608200003_blog_r
 
 ## SEO
 
-The SPA updates title, description, canonical, robots, Open Graph and Twitter metadata per route using the central `VITE_SITE_URL`. `robots.txt` and a base sitemap are shipped. Because this remains a client-rendered Vite SPA, crawlers that do not execute JavaScript will only see the static `index.html` metadata, and the checked-in sitemap cannot enumerate database rows at build time.
+The SPA updates title, description, canonical, robots, Open Graph and Twitter metadata per route using the central `VITE_SITE_URL`. `robots.txt` points to the official domain and `/sitemap.xml` is served by a cached serverless handler that enumerates published posts through the existing public read-only RPC.
 
-Before a full acquisition launch, add a deployment-time prerender/serverless sitemap process that reads published slugs with a public read-only client and emits HTML plus sitemap entries. This is intentionally documented rather than represented as SSR today.
+The dynamic sitemap uses only the public Supabase URL and anon/publishable key; private and administrative routes are excluded. HTML prerendering remains a separate future enhancement.
 
 ## Acquisition path
 
