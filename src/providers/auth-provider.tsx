@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { authRedirectUrls } from "@/config/site-url";
 import { supabase } from "@/lib/supabase";
 import { AuthContext, type AuthValue, type RegistrationResult } from "./auth-context";
+import { dataLayerEventNames, pushDataLayerEvent } from "@/shared/analytics/data-layer";
 
 const unavailable = () => new Error("Não foi possível conectar ao serviço de autenticação.");
 const registrationResult = (value: unknown): RegistrationResult => {
@@ -48,7 +49,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
       queryClient.clear();
       return access;
     },
-    async signIn(email, password) { if (!supabase) throw unavailable(); const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password }); if (error) throw new Error("Email ou senha incorretos."); const access = await supabase.rpc("complete_registration"); if (access.error) throw new Error("Não foi possível validar seu acesso agora."); queryClient.clear(); window.location.assign("/"); },
+    async signIn(email, password) { if (!supabase) throw unavailable(); const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password }); if (error) throw new Error("Email ou senha incorretos."); const access = await supabase.rpc("complete_registration"); if (access.error) throw new Error("Não foi possível validar seu acesso agora."); pushDataLayerEvent(dataLayerEventNames.loginSuccess); queryClient.clear(); window.location.assign("/"); },
     enterLocalMode() { throw new Error("O modo local não está disponível."); },
     async resetPassword(email) { if (!supabase) throw unavailable(); const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: authRedirectUrls.passwordRecovery }); if (error) throw new Error("Não foi possível enviar a recuperação agora."); },
     async updatePassword(password) { if (!supabase) throw unavailable(); const { error } = await supabase.auth.updateUser({ password }); if (error) throw new Error("Não foi possível atualizar a senha."); setPasswordRecovery(false); },

@@ -7,6 +7,7 @@ import { TenantSubscriptionRoute } from "@/routes/tenant-subscription-route";
 import { PlatformAdminRoute } from "@/routes/platform-admin-route";
 import { useAuth } from "@/providers/auth-context";
 import { UnderDevelopment } from "@/modules/placeholder/UnderDevelopment";
+import { SpaAnalytics } from "@/shared/analytics/spa-analytics";
 
 const page=<T extends Record<string,unknown>,K extends keyof T>(loader:()=>Promise<T>,name:K)=>lazy(()=>loader().then(module=>({default:module[name]as React.ComponentType})));
 const AuthPage=page(()=>import("@/modules/auth/AuthPage"),"AuthPage");
@@ -39,7 +40,7 @@ function LoginRoute() {
 export function App() {
   const { appMode } = useAuth();
   return (
-    <BrowserRouter><Suspense fallback={<div className="grid min-h-[40vh] place-items-center text-sm text-muted-foreground">Carregando módulo…</div>}>
+    <BrowserRouter><SpaAnalytics /><Suspense fallback={<div className="grid min-h-[40vh] place-items-center text-sm text-muted-foreground">Carregando módulo…</div>}>
       <Routes>
         <Route path="/login" element={<LoginRoute />} />
         <Route path="/register" element={<RegisterPage />} />

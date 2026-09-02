@@ -19,6 +19,7 @@ import type {
 } from "./schema";
 import type { CompanyFile, CrmData, Task } from "./types";
 import { useAppState } from "@/shared/state/app-state-context";
+import { dataLayerEventNames, pushDataLayerEvent } from "@/shared/analytics/data-layer";
 
 type WithCompany<T> = { companyId: string; data: T; opportunityId?: string };
 type CompleteTaskContext = {
@@ -118,7 +119,10 @@ export function useCrmActions() {
     }),
     createOpportunity: useMutation({
       mutationFn: crmDataSource.createOpportunity,
-      onSuccess: refresh,
+      onSuccess: async () => {
+        pushDataLayerEvent(dataLayerEventNames.opportunityCreated);
+        await refresh();
+      },
       onError,
     }),
     updateOpportunity: useMutation({
@@ -129,7 +133,10 @@ export function useCrmActions() {
         id: string;
         data: Partial<OpportunityFormData>;
       }) => crmDataSource.updateOpportunity(id, data),
-      onSuccess: refresh,
+      onSuccess: async (_result, variables) => {
+        if (variables.data.value !== undefined) pushDataLayerEvent(dataLayerEventNames.proposalValueUpdated);
+        await refresh();
+      },
       onError,
     }),
     duplicateOpportunity: useMutation({
@@ -186,6 +193,7 @@ export function useCrmActions() {
           client.setQueryData(snapshotKey, context.previous);
         onError(error);
       },
+      onSuccess: () => pushDataLayerEvent(dataLayerEventNames.opportunityStageChanged),
       onSettled: refresh,
     }),
     createContact: useMutation({
