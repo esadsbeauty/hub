@@ -1,12 +1,32 @@
 import { describe, expect, test } from "bun:test";
+import { createRequire } from "node:module";
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import sitemapHandler, { buildSitemap, fetchPublishedBlogPosts, OFFICIAL_SITE_URL } from "../api/sitemap";
+
+const require = createRequire(import.meta.url);
+const sitemapModule = require("../api/sitemap.js") as {
+  default(request: { method?: string }, response: { statusCode: number; setHeader(name:string,value:string): void; end(body?:string): unknown }): Promise<unknown>;
+  buildSitemap(posts?: Array<{ slug: string; published_at?: string | null }>): string;
+  fetchPublishedBlogPosts(env?: Record<string,string|undefined>, fetcher?: typeof fetch): Promise<Array<{ slug: string; published_at?: string | null }>>;
+  OFFICIAL_SITE_URL: string;
+};
+const sitemapHandler = sitemapModule.default;
+const { buildSitemap, fetchPublishedBlogPosts, OFFICIAL_SITE_URL } = sitemapModule;
 
 const robots = readFileSync("public/robots.txt", "utf8");
 const seo = readFileSync("src/modules/blog/components/seo-head.tsx", "utf8");
 const vercel = readFileSync("vercel.json", "utf8");
 
 describe("public sitemap and canonical domain", () => {
+  test("loads as CommonJS in the Vercel Node runtime", () => {
+    const result = spawnSync(process.execPath, ["-e", "const sitemap=require('./api/sitemap.js'); process.stdout.write(sitemap.buildSitemap())"], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+    });
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toStartWith('<?xml version="1.0" encoding="UTF-8"?>');
+  });
   test("uses only the official domain and valid XML envelope", () => {
     const xml = buildSitemap([{ slug: "vendas-na-estetica", published_at: "2026-09-01T12:00:00Z" }]);
     expect(xml).toStartWith('<?xml version="1.0" encoding="UTF-8"?>');

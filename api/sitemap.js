@@ -1,33 +1,23 @@
-export const OFFICIAL_SITE_URL = "https://beauty.esads.com.br";
+const OFFICIAL_SITE_URL = "https://beauty.esads.com.br";
 const PUBLIC_ROUTES = [
   { path: "/sistema", changefreq: "weekly", priority: "1.0" },
   { path: "/blog", changefreq: "daily", priority: "0.9" },
   { path: "/diagnostico", changefreq: "monthly", priority: "0.9" },
   { path: "/privacidade", changefreq: "yearly", priority: "0.3" },
   { path: "/termos", changefreq: "yearly", priority: "0.3" },
-] as const;
+];
 
-type PublishedPost = { slug: string; published_at?: string | null };
-type PublicPostsResponse = { items?: PublishedPost[]; total?: number };
-type SitemapEnvironment = Record<string, string | undefined>;
-type SitemapRequest = { method?: string };
-type SitemapResponse = {
-  statusCode: number;
-  setHeader(name: string, value: string): void;
-  end(body?: string): unknown;
-};
+const xmlEscape = value => value.replace(/[<>&'\"]/g, character => ({ "<":"&lt;", ">":"&gt;", "&":"&amp;", "'":"&apos;", '\"':"&quot;" })[character]);
 
-const xmlEscape = (value: string) => value.replace(/[<>&'\"]/g, character => ({ "<":"&lt;", ">":"&gt;", "&":"&amp;", "'":"&apos;", '\"':"&quot;" })[character]!);
-
-export async function fetchPublishedBlogPosts(
-  env: SitemapEnvironment = typeof process === "undefined" ? {} : process.env,
-  fetcher: typeof fetch = fetch,
+async function fetchPublishedBlogPosts(
+  env = typeof process === "undefined" ? {} : process.env,
+  fetcher = fetch,
   timeoutMs = 3_000,
 ) {
   const supabaseUrl = (env.SUPABASE_URL || env.VITE_SUPABASE_URL || "").replace(/\/+$/, "");
   const anonKey = env.SUPABASE_ANON_KEY || env.VITE_SUPABASE_ANON_KEY || "";
   if (!supabaseUrl || !anonKey) return [];
-  const posts: PublishedPost[] = [];
+  const posts = [];
   // The RPC caps page_limit at 24. Matching that limit avoids silently stopping
   // after the first page while the shared deadline prevents a slow database from
   // exhausting the serverless invocation time.
@@ -43,7 +33,7 @@ export async function fetchPublishedBlogPosts(
         signal: controller.signal,
       });
       if (!result.ok) throw new Error(`public_blog_posts returned ${result.status}`);
-      const value = await result.json() as PublicPostsResponse;
+      const value = await result.json();
       const page = Array.isArray(value?.items) ? value.items : [];
       posts.push(...page.filter(post => typeof post?.slug === "string" && Boolean(post.slug.trim())));
       const total = Number(value?.total);
@@ -55,9 +45,9 @@ export async function fetchPublishedBlogPosts(
   return posts;
 }
 
-export function buildSitemap(posts: PublishedPost[] = []) {
+function buildSitemap(posts = []) {
   const staticEntries = PUBLIC_ROUTES.map(route => `  <url><loc>${OFFICIAL_SITE_URL}${route.path}</loc><changefreq>${route.changefreq}</changefreq><priority>${route.priority}</priority></url>`);
-  const seen = new Set<string>();
+  const seen = new Set();
   const articleEntries = posts.flatMap(post => {
     const slug = post.slug.trim();
     if (!slug || seen.has(slug)) return [];
@@ -68,13 +58,13 @@ export function buildSitemap(posts: PublishedPost[] = []) {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...staticEntries,...articleEntries].join("\n")}\n</urlset>\n`;
 }
 
-export default async function handler(request: SitemapRequest, response: SitemapResponse) {
+async function handler(request, response) {
   if (request.method !== "GET" && request.method !== "HEAD") {
     response.statusCode = 405;
     response.setHeader("Allow", "GET, HEAD");
     return response.end();
   }
-  let posts: PublishedPost[] = [];
+  let posts = [];
   try { posts = await fetchPublishedBlogPosts(); }
   catch (error) { console.error("[sitemap] Published posts could not be loaded", error instanceof Error ? error.message : "unknown error"); }
   const xml = buildSitemap(posts);
@@ -83,3 +73,9 @@ export default async function handler(request: SitemapRequest, response: Sitemap
   response.setHeader("Cache-Control", "public, s-maxage=900, stale-while-revalidate=86400");
   return response.end(request.method === "HEAD" ? undefined : xml);
 }
+
+module.exports = handler;
+module.exports.default = handler;
+module.exports.OFFICIAL_SITE_URL = OFFICIAL_SITE_URL;
+module.exports.fetchPublishedBlogPosts = fetchPublishedBlogPosts;
+module.exports.buildSitemap = buildSitemap;
