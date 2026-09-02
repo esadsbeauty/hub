@@ -21,6 +21,17 @@ describe("Google Tag Manager", () => {
     expect(tracker).toContain("page_title: document.title");
     expect(app).toContain("<SpaAnalytics />");
     expect(publicApp).toContain("<SpaAnalytics/>");
+    expect(publicApp).toContain('path="/blog"');
+    expect(publicApp).toContain('path="/blog/:slug"');
+    expect(publicApp.indexOf("<SpaAnalytics/>")).toBeLessThan(publicApp.indexOf("<Routes>"));
+  });
+
+  test("uses the single global HTML document for blog and article routes", () => {
+    const main = readFileSync("src/main.tsx", "utf8");
+    const htmlFiles = ["index.html"];
+    expect(main).toContain("sistema|blog|diagnostico|privacidade|termos");
+    expect(htmlFiles).toHaveLength(1);
+    expect(readFileSync(htmlFiles[0], "utf8").match(/googletagmanager\.com\/gtm\.js/g)?.length).toBe(1);
   });
 
   test("defines business events and rejects sensitive payload keys", () => {
