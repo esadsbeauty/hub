@@ -29,6 +29,7 @@ export type Database = {
           timezone: string;
           currency: string;
           locale: string;
+          business_mode: "b2c" | "b2b";
         }
       >;
       profiles: Table<
@@ -226,6 +227,8 @@ export type Database = {
       save_blog_post: { Args: { post_id: string | null; post_title: string; post_slug: string; post_excerpt: string; post_content: string; post_cover_image_path: string | null; post_category_id: string | null; post_seo_title: string | null; post_seo_description: string | null }; Returns: string };
       set_blog_post_status: { Args: { post_id: string; next_status: string }; Returns: undefined };
       current_organization_id: { Args: Record<string, never>; Returns: string };
+      current_business_mode: { Args: Record<string, never>; Returns: "b2c" | "b2b" };
+      update_organization_business_mode: { Args: { next_mode: "b2c" | "b2b" }; Returns: "b2c" | "b2b" };
       base_organization_id: { Args: Record<string, never>; Returns: string };
       active_tenant_actor: { Args: Record<string, never>; Returns: Json };
       platform_switch_organization: { Args: { target_organization_id: string }; Returns: Json };

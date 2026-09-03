@@ -28,7 +28,7 @@ describe("experiência operacional mobile", () => {
     const crm = readFileSync("src/modules/crm/CrmPage.tsx", "utf8");
     expect(crm).toContain('placeholder="Buscar lead ou contato…"');
     expect(crm).toContain('title="Filtrar CRM"');
-    expect(crm).toContain("Novo lead");
+    expect(crm).toContain("terms.newCompany");
   });
 
   test("controles mobile respeitam área de toque mínima", () => {
@@ -67,7 +67,7 @@ describe("experiência operacional mobile", () => {
     expect(crm).toContain('<MobileCrmView');
     expect(mobile).toContain('aria-label="Indicadores do CRM"');
     expect(mobile).toContain('title="Ordenar CRM"');
-    expect(mobile).toContain('aria-label="Empresas em lista"');
+    expect(mobile).toContain("crmTerminology(props.businessMode).companies");
     expect(topbar).toContain('function MobileHeader');
     expect(topbar).toContain('function DesktopHeader');
   });
