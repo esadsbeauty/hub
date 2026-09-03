@@ -8,12 +8,12 @@ type BrandLogoProps = {
   compact?: boolean;
 };
 
-/** The single, official ESADS Beauty brand asset used throughout the product. */
+/** The single, official ESADS BEAUTY CRM brand asset used throughout the product. */
 export function BrandLogo({ className, size = "md", compact = false }: BrandLogoProps) {
   return (
     <img
       src="/brand/esads-beauty-logo.png"
-      alt="ESADS Beauty"
+      alt="ESADS BEAUTY CRM"
       width="640"
       height="240"
       decoding="async"

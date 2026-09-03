@@ -9,6 +9,8 @@ import type { Permission } from "@/shared/permissions/permissions";
 import { useAppState } from "@/shared/state/app-state-context";
 import { useAuth } from "@/providers/auth-context";
 import { BrandLogo } from "@/shared/components/brand/brand-logo";
+import { UserAvatar } from "@/shared/components/data-display/user-avatar";
+import { useCurrentUserProfile } from "@/modules/profile/hooks";
 
 export const navigationItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, permission: "dashboard.view" },
@@ -68,11 +70,12 @@ function NavGroup({ collapsed, label, icon: Icon, open, setOpen, active, childre
 
 export function Sidebar({ collapsed, onCollapsedChange }: { collapsed: boolean; onCollapsedChange: (value: boolean) => void }) {
   const { user, signOut } = useAuth();
+  const profile=useCurrentUserProfile().data;
   const { role } = useAppState();
   const toggleLabel = collapsed ? "Expandir menu lateral" : "Recolher menu lateral";
   return <aside data-collapsed={collapsed} className={`fixed inset-y-0 left-0 z-30 hidden flex-col overflow-visible bg-sidebar text-white transition-[width] duration-200 lg:flex ${collapsed ? "w-20" : "w-64"}`}>
     <div className={`flex shrink-0 items-start ${collapsed ? "flex-col items-center gap-3 px-3 pb-5 pt-5" : "justify-between px-5 pb-5 pt-5"}`}>
-      {collapsed ? <span aria-label="ESADS Beauty" className="grid h-10 w-10 place-items-center rounded-xl border border-champagne/30 text-lg font-bold text-champagne">E</span> : <div><BrandLogo className="w-36"/><p className="mt-3 text-xs text-white/40">Hub Interno</p></div>}
+      {collapsed ? <span title="ESADS BEAUTY CRM" className="grid h-10 w-10 place-items-center overflow-hidden rounded-xl"><BrandLogo compact className="w-10"/></span> : <div><BrandLogo className="w-36"/><p className="mt-2 text-xs font-semibold tracking-[.24em] text-white/50">CRM</p></div>}
       <button type="button" aria-label={toggleLabel} aria-expanded={!collapsed} title={toggleLabel} onClick={() => onCollapsedChange(!collapsed)} className="premium-focus grid h-10 w-10 shrink-0 place-items-center rounded-xl text-white/55 hover:bg-white/10 hover:text-white">
         {collapsed ? <PanelLeftOpen size={19}/> : <PanelLeftClose size={19}/>}
       </button>
@@ -80,8 +83,8 @@ export function Sidebar({ collapsed, onCollapsedChange }: { collapsed: boolean; 
     <div className={`min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4 [scrollbar-width:thin] ${collapsed ? "overflow-x-visible px-3" : "px-4"}`}><SidebarNavigation collapsed={collapsed}/></div>
     <div className={`shrink-0 border-t border-white/10 bg-sidebar py-4 ${collapsed ? "px-3" : "px-6"}`}>
       <div className={`flex items-center ${collapsed ? "flex-col gap-2" : "gap-3"}`}>
-        <NavLink to="/configuracoes" aria-label="Abrir perfil" title={collapsed ? "Perfil" : undefined} className="premium-focus grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/10 text-xs font-semibold">{(user?.email?.[0] ?? "E").toUpperCase()}</NavLink>
-        {!collapsed&&<div className="min-w-0 flex-1"><p className="truncate text-xs font-medium">{user?.email ?? "Equipe ESADS"}</p><p className="mt-0.5 text-[11px] text-white/40">{roleNames[role]}</p></div>}
+        <NavLink to="/configuracoes" aria-label="Abrir perfil" title={collapsed ? "Perfil" : undefined} className="premium-focus shrink-0 rounded-full"><UserAvatar size="sm" name={profile?.name} email={profile?.email??user?.email} src={profile?.avatarUrl}/></NavLink>
+        {!collapsed&&<div className="min-w-0 flex-1"><p className="truncate text-xs font-medium">{profile?.name??user?.email??"Equipe ESADS"}</p><p className="mt-0.5 text-[11px] text-white/40">{roleNames[role]}</p></div>}
         <button className="premium-focus rounded-lg p-2 text-white/40 hover:bg-white/10 hover:text-white" title={collapsed ? "Sair" : undefined} aria-label="Sair" onClick={() => void signOut()}><LogOut size={16}/></button>
       </div>
     </div>

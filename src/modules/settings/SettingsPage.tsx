@@ -17,18 +17,20 @@ import { formatDate } from "@/modules/crm/utils/formatters";
 import { useGovernance, useGovernanceActions } from "./hooks";
 import type { Member, MemberStatus, Role } from "./types";
 import { useBusinessMode, useUpdateBusinessMode, type BusinessMode } from "@/modules/crm/business-mode";
+import { ProfilePanel } from "@/modules/profile/ProfilePanel";
 
-type View = "general" | "users" | "permissions" | "security" | "audit";
-const tabs = [{ value: "general", label: "Geral" }, { value: "users", label: "Usuários" }, { value: "permissions", label: "Permissões" }, { value: "security", label: "Segurança" }, { value: "audit", label: "Auditoria" }] satisfies { value: View; label: string }[];
+type View = "profile" | "general" | "users" | "permissions" | "security" | "audit";
+const tabs = [{ value: "profile", label: "Perfil" }, { value: "general", label: "Geral" }, { value: "users", label: "Usuários" }, { value: "permissions", label: "Permissões" }, { value: "security", label: "Segurança" }, { value: "audit", label: "Auditoria" }] satisfies { value: View; label: string }[];
 const statusLabel: Record<MemberStatus, string> = { pending: "Aguardando aprovação", active: "Ativo", invited: "Convite pendente", suspended: "Suspenso", inactive: "Inativo" };
 
 export function SettingsPage() {
-  const [view, setView] = useState<View>("general"); const [inviteOpen, setInviteOpen] = useState(false); const [approvalMember, setApprovalMember] = useState<Member | null>(null); const [auditPage, setAuditPage] = useState(0);
+  const [view, setView] = useState<View>("profile"); const [inviteOpen, setInviteOpen] = useState(false); const [approvalMember, setApprovalMember] = useState<Member | null>(null); const [auditPage, setAuditPage] = useState(0);
   const query = useGovernance(auditPage); const actions = useGovernanceActions(); const businessMode=useBusinessMode();const updateBusinessMode=useUpdateBusinessMode(); const { can, role: currentRole } = useAppState(); const { notify } = useToast();
   if (!query.data) return <PageContainer><Skeleton className="h-32"/><Skeleton className="h-96"/></PageContainer>;
   const data = query.data;
   const visibleTabs = tabs.filter((tab) => (tab.value !== "users" || can("users.view")) && (tab.value !== "permissions" || can("roles.manage")) && (tab.value !== "audit" || can("audit.view")));
-  return <PageContainer><PageHeader title="Configurações" description="Organização, acessos e preferências do Hub."/><Tabs tabs={visibleTabs} value={view} onChange={setView}/>
+  return <PageContainer><PageHeader title="Configurações" description="Organização, acessos e preferências do ESADS BEAUTY CRM."/><Tabs tabs={visibleTabs} value={view} onChange={setView}/>
+    {view === "profile" && <ProfilePanel/>}
     {view === "general" && <OrganizationCard data={data.organization} businessMode={businessMode.data??"b2b"} save={(input) => actions.updateOrganization.mutate(input)} saveBusinessMode={(mode)=>updateBusinessMode.mutate(mode,{onSuccess:()=>notify({title:"Configurações salvas."}),onError:error=>notify({title:error.message})})} savingBusinessMode={updateBusinessMode.isPending} editable={can("settings.manage")}/>}
     {view === "users" && can("users.view") && <UsersPanel members={data.members} roles={data.roles} canManage={can("users.manage")} canAssignAdmin={currentRole === "owner"} onInvite={() => setInviteOpen(true)} onRole={(memberId, roleId) => actions.changeRole.mutate({ memberId, roleId }, { onSuccess: () => notify({ title: "Função atualizada." }), onError: (error) => notify({ title: error.message }) })} onStatus={(memberId, status) => actions.changeStatus.mutate({ memberId, status }, { onSuccess: () => notify({ title: status === "active" ? "Usuário reativado." : "Usuário suspenso." }), onError: (error) => notify({ title: error.message }) })} onResend={(memberId) => actions.resendInvite.mutate(memberId, { onSuccess: () => notify({ title: "Convite reenviado." }), onError: (error) => notify({ title: error.message }) })} onCancel={(memberId) => actions.cancelInvite.mutate(memberId, { onSuccess: () => notify({ title: "Convite cancelado." }), onError: (error) => notify({ title: error.message }) })} onApprove={setApprovalMember} onReject={(memberId) => actions.rejectAccess.mutate(memberId, { onSuccess: () => notify({ title: "Solicitação recusada." }), onError: (error) => notify({ title: error.message }) })}/>}
     {view === "permissions" && can("roles.manage") && <div className="grid gap-4 md:grid-cols-2">{data.roles.map((role) => <Card key={role.id}><CardHeader><CardTitle>{role.name}</CardTitle></CardHeader><CardContent className="flex flex-wrap gap-2">{role.permissions.map((permission) => <span key={permission} className="rounded-full bg-muted px-3 py-1 text-xs">{permissionLabels[permission]}</span>)}</CardContent></Card>)}</div>}
