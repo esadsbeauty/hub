@@ -29,7 +29,10 @@ export function useUpdateBusinessMode() {
     mutationFn: async (mode: BusinessMode) => {
       if (isLocalMode || !supabase) return mode;
       const result = await supabase.rpc("update_organization_business_mode", { next_mode: mode });
-      if (result.error) throw new Error("Você não possui permissão para alterar o tipo de operação.");
+      if (result.error) {
+        if (import.meta.env.DEV) console.error("[BusinessMode] update failed", { code: result.error.code, message: result.error.message });
+        throw new Error(result.error.code === "42501" ? "Você não possui permissão para alterar o tipo de operação." : "Não foi possível salvar o tipo de operação.");
+      }
       return result.data === "b2c" ? "b2c" : "b2b";
     },
     onSuccess: mode => client.setQueryData(businessModeKey(organizationId), mode),

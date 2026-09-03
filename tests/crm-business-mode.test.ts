@@ -4,6 +4,7 @@ import { crmTerminology } from "../src/modules/crm/business-mode-model";
 
 const migration=readFileSync("supabase/migrations/202609130001_organization_business_mode.sql","utf8");
 const permissionFix=readFileSync("supabase/migrations/202609140001_fix_business_mode_admin_permission.sql","utf8");
+const authorizationFix=readFileSync("supabase/migrations/202609150001_harden_business_mode_authorization.sql","utf8");
 const settings=readFileSync("src/modules/settings/SettingsPage.tsx","utf8");
 const form=readFileSync("src/modules/crm/components/company-form.tsx","utf8");
 const crm=readFileSync("src/modules/crm/CrmPage.tsx","utf8");
@@ -50,6 +51,23 @@ describe("per-organization B2C/B2B CRM experience",()=>{
     expect(permissionFix).toContain("not public.is_platform_admin()");
     expect(permissionFix).toContain("not public.has_permission('settings.manage')");
     expect(permissionFix).not.toMatch(/service_role|using\s*\(true\)/i);
+  });
+
+  test("backend authorization uses the active membership instead of generic module entitlement",()=>{
+    expect(authorizationFix).toContain("can_manage_current_business_mode");
+    expect(authorizationFix).toContain("m.organization_id=public.current_organization_id()");
+    expect(authorizationFix).toContain("m.user_id=auth.uid()");
+    expect(authorizationFix).toContain("m.status='active'");
+    expect(authorizationFix).toContain("r.slug in('owner','admin') or p.id is not null");
+    expect(authorizationFix).toContain("raise exception 'access_denied'");
+    expect(authorizationFix).not.toContain("public.has_permission(");
+  });
+
+  test("business-mode audit records only actual B2C/B2B changes",()=>{
+    expect(authorizationFix).toContain("if previous_mode=next_mode then return next_mode;end if");
+    expect(authorizationFix).toContain("business_mode_updated");
+    expect(authorizationFix).toContain("jsonb_build_object('business_mode',previous_mode)");
+    expect(authorizationFix).toContain("jsonb_build_object('business_mode',next_mode)");
   });
 
   test("mode selection is staged until save and unauthorized users cannot trigger feedback loops",()=>{
