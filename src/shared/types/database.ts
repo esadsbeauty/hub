@@ -37,6 +37,7 @@ export type Database = {
           name: string;
           email: string;
           avatar_url: string | null;
+          avatar_path: string | null;
           role: "admin" | "manager" | "sales" | "financial" | "member";
         }
       >;
@@ -229,6 +230,8 @@ export type Database = {
       current_organization_id: { Args: Record<string, never>; Returns: string };
       current_business_mode: { Args: Record<string, never>; Returns: "b2c" | "b2b" };
       update_organization_business_mode: { Args: { next_mode: "b2c" | "b2b" }; Returns: "b2c" | "b2b" };
+      current_user_profile: { Args: Record<string, never>; Returns: Json };
+      update_own_profile: { Args: { profile_name: string; next_avatar_path: string | null }; Returns: Json };
       base_organization_id: { Args: Record<string, never>; Returns: string };
       active_tenant_actor: { Args: Record<string, never>; Returns: Json };
       platform_switch_organization: { Args: { target_organization_id: string }; Returns: Json };
