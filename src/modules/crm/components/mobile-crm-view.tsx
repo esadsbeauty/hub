@@ -12,8 +12,10 @@ import type { Company, CompanyContact, Opportunity, PipelineStage, Task } from "
 import type { CrmFilters, CrmSort } from "../CrmPage";
 import { currency, formatDateTime } from "../utils/formatters";
 import { contactWhatsappUrl } from "../utils/contact-links";
+import { crmTerminology, type BusinessMode } from "../business-mode";
 
 type Props = {
+  businessMode: BusinessMode;
   companies: Company[];
   contacts: CompanyContact[];
   opportunities: Opportunity[];
@@ -40,11 +42,11 @@ export function MobileCrmView(props: Props) {
   const [filterSheet,setFilterSheet]=useState(false);
   const [sortSheet,setSortSheet]=useState(false);
   const [stageFilter,setStageFilter]=useState("all");
-  const clients=props.companies.filter(item=>item.lifecycleStage==="customer").length;
+  const clients=props.companies.filter(item=>item.lifecycleStage==="customer").length,terms=crmTerminology(props.businessMode),b2c=props.businessMode==="b2c";
   return <div className="space-y-6 md:hidden">
-    <header><p className="text-[15px] font-medium text-muted-foreground">Gestão comercial</p><h1 className="mt-1 text-[2rem] font-bold leading-none tracking-[-.055em]">CRM</h1><p className="mt-2 text-base leading-6 text-muted-foreground">Empresas, oportunidades e próximos passos.</p></header>
+    <header><p className="text-[15px] font-medium text-muted-foreground">Gestão comercial</p><h1 className="mt-1 text-[2rem] font-bold leading-none tracking-[-.055em]">CRM</h1><p className="mt-2 text-base leading-6 text-muted-foreground">{b2c?"Leads, clientes e próximos passos.":"Empresas, oportunidades e próximos passos."}</p></header>
     <section aria-label="Indicadores do CRM" className="-mx-4 flex min-[430px]:-mx-5 snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-4 min-[430px]:px-5 pb-2">
-      <MobileMetric label="Empresas" value={props.companies.length} hint="Contas no relacionamento comercial"/>
+      <MobileMetric label={terms.companies} value={props.companies.length} hint={b2c?"Pessoas no relacionamento comercial":"Contas no relacionamento comercial"}/>
       <MobileMetric label="Clientes" value={clients} hint="Relacionamentos já convertidos"/>
       <MobileMetric label="Oportunidades abertas" value={props.opportunities.filter(item=>item.status==="open").length} hint="Negociações em andamento"/>
       <MobileMetric label="Follow-ups pendentes" value={props.tasks.filter(item=>item.status==="pending").length} hint="Ações que ainda precisam acontecer"/>
@@ -59,7 +61,7 @@ export function MobileCrmView(props: Props) {
     </section>
     {view==="kanban"?<MobileKanban {...props} stageFilter={stageFilter}/>:<MobileCompanyList {...props}/>} 
     <FilterSheet open={filterSheet} close={()=>setFilterSheet(false)} stageFilter={stageFilter} onStageFilter={setStageFilter} {...props}/>
-    <Modal open={sortSheet} title="Ordenar CRM" onClose={()=>setSortSheet(false)}><div className="space-y-5"><Label htmlFor="mobile-sort">Ordenar empresas por</Label><Select id="mobile-sort" value={props.sort} onChange={event=>props.onSortChange(event.target.value as CrmSort)}>{Object.entries(sortLabel).map(([value,label])=><option key={value} value={value}>{label}</option>)}</Select><Button className="w-full" onClick={()=>setSortSheet(false)}>Aplicar ordenação</Button></div></Modal>
+    <Modal open={sortSheet} title="Ordenar CRM" onClose={()=>setSortSheet(false)}><div className="space-y-5"><Label htmlFor="mobile-sort">Ordenar {terms.companies.toLowerCase()} por</Label><Select id="mobile-sort" value={props.sort} onChange={event=>props.onSortChange(event.target.value as CrmSort)}>{Object.entries(sortLabel).map(([value,label])=><option key={value} value={value}>{label}</option>)}</Select><Button className="w-full" onClick={()=>setSortSheet(false)}>Aplicar ordenação</Button></div></Modal>
   </div>;
 }
 
@@ -67,7 +69,7 @@ function MobileMetric({label,value,hint}:{label:string;value:number;hint:string}
 
 const sortLabel:Record<CrmSort,string>={newest:"Mais recentes",oldest:"Mais antigos",name:"Nome",activity:"Última atividade",followup:"Próximo follow-up",priority:"Prioridade"};
 
-function MobileCompanyList(props:Props){return <section className="grid gap-3" aria-label="Empresas em lista">{props.companies.map(company=>{const contact=props.contacts.find(item=>item.companyId===company.id&&item.isPrimary);const task=props.nextTask(company.id);return <button key={company.id} onClick={()=>props.onOpenCompany(company)} className="rounded-[1.25rem] bg-card p-4 text-left shadow-soft premium-focus"><div className="flex items-start justify-between gap-3"><div><h2 className="text-xl font-semibold tracking-[-.025em]">{company.fantasyName}</h2><p className="mt-1 text-sm text-muted-foreground">{contact?.name??"Sem contato principal"}</p></div><span className="rounded-full bg-muted px-3 py-1.5 text-sm font-semibold">{props.opportunities.filter(item=>item.companyId===company.id&&item.status==="open").length} abertas</span></div><div className="mt-3 flex flex-wrap gap-2"><TemperatureBadge temperature={company.temperature}/><PriorityBadge priority={company.priority}/></div><div className="mt-4 border-t pt-3 text-base"><p>{company.whatsapp??company.phone??"Contato não informado"}</p><p className="mt-2 text-muted-foreground">Próximo passo: {task?formatDateTime(task.dueAt):"Nenhum"}</p></div></button>})}</section>}
+function MobileCompanyList(props:Props){const b2c=props.businessMode==="b2c";return <section className="grid gap-3" aria-label={`${crmTerminology(props.businessMode).companies} em lista`}>{props.companies.map(company=>{const contact=props.contacts.find(item=>item.companyId===company.id&&item.isPrimary);const task=props.nextTask(company.id);return <button key={company.id} onClick={()=>props.onOpenCompany(company)} className="rounded-[1.25rem] bg-card p-4 text-left shadow-soft premium-focus"><div className="flex items-start justify-between gap-3"><div><h2 className="text-xl font-semibold tracking-[-.025em]">{company.fantasyName}</h2><p className="mt-1 text-sm text-muted-foreground">{b2c?(company.businessArea??"Interesse não informado"):(contact?.name??"Sem contato principal")}</p></div><span className="rounded-full bg-muted px-3 py-1.5 text-sm font-semibold">{props.opportunities.filter(item=>item.companyId===company.id&&item.status==="open").length} abertas</span></div><div className="mt-3 flex flex-wrap gap-2"><TemperatureBadge temperature={company.temperature}/><PriorityBadge priority={company.priority}/></div><div className="mt-4 border-t pt-3 text-base"><p>{company.whatsapp??company.phone??"Contato não informado"}</p><p className="mt-2 text-muted-foreground">Próximo passo: {task?formatDateTime(task.dueAt):"Nenhum"}</p></div></button>})}</section>}
 
 function MobileKanban({stageFilter,...props}:Props&{stageFilter:string}){
  const ordered=useMemo(()=>[...props.stages].sort((a,b)=>a.position-b.position),[props.stages]);const visible=useMemo(()=>stageFilter==="all"?ordered:ordered.filter(item=>item.id===stageFilter),[ordered,stageFilter]);const[first,setFirst]=useState(visible[0]?.id??ordered[0]?.id??"");useEffect(()=>{if(visible.length&&!visible.some(item=>item.id===first))setFirst(visible[0].id)},[stageFilter,first,visible]);const[moving,setMoving]=useState<Opportunity>();
