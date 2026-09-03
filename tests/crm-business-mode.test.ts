@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { crmTerminology } from "../src/modules/crm/business-mode-model";
 
 const migration=readFileSync("supabase/migrations/202609130001_organization_business_mode.sql","utf8");
+const permissionFix=readFileSync("supabase/migrations/202609140001_fix_business_mode_admin_permission.sql","utf8");
 const settings=readFileSync("src/modules/settings/SettingsPage.tsx","utf8");
 const form=readFileSync("src/modules/crm/components/company-form.tsx","utf8");
 const crm=readFileSync("src/modules/crm/CrmPage.tsx","utf8");
@@ -39,6 +40,23 @@ describe("per-organization B2C/B2B CRM experience",()=>{
     expect(migration).toContain("public.has_permission('settings.manage')");
     expect(migration).toContain("public.is_platform_admin()");
     expect(migration).toContain("business_mode_updated");
+  });
+
+  test("owner, tenant admin and Platform Admin can save only the active organization",()=>{
+    expect(permissionFix).toContain("r.slug in('owner','admin')");
+    expect(permissionFix).toContain("m.organization_id=tenant");
+    expect(permissionFix).toContain("m.user_id=auth.uid()");
+    expect(permissionFix).toContain("m.status='active'");
+    expect(permissionFix).toContain("not public.is_platform_admin()");
+    expect(permissionFix).toContain("not public.has_permission('settings.manage')");
+    expect(permissionFix).not.toMatch(/service_role|using\s*\(true\)/i);
+  });
+
+  test("mode selection is staged until save and unauthorized users cannot trigger feedback loops",()=>{
+    expect(settings).toContain("setSelectedMode(option.value)");
+    expect(settings).toContain("if(selectedMode!==businessMode)saveBusinessMode(selectedMode)");
+    expect(settings).toContain("Esta configuração é gerenciada pelo administrador da organização.");
+    expect(settings.match(/onError:error=>notify/g)?.length).toBe(1);
   });
 
   test("tenant switching keys presentation by active organization and preserves CRM records",()=>{
