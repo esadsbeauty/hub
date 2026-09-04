@@ -28,6 +28,8 @@ const SettingsPage=page(()=>import("@/modules/settings/SettingsPage"),"SettingsP
 const PlatformPage=page(()=>import("@/modules/platform/PlatformPage"),"PlatformPage");
 const ProductLeadsPage=page(()=>import("@/modules/platform/leads/ProductLeadsPage"),"ProductLeadsPage");
 const OrganizationsPage=page(()=>import("@/modules/platform/organizations/OrganizationsPage"),"OrganizationsPage");
+const ReferralPage=page(()=>import("@/modules/referrals/ReferralPage"),"ReferralPage");
+const PlatformReferralsPage=page(()=>import("@/modules/referrals/PlatformReferralsPage"),"PlatformReferralsPage");
 const OnboardingPage=page(()=>import("@/modules/onboarding/OnboardingPage"),"OnboardingPage");
 const SubscriptionBlockedPage=page(()=>import("@/modules/subscription/SubscriptionBlockedPage"),"SubscriptionBlockedPage");
 const SubscriptionContactPage=page(()=>import("@/modules/subscription/SubscriptionContactPage"),"SubscriptionContactPage");
@@ -70,6 +72,7 @@ export function App() {
           <Route path="configuracoes" element={<PermissionRoute permission="settings.view"><SettingsPage /></PermissionRoute>} />
           <Route path="onboarding" element={<PermissionRoute permission="settings.manage"><OnboardingPage /></PermissionRoute>} />
           <Route path="assinatura" element={<SubscriptionContactPage />} />
+          <Route path="indique-e-ganhe" element={<PermissionRoute permission="settings.view"><ReferralPage /></PermissionRoute>} />
           {["ia"].map(
             (path) => (
               <Route
@@ -87,6 +90,7 @@ export function App() {
           <Route path="plataforma" element={<PlatformAdminRoute><PlatformPage /></PlatformAdminRoute>} />
           <Route path="plataforma/leads" element={<PlatformAdminRoute><ProductLeadsPage /></PlatformAdminRoute>} />
           <Route path="plataforma/organizacoes" element={<PlatformAdminRoute><OrganizationsPage /></PlatformAdminRoute>} />
+          <Route path="plataforma/indicacoes" element={<PlatformAdminRoute><PlatformReferralsPage /></PlatformAdminRoute>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

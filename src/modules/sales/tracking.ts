@@ -1,2 +1,3 @@
-import{trackingKeys}from"./content";import type{SalesAttribution}from"./repository";const key="esads-sales-attribution";
+import{trackingKeys}from"./content";import type{SalesAttribution}from"./repository";const key="esads-sales-attribution",referralKey="esads-referral-code";
 export function captureSalesAttribution(){const params=new URLSearchParams(location.search),saved=sessionStorage.getItem(key),previous=saved?JSON.parse(saved)as SalesAttribution:{};const value=Object.fromEntries(trackingKeys.map(name=>[name,params.get(name)??previous[name]]).filter(([,item])=>item))as SalesAttribution;sessionStorage.setItem(key,JSON.stringify(value));return value}
+export function captureReferralCode(){const value=new URLSearchParams(location.search).get("ref")?.trim().toUpperCase();if(value&&/^[A-Z0-9]{6,10}$/.test(value))sessionStorage.setItem(referralKey,value);return value??sessionStorage.getItem(referralKey)??undefined}

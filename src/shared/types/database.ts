@@ -288,6 +288,12 @@ export type Database = {
       platform_sync_billing_charge:{Args:{target_subscription_id:string;external_data:Json};Returns:undefined};
       platform_billing_charge_snapshot:{Args:{target_subscription_id:string};Returns:Json};
       submit_public_sales_lead:{Args:{lead_data:Json};Returns:Json};
+      validate_referral_code:{Args:{candidate:string};Returns:boolean};
+      current_referral_dashboard:{Args:Record<string,never>;Returns:Json};
+      platform_referral_snapshot:{Args:Record<string,never>;Returns:Json};
+      platform_manage_referral:{Args:{target_referral_id:string;target_action:string;referred_organization_id?:string|null};Returns:undefined};
+      referral_billing_quote:{Args:{target_subscription_id:string};Returns:Json};
+      consume_referral_benefits:{Args:{target_subscription_id:string;target_payment_id:string};Returns:Json};
       platform_public_sales_leads_page:{Args:{filters?:Json};Returns:Json};
       platform_update_public_sales_lead:{Args:{target_lead_id:string;new_status:string;new_notes:string};Returns:Json};
       platform_organizations_page:{Args:{filters?:Json};Returns:Json};

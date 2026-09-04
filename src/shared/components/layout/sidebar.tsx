@@ -7,6 +7,7 @@ import {
   Calendar,
   ChevronDown,
   ClipboardCheck,
+  Gift,
   Handshake,
   LayoutDashboard,
   LogOut,
@@ -57,6 +58,12 @@ export const navigationItems = [
     label: "Financeiro",
     icon: Wallet,
     permission: "finance.view",
+  },
+  {
+    to: "/indique-e-ganhe",
+    label: "Indique e Ganhe",
+    icon: Gift,
+    permission: "settings.view",
   },
   {
     to: "/relatorios",
@@ -216,6 +223,15 @@ export function SidebarNavigation({
           >
             <UserRoundSearch size={16} />
             Leads de Produto
+          </NavLink>
+
+          <NavLink
+            onClick={onNavigate}
+            to="/plataforma/indicacoes"
+            className={linkClass}
+          >
+            <Gift size={16} />
+            Indicações
           </NavLink>
 
           <NavLink

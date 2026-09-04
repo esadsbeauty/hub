@@ -1,0 +1,5 @@
+import{useMutation,useQuery,useQueryClient}from"@tanstack/react-query";import{useAppState}from"@/shared/state/app-state-context";import{referralRepository}from"./repository";
+export const referralKeys={dashboard:(organizationId:string)=>["referrals",organizationId,"dashboard"]as const,platform:["referrals","platform"]as const};
+export function useReferralDashboard(){const{organizationId}=useAppState();return useQuery({queryKey:referralKeys.dashboard(organizationId),queryFn:()=>referralRepository.dashboard(),enabled:Boolean(organizationId)})}
+export function usePlatformReferrals(){return useQuery({queryKey:referralKeys.platform,queryFn:()=>referralRepository.platform()})}
+export function useReferralAction(){const cache=useQueryClient();return useMutation({mutationFn:({id,action,organizationId}:{id:string;action:"invalidate"|"cancel_credit"|"convert";organizationId?:string})=>referralRepository.action(id,action,organizationId),onSuccess:()=>cache.invalidateQueries({queryKey:["referrals"]})})}
