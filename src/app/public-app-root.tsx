@@ -6,13 +6,11 @@ import { BlogPostPage } from "@/modules/blog/pages/BlogPostPage";
 import { DiagnosticPage } from "@/modules/diagnostic/pages/DiagnosticPage";
 import { LegalNoticePage } from "@/modules/diagnostic/pages/LegalNoticePage";
 import { SalesPage } from "@/modules/sales/SalesPage";
-import { SpaAnalytics } from "@/shared/analytics/spa-analytics";
 
 export default function PublicAppRoot() {
   return (
     <AppQueryProvider>
       <BrowserRouter>
-        <SpaAnalytics />
 
         <Routes>
           <Route element={<PublicLayout />}>
