@@ -50,6 +50,8 @@ import type {
   TimelineEvent,
 } from "./types";
 import { currency, formatDateTime } from "./utils/formatters";
+import { contactWhatsappUrl } from "./utils/contact-links";
+import { crmTerminology, useBusinessMode } from "./business-mode";
 type View = "kanban" | "list";
 export type CrmSort = "newest" | "oldest" | "name" | "activity" | "followup" | "priority";
 export type CrmFilters = {
@@ -79,6 +81,7 @@ export function CrmPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { data, isLoading, isError, refetch } = useCrmData();
   const actions = useCrmActions();
+  const businessModeQuery=useBusinessMode();const businessMode=businessModeQuery.data??"b2b";const terms=crmTerminology(businessMode);const b2c=businessMode==="b2c";
   const { notify } = useToast();
   const [query, setQuery] = useState(
     () => searchParams.get("q") ?? sessionStorage.getItem("crm-query") ?? "",
@@ -97,6 +100,7 @@ export function CrmPage() {
   const [duplicates, setDuplicates] = useState<Company[]>([]);
   const [selected, setSelected] = useState<Opportunity>();
   const [quickCompanyId, setQuickCompanyId] = useState("");
+  const [quickOpportunityId, setQuickOpportunityId] = useState<string>();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [mobileSortOpen, setMobileSortOpen] = useState(false);
   useEffect(() => { const requested = searchParams.get("new"); if (requested === "company" || requested === "opportunity") setModal(requested); }, [searchParams]);
@@ -246,11 +250,12 @@ export function CrmPage() {
   const companyById = new Map<string, Company>(
     companies.map((item) => [item.id, item]),
   );
-  const nextTask = (companyId: string) =>
+  const nextTask = (companyId: string, opportunityId?: string) =>
     tasks
       .filter(
         (item) =>
           item.companyId === companyId &&
+          (!opportunityId || item.opportunityId === opportunityId) &&
           item.status === "pending" &&
           item.type === "follow_up",
       )
@@ -296,10 +301,12 @@ export function CrmPage() {
       title: "Lead criado",
       description: "Empresa registrada e oportunidade adicionada em Novo Lead.",
     });
+    if (searchParams.get("onboarding") === "1") navigate("/onboarding");
   };
   return (
     <PageContainer>
       <MobileCrmView
+        businessMode={businessMode}
         companies={filtered}
         contacts={contacts}
         opportunities={opportunities.filter((item)=>filtered.some((company)=>company.id===item.companyId))}
@@ -321,7 +328,7 @@ export function CrmPage() {
       <div className="hidden md:contents">
       <PageHeader
         title="CRM"
-        description="Empresas, oportunidades e próximos passos."
+        description={b2c?"Leads, clientes e próximos passos.":"Empresas, oportunidades e próximos passos."}
         actions={
           <>
             <Button className="hidden md:inline-flex" variant="outline" onClick={() => setModal("followup")}>
@@ -331,7 +338,7 @@ export function CrmPage() {
               Nova oportunidade
             </Button>
             <Button className="hidden md:inline-flex" onClick={() => setModal("company")}>
-              <Plus size={17} /> <span className="md:hidden">Novo lead</span><span className="hidden md:inline">Nova empresa</span>
+              <Plus size={17} /> <span>{terms.newCompany}</span>
             </Button>
           </>
         }
@@ -339,9 +346,9 @@ export function CrmPage() {
       <section aria-label="Indicadores do CRM" className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-4">
         <div className="min-w-[82vw] snap-center md:min-w-0">
         <MetricCard
-          label="Empresas"
+          label={terms.companies}
           value={companies.length}
-          hint="Contas no relacionamento comercial"
+          hint={b2c?"Pessoas no relacionamento comercial":"Contas no relacionamento comercial"}
           icon={Building2}
         />
         </div>
@@ -423,7 +430,7 @@ export function CrmPage() {
             setQuery(event.target.value);
             sessionStorage.setItem("crm-query", event.target.value);
           }}
-          placeholder="Buscar empresa, contato, telefone, email..."
+          placeholder={b2c?"Buscar lead, telefone, WhatsApp ou e-mail...":"Buscar empresa, contato, telefone, email..."}
         />
         <FilterSelect
           value={filters.owner}
@@ -530,16 +537,18 @@ export function CrmPage() {
       </Modal>
       {filtered.length === 0 ? (
         <EmptyState
-          title="Nenhuma empresa encontrada"
+          title={`Nenhum${b2c?" lead":"a empresa"} encontrado${b2c?"":"a"}`}
           description="Ajuste a busca ou os filtros para continuar."
         />
       ) : view === "kanban" ? (
         <OpportunityKanban
+          businessMode={businessMode}
           opportunities={opportunities.filter((item) =>
             filtered.some((company) => company.id === item.companyId),
           )}
           stages={data.stages}
           companyById={companyById}
+          contacts={contacts}
           nextTask={nextTask}
           onMove={(opportunity, stageId) =>
             actions.moveOpportunity.mutate(
@@ -562,21 +571,21 @@ export function CrmPage() {
           columns={[
             {
               key: "company",
-              header: "Empresa",
+              header: terms.company,
               render: (company) => (
                 <div>
                   <b>{company.fantasyName}</b>
                   <p className="text-xs text-muted-foreground">
-                    {contacts.find(
+                    {b2c ? (company.businessArea ?? "Interesse não informado") : (contacts.find(
                       (item) => item.companyId === company.id && item.isPrimary,
-                    )?.name ?? "Sem contato principal"}
+                    )?.name ?? "Sem contato principal")}
                   </p>
                 </div>
               ),
             },
             {
               key: "contact",
-              header: "Contato",
+              header: b2c ? "WhatsApp / telefone" : "Contato",
               render: (company) => (
                 <div className="text-sm">
                   {company.whatsapp ?? company.phone ?? "—"}
@@ -621,17 +630,19 @@ export function CrmPage() {
       )}</div>
       <Modal
         open={modal === "company"}
-        title="Nova empresa"
+        title={terms.newCompany}
         onClose={closeModal}
       >
         <CompanyForm
+          businessMode={businessMode}
+          profiles={data?.profiles ?? []}
           onCancel={closeModal}
           onSubmit={(form) => submitCompany(form)}
         />
       </Modal>
       <Modal
         open={duplicates.length > 0}
-        title="Encontramos possíveis empresas semelhantes"
+        title={`Encontramos possíveis ${terms.companies.toLowerCase()} semelhantes`}
         onClose={() => {
           setDuplicates([]);
           setPendingCompany(undefined);
@@ -690,7 +701,7 @@ export function CrmPage() {
             value={quickCompanyId}
             onChange={(event) => setQuickCompanyId(event.target.value)}
           >
-            <option value="">Selecione a empresa</option>
+            <option value="">Selecione {b2c ? "o lead" : "a empresa"}</option>
             {companies.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.fantasyName}
@@ -703,9 +714,11 @@ export function CrmPage() {
                 await actions.createFollowUp.mutateAsync({
                   companyId: quickCompanyId,
                   data: form,
+                  opportunityId: quickOpportunityId,
                 });
                 setModal(null);
                 setQuickCompanyId("");
+                setQuickOpportunityId(undefined);
                 notify({ title: "Follow-up criado" });
               }}
             />
@@ -713,8 +726,10 @@ export function CrmPage() {
         </div>
       </Modal>
       <OpportunityDetails
+        businessMode={businessMode}
         opportunity={selected}
         company={companyById.get(selected?.companyId ?? "")}
+        contact={contacts.find(item=>item.companyId===selected?.companyId&&item.isPrimary&&!item.deletedAt)??contacts.find(item=>item.companyId===selected?.companyId&&!item.deletedAt)}
         pipeline={data.pipelines.find(
           (item) => item.id === selected?.pipelineId,
         )}
@@ -722,7 +737,7 @@ export function CrmPage() {
         activities={data.events.filter(
           (event) => event.opportunityId === selected?.id,
         )}
-        nextTask={selected ? nextTask(selected.companyId) : undefined}
+        nextTask={selected ? nextTask(selected.companyId,selected.id) : undefined}
         open={Boolean(selected)}
         onClose={() => setSelected(undefined)}
         onMove={(stageId) =>
@@ -750,12 +765,12 @@ export function CrmPage() {
             onSuccess: () => setSelected(undefined),
           })
         }
-        onAddNote={() =>
-          notify({ title: "Abra a empresa para adicionar uma nota" })
-        }
-        onAddFollowUp={() =>
-          notify({ title: "Abra a empresa para criar um follow-up" })
-        }
+        onEditContact={()=>{if(selected)navigate(`/crm/companies/${selected.companyId}`)}}
+        onSaveValue={async(value)=>{if(!selected)return;const updated=await actions.updateOpportunity.mutateAsync({id:selected.id,data:{value}});setSelected(updated);notify({title:"Valor da oportunidade atualizado"})}}
+        onSaveNote={async(text)=>{if(!selected)return;await actions.addNote.mutateAsync({companyId:selected.companyId,opportunityId:selected.id,text});notify({title:"Observação adicionada"})}}
+        onAddFollowUp={() => {if(!selected)return;setQuickCompanyId(selected.companyId);setQuickOpportunityId(selected.id);setModal("followup")}}
+        onCompleteNextTask={()=>{const task=selected?nextTask(selected.companyId,selected.id):undefined;if(task)actions.completeTask.mutate(task.id)}}
+        onRescheduleNextTask={(dueAt)=>{const task=selected?nextTask(selected.companyId,selected.id):undefined;if(task)actions.rescheduleTask.mutate({id:task.id,dueAt})}}
         onLost={(form) =>
           selected &&
           actions.markOpportunityLost.mutate(
@@ -795,17 +810,21 @@ function MobileFilterField({label,children}:{label:string;children:React.ReactNo
   return <label className="grid gap-2"><span className="text-base font-semibold">{label}</span>{children}</label>;
 }
 function OpportunityKanban({
+  businessMode,
   opportunities,
   stages,
   companyById,
+  contacts,
   nextTask,
   onMove,
   onOpen,
 }: {
+  businessMode: import("./business-mode").BusinessMode;
   opportunities: Opportunity[];
   stages: PipelineStage[];
   companyById: Map<string, Company>;
-  nextTask: (companyId: string) => Task | undefined;
+  contacts: CompanyContact[];
+  nextTask: (companyId: string, opportunityId?: string) => Task | undefined;
   onMove: (opportunity: Opportunity, stageId: string) => void;
   onOpen: (opportunity: Opportunity) => void;
 }) {
@@ -841,7 +860,10 @@ function OpportunityKanban({
                 ) : (
                   rows.map((item) => {
                     const company = companyById.get(item.companyId);
-                    const task = nextTask(item.companyId);
+                    const contact = contacts.find(value=>value.companyId===item.companyId&&value.isPrimary&&!value.deletedAt)??contacts.find(value=>value.companyId===item.companyId&&!value.deletedAt);
+                    const leadName = contact?.name ?? company?.responsibleName ?? item.title;
+                    const task = nextTask(item.companyId,item.id);
+                    const phone=contact?.whatsapp??contact?.phone??company?.whatsapp??company?.phone,whatsapp=contactWhatsappUrl(phone);
                     return (
                       <Card
                         key={item.id}
@@ -855,25 +877,23 @@ function OpportunityKanban({
                             className="w-full text-left"
                             onClick={() => onOpen(item)}
                           >
-                            <p className="text-base font-medium text-muted-foreground md:text-xs">
-                              {company?.fantasyName}
-                            </p>
-                            <h3 className="mt-2 text-xl font-semibold leading-snug tracking-[-.02em] md:mt-1 md:text-sm">{item.title}</h3>
+                            <h3 className="text-xl font-semibold leading-snug tracking-[-.02em] md:text-sm">{leadName}</h3>
+                            {businessMode==="b2b"&&company?.fantasyName&&<p className="mt-1 text-sm text-muted-foreground md:text-xs">{company.fantasyName}</p>}
+                            {item.title!==leadName&&<p className="mt-2 text-sm text-muted-foreground md:text-xs"><span className="font-medium text-foreground">Interesse:</span> {item.title}</p>}
+                            {phone&&<p className="mt-2 text-sm font-medium md:text-xs">{phone}</p>}
                             <div className="mt-3 flex items-center justify-between gap-2">
                               <p className="text-lg font-semibold md:text-sm">
                                 {currency.format(item.value)}
                               </p>
                               {company && <div className="flex flex-wrap justify-end gap-2"><TemperatureBadge temperature={company.temperature}/><PriorityBadge priority={company.priority}/></div>}
                             </div>
-                            <p className="mt-3 text-base text-muted-foreground md:mt-2 md:text-xs">
-                              {item.owner ?? "Sem responsável"}
-                            </p>
                             {task && (
                               <p className="mt-3 text-base md:mt-2 md:text-xs">
                                 Próximo: {formatDateTime(task.dueAt)}
                               </p>
                             )}
                           </button>
+                          {whatsapp&&<a aria-label="Abrir WhatsApp do contato" className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#e8f7ee] text-sm font-semibold text-[#176b3a]" href={whatsapp} target="_blank" rel="noreferrer">WhatsApp</a>}
                         </CardContent>
                       </Card>
                     );

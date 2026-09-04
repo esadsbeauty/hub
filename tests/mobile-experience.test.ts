@@ -6,7 +6,7 @@ describe("experiência operacional mobile", () => {
     const page = readFileSync("src/modules/dashboard/DashboardPage.tsx", "utf8");
     const kpis = page.indexOf('aria-label="Indicadores do dashboard"');
     const agenda = page.indexOf("Agenda de hoje", kpis);
-    const followups = page.indexOf('className="flex min-h-[5.75rem]', agenda);
+    const followups = page.indexOf('className="flex min-h-20', agenda);
     const pipeline = page.indexOf('Pipeline resumido', followups);
     expect(kpis).toBeGreaterThan(-1);
     expect(agenda).toBeGreaterThan(kpis);
@@ -28,7 +28,7 @@ describe("experiência operacional mobile", () => {
     const crm = readFileSync("src/modules/crm/CrmPage.tsx", "utf8");
     expect(crm).toContain('placeholder="Buscar lead ou contato…"');
     expect(crm).toContain('title="Filtrar CRM"');
-    expect(crm).toContain("Novo lead");
+    expect(crm).toContain("terms.newCompany");
   });
 
   test("controles mobile respeitam área de toque mínima", () => {
@@ -36,26 +36,26 @@ describe("experiência operacional mobile", () => {
     const input = readFileSync("src/components/ui/input.tsx", "utf8");
     const select = readFileSync("src/components/ui/select.tsx", "utf8");
     expect(button).toContain("h-[var(--mobile-button-height)]");
-    expect(input).toContain("h-[3.75rem]");
-    expect(select).toContain("h-[3.75rem]");
+    expect(input).toContain("h-[var(--mobile-input-height)]");
+    expect(select).toContain("h-[var(--mobile-input-height)]");
   });
 
   test("escala confortável é responsiva e não usa zoom global", () => {
     const tokens = readFileSync("src/design-system/tokens.ts", "utf8");
     const styles = readFileSync("src/styles/globals.css", "utf8");
     const header = readFileSync("src/shared/components/layout/page-header.tsx", "utf8");
-    expect(tokens).toContain("inputHeight: '3.75rem'");
-    expect(tokens).toContain("buttonHeight: '3.5rem'");
-    expect(tokens).toContain("pageTitle: '2.125rem'");
-    expect(header).toContain("text-[2.125rem]");
+    expect(tokens).toContain("inputHeight: '3.25rem'");
+    expect(tokens).toContain("buttonHeight: '3rem'");
+    expect(tokens).toContain("pageTitle: '1.875rem'");
+    expect(header).toContain("text-[1.875rem]");
     expect(styles).not.toMatch(/zoom\s*:/);
     expect(styles).not.toContain("transform:scale");
-    expect(styles).toContain("--mobile-bottom-nav-height:5.25rem");
+    expect(styles).toContain("--mobile-bottom-nav-height:4.75rem");
   });
 
   test("kanban usa uma coluna larga por viewport no telefone", () => {
     const mobile = readFileSync("src/modules/crm/components/mobile-crm-view.tsx", "utf8");
-    expect(mobile).toContain("min-w-[90vw]");
+    expect(mobile).toContain("min-w-[86vw]");
     expect(mobile).toContain("snap-x snap-mandatory");
     expect(mobile).toContain("Mover etapa");
   });
@@ -67,7 +67,7 @@ describe("experiência operacional mobile", () => {
     expect(crm).toContain('<MobileCrmView');
     expect(mobile).toContain('aria-label="Indicadores do CRM"');
     expect(mobile).toContain('title="Ordenar CRM"');
-    expect(mobile).toContain('aria-label="Empresas em lista"');
+    expect(mobile).toContain("crmTerminology(props.businessMode).companies");
     expect(topbar).toContain('function MobileHeader');
     expect(topbar).toContain('function DesktopHeader');
   });

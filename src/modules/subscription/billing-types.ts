@@ -1,0 +1,2 @@
+export type BillingCharge={id:string;provider:string;status:"creating"|"pending"|"paid"|"overdue"|"refunded"|"cancelled"|"failed"|"needs_review";amountCents:number;currency:string;dueAt:string;paymentMethod:string;invoiceUrl?:string;pixPayload?:string;pixQrCode?:string;pixExpiresAt?:string};
+export type BillingSnapshot={subscription:{id:string;planName:string;status:string;priceCents:number;currency:string;nextDueAt:string;paymentMethod:string};charge?:BillingCharge};

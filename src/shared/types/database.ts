@@ -29,6 +29,7 @@ export type Database = {
           timezone: string;
           currency: string;
           locale: string;
+          business_mode: "b2c" | "b2b";
         }
       >;
       profiles: Table<
@@ -36,6 +37,7 @@ export type Database = {
           name: string;
           email: string;
           avatar_url: string | null;
+          avatar_path: string | null;
           role: "admin" | "manager" | "sales" | "financial" | "member";
         }
       >;
@@ -104,6 +106,7 @@ export type Database = {
           probability: number;
           is_won: boolean;
           is_lost: boolean;
+          is_active: boolean;
         }
       >;
       opportunities: Table<
@@ -192,12 +195,12 @@ export type Database = {
       onboarding_steps: Table<Base & { onboarding_id: string; task_id: string | null; title: string; description: string | null; position: number; status: "pending" | "in_progress" | "completed" | "blocked" | "cancelled"; assigned_to: string | null; due_at: string | null; completed_at: string | null; blocked_by: "internal" | "client" | "external" | null; blocked_reason: string | null }>;
       contracts: Table<Base & { customer_account_id: string; source_opportunity_id: string | null; title: string; status: "draft" | "sent" | "signed" | "active" | "expired" | "cancelled"; contract_number: string; start_date: string; end_date: string | null; signed_at: string | null; value: number | null; billing_type: "one_time" | "recurring" | "custom"; billing_interval: "monthly" | "quarterly" | "yearly" | "one_time" | "custom"; auto_renew: boolean; notice_days: number; owner_id: string | null; notes: string | null; cancelled_at: string | null; deleted_at: string | null }>;
       contract_services: Table<{ contract_id: string; customer_service_id: string }>;
-      financial_accounts: Table<Base & { name:string; type:"bank"|"cash"|"digital_wallet"|"other"; bank_name:string|null; initial_balance:number; is_active:boolean; deleted_at:string|null }>;
+      financial_accounts: Table<Base & { name:string; type:"bank"|"checking"|"digital"|"savings"|"cash"|"digital_wallet"|"other"; bank_name:string|null; initial_balance:number; is_active:boolean; deleted_at:string|null }>;
       financial_categories: Table<Base & { name:string; type:"income"|"expense"; parent_id:string|null; dre_group:"gross_revenue"|"deduction"|"direct_cost"|"operating_expense"|"other_income"|"other_expense"; is_active:boolean }>;
       cost_centers: Table<Base & { name:string; description:string|null; is_active:boolean }>;
-      recurrence_rules: Table<Base & { type:"receivable"|"payable"; customer_account_id:string|null; contract_id:string|null; customer_service_id:string|null; supplier_name:string|null; description:string; amount:number; category_id:string|null; cost_center_id:string|null; frequency:"monthly"|"quarterly"|"semiannual"|"yearly"; interval_count:number; start_date:string; end_date:string|null; due_day:number; is_active:boolean; next_generation_date:string; cancelled_at:string|null }>;
-      receivables: Table<Base & { customer_account_id:string|null; company_id:string|null; contract_id:string|null; customer_service_id:string|null; source_opportunity_id:string|null; description:string; category_id:string|null; cost_center_id:string|null; competence_date:string; due_date:string; original_amount:number; discount_amount:number; interest_amount:number; penalty_amount:number; net_amount:number; status:"pending"|"partially_paid"|"paid"|"cancelled"|"refunded"; payment_method:string|null; notes:string|null; recurrence_rule_id:string|null; recurrence_key:string|null; created_by:string; cancelled_at:string|null; deleted_at:string|null }>;
-      payables: Table<Base & { supplier_name:string; description:string; category_id:string|null; cost_center_id:string|null; competence_date:string; due_date:string; original_amount:number; discount_amount:number; interest_amount:number; penalty_amount:number; net_amount:number; status:"pending"|"partially_paid"|"paid"|"cancelled"|"refunded"; financial_account_id:string|null; notes:string|null; recurrence_rule_id:string|null; recurrence_key:string|null; created_by:string; cancelled_at:string|null; deleted_at:string|null }>;
+      recurrence_rules: Table<Base & { type:"receivable"|"payable"; customer_account_id:string|null; contract_id:string|null; customer_service_id:string|null; supplier_name:string|null; description:string; amount:number; category_id:string|null; cost_center_id:string|null; financial_account_id:string|null; frequency:"monthly"|"quarterly"|"semiannual"|"yearly"; interval_count:number; start_date:string; end_date:string|null; due_day:number; is_active:boolean; next_generation_date:string; cancelled_at:string|null }>;
+      receivables: Table<Base & { customer_account_id:string|null; company_id:string|null; contract_id:string|null; customer_service_id:string|null; source_opportunity_id:string|null; description:string; category_id:string|null; cost_center_id:string|null; financial_account_id:string|null; competence_date:string; due_date:string; original_amount:number; discount_amount:number; interest_amount:number; penalty_amount:number; net_amount:number; status:"pending"|"partially_paid"|"paid"|"cancelled"|"refunded"; payment_method:string|null; notes:string|null; recurrence_rule_id:string|null; recurrence_key:string|null; installment_number:number|null;installment_total:number|null;installment_group_id:string|null;created_by:string; cancelled_at:string|null; deleted_at:string|null }>;
+      payables: Table<Base & { supplier_name:string; description:string; category_id:string|null; cost_center_id:string|null; competence_date:string; due_date:string; original_amount:number; discount_amount:number; interest_amount:number; penalty_amount:number; net_amount:number; status:"pending"|"partially_paid"|"paid"|"cancelled"|"refunded"; financial_account_id:string|null; notes:string|null; recurrence_rule_id:string|null; recurrence_key:string|null; installment_number:number|null;installment_total:number|null;installment_group_id:string|null;created_by:string; cancelled_at:string|null; deleted_at:string|null }>;
       financial_transactions: Table<{ id:string; organization_id:string; financial_account_id:string; type:"income"|"expense"|"transfer"|"adjustment"; transfer_direction:"in"|"out"|null; amount:number; occurred_at:string; description:string; payment_method:string|null; reference:string|null; created_by:string; reversed_at:string|null; reversed_by:string|null; reversal_of_id:string|null; transfer_id:string|null; created_at:string }>;
       payment_allocations: Table<{ id:string; organization_id:string; transaction_id:string; receivable_id:string|null; payable_id:string|null; amount:number; created_at:string }>;
       marketing_sources: Table<Base&{name:string;slug:string;channel:"paid_social"|"paid_search"|"organic_social"|"organic_search"|"referral"|"outbound"|"direct"|"partner"|"other";platform:string;type:string;is_paid:boolean;is_active:boolean}>;
@@ -225,6 +228,14 @@ export type Database = {
       save_blog_post: { Args: { post_id: string | null; post_title: string; post_slug: string; post_excerpt: string; post_content: string; post_cover_image_path: string | null; post_category_id: string | null; post_seo_title: string | null; post_seo_description: string | null }; Returns: string };
       set_blog_post_status: { Args: { post_id: string; next_status: string }; Returns: undefined };
       current_organization_id: { Args: Record<string, never>; Returns: string };
+      current_business_mode: { Args: Record<string, never>; Returns: "b2c" | "b2b" };
+      update_organization_business_mode: { Args: { next_mode: "b2c" | "b2b" }; Returns: "b2c" | "b2b" };
+      current_user_profile: { Args: Record<string, never>; Returns: Json };
+      update_own_profile: { Args: { profile_name: string; next_avatar_path: string | null }; Returns: Json };
+      base_organization_id: { Args: Record<string, never>; Returns: string };
+      active_tenant_actor: { Args: Record<string, never>; Returns: Json };
+      platform_switch_organization: { Args: { target_organization_id: string }; Returns: Json };
+      platform_clear_tenant_context: { Args: Record<string, never>; Returns: undefined };
       create_default_pipeline: {
         Args: { target_organization_id: string };
         Returns: string;
@@ -258,6 +269,41 @@ export type Database = {
       capture_lead_acquisition:{Args:{acquisition_data:Json};Returns:Database["public"]["Tables"]["lead_acquisitions"]["Row"]};
       has_permission:{Args:{required_permission:string};Returns:boolean};
       current_authorization:{Args:Record<string,never>;Returns:Json};
+      platform_admin_snapshot:{Args:Record<string,never>;Returns:Json};
+      platform_assign_organization_plan:{Args:{target_organization_id:string;target_plan_id:string};Returns:undefined};
+      organization_onboarding_snapshot:{Args:Record<string,never>;Returns:Json};
+      update_organization_onboarding_profile:{Args:{target_section:string;profile_data:Json};Returns:Json};
+      complete_organization_onboarding_step:{Args:{target_step:string};Returns:Json};
+      platform_mark_subscription_paid:{Args:{target_subscription_id:string;payment_notes?:string|null};Returns:undefined};
+      platform_change_subscription_due_date:{Args:{target_subscription_id:string;new_due_at:string};Returns:undefined};
+      platform_suspend_subscription:{Args:{target_subscription_id:string};Returns:undefined};
+      platform_reactivate_subscription:{Args:{target_subscription_id:string};Returns:undefined};
+      platform_cancel_subscription:{Args:{target_subscription_id:string};Returns:undefined};
+      current_subscription_access:{Args:Record<string,never>;Returns:Json};
+      current_billing_snapshot:{Args:Record<string,never>;Returns:Json};
+      platform_prepare_billing_charge:{Args:{target_subscription_id:string;target_provider?:string};Returns:Json};
+      platform_record_external_customer:{Args:{target_subscription_id:string;target_provider:string;target_external_customer_id:string};Returns:undefined};
+      platform_finalize_billing_charge:{Args:{target_charge_id:string;target_request_token:string;external_data:Json};Returns:undefined};
+      platform_fail_billing_charge:{Args:{target_charge_id:string;target_request_token:string;safe_error:string};Returns:undefined};
+      platform_sync_billing_charge:{Args:{target_subscription_id:string;external_data:Json};Returns:undefined};
+      platform_billing_charge_snapshot:{Args:{target_subscription_id:string};Returns:Json};
+      submit_public_sales_lead:{Args:{lead_data:Json};Returns:Json};
+      validate_referral_code:{Args:{candidate:string};Returns:boolean};
+      current_referral_dashboard:{Args:Record<string,never>;Returns:Json};
+      platform_referral_snapshot:{Args:Record<string,never>;Returns:Json};
+      platform_manage_referral:{Args:{target_referral_id:string;target_action:string;referred_organization_id?:string|null};Returns:undefined};
+      referral_billing_quote:{Args:{target_subscription_id:string};Returns:Json};
+      consume_referral_benefits:{Args:{target_subscription_id:string;target_payment_id:string};Returns:Json};
+      platform_public_sales_leads_page:{Args:{filters?:Json};Returns:Json};
+      platform_update_public_sales_lead:{Args:{target_lead_id:string;new_status:string;new_notes:string};Returns:Json};
+      platform_organizations_page:{Args:{filters?:Json};Returns:Json};
+      platform_organization_details:{Args:{target_organization_id:string};Returns:Json};
+      platform_update_organization:{Args:{target_organization_id:string;organization_data:Json};Returns:Json};
+      platform_delete_test_organization:{Args:{target_organization_id:string;confirmation_name:string};Returns:undefined};
+      calendar_agenda_range:{Args:{range_start:string;range_end:string;responsible_filter?:string|null};Returns:Json};
+      upsert_calendar_event:{Args:{event_data:Json;allow_conflict?:boolean};Returns:Json};
+      set_calendar_event_status:{Args:{target_event_id:string;next_status:string};Returns:undefined};
+      archive_crm_company:{Args:{target_company_id:string};Returns:undefined};
       accept_own_invitation:{Args:Record<string,never>;Returns:undefined};
       governance_snapshot:{Args:{audit_limit?:number;audit_offset?:number};Returns:Json};
       change_member_role:{Args:{target_member_id:string;target_role_id:string};Returns:undefined};

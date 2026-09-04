@@ -5,6 +5,7 @@ import {
   type QueryKey,
 } from "@tanstack/react-query";
 import { useToast } from "@/shared/components/feedback/toast";
+import { onboardingKey } from "@/modules/onboarding/hooks";
 import { crmDataSource } from "./data-source";
 import { crmKeys } from "./query-keys";
 import type {
@@ -17,6 +18,7 @@ import type {
   TaskFormData,
 } from "./schema";
 import type { CompanyFile, CrmData, Task } from "./types";
+import { useAppState } from "@/shared/state/app-state-context";
 
 type WithCompany<T> = { companyId: string; data: T; opportunityId?: string };
 type CompleteTaskContext = {
@@ -33,7 +35,18 @@ function optimisticCompletedTask(
     : task;
 }
 export function useCrmData() {
-  return useQuery({ queryKey: crmKeys.all, queryFn: crmDataSource.list });
+  const { organizationId } = useAppState();
+  return useQuery({
+    queryKey: [...crmKeys.all, "snapshot", organizationId],
+    queryFn: async () => {
+      try { return await crmDataSource.list(); }
+      catch (error) {
+        if (import.meta.env.DEV) console.error("[CRM tenant snapshot]", { organizationId, error });
+        throw error;
+      }
+    },
+    enabled: Boolean(organizationId),
+  });
 }
 export function useCompany(companyId: string) {
   const query = useCrmData();
@@ -45,27 +58,30 @@ export function useCompany(companyId: string) {
   };
 }
 export function useTasksRange(from: string, to: string) {
+  const { organizationId } = useAppState();
   return useQuery({
-    queryKey: crmKeys.tasksRange(from, to),
+    queryKey: [...crmKeys.tasksRange(from, to), organizationId],
     queryFn: () => crmDataSource.listTasksRange(from, to),
   });
 }
 export function useOverdueTasks(until: string) {
+  const { organizationId } = useAppState();
   return useQuery({
-    queryKey: crmKeys.tasksOverdue(until),
+    queryKey: [...crmKeys.tasksOverdue(until), organizationId],
     queryFn: () => crmDataSource.listOverdueTasks(until),
   });
 }
 export function useCrmActions() {
   const client = useQueryClient();
+  const { organizationId } = useAppState();
+  const snapshotKey = [...crmKeys.all, "snapshot", organizationId] as const;
   const { notify } = useToast();
   const onError = (error: Error) =>
     notify({
       title: "Não foi possível concluir",
       description: error.message || "Tente novamente em alguns instantes.",
     });
-  const refresh = () =>
-    client.invalidateQueries({ queryKey: crmKeys.all, exact: true });
+  const refresh = () => client.invalidateQueries({ queryKey: crmKeys.all });
   const refreshTasks = async () => {
     await client.invalidateQueries({ queryKey: crmKeys.taskOperations() });
     await refresh();
@@ -73,7 +89,10 @@ export function useCrmActions() {
   return {
     createCompany: useMutation({
       mutationFn: crmDataSource.createCompany,
-      onSuccess: refresh,
+      onSuccess: async () => {
+        await refresh();
+        await client.invalidateQueries({ queryKey: onboardingKey });
+      },
       onError,
     }),
     updateCompany: useMutation({
@@ -152,9 +171,9 @@ export function useCrmActions() {
       }) => crmDataSource.moveOpportunity(opportunityId, stageId),
       onMutate: async ({ opportunityId, stageId }) => {
         await client.cancelQueries({ queryKey: crmKeys.all });
-        const previous = client.getQueryData<CrmData>(crmKeys.all);
+        const previous = client.getQueryData<CrmData>(snapshotKey);
         if (previous)
-          client.setQueryData<CrmData>(crmKeys.all, {
+          client.setQueryData<CrmData>(snapshotKey, {
             ...previous,
             opportunities: previous.opportunities.map((item) =>
               item.id === opportunityId ? { ...item, stageId } : item,
@@ -164,7 +183,7 @@ export function useCrmActions() {
       },
       onError: (error, _variables, context) => {
         if (context?.previous)
-          client.setQueryData(crmKeys.all, context.previous);
+          client.setQueryData(snapshotKey, context.previous);
         onError(error);
       },
       onSettled: refresh,
@@ -221,13 +240,13 @@ export function useCrmActions() {
       mutationFn: (taskId) => crmDataSource.completeTask(taskId),
       onMutate: async (taskId) => {
         await client.cancelQueries({ queryKey: crmKeys.taskOperations() });
-        const previous = client.getQueryData<CrmData>(crmKeys.all);
+        const previous = client.getQueryData<CrmData>(snapshotKey);
         const previousTaskRanges = client.getQueriesData<Task[]>({
           queryKey: crmKeys.taskRanges(),
         });
         const completedAt = new Date().toISOString();
         if (previous)
-          client.setQueryData<CrmData>(crmKeys.all, {
+          client.setQueryData<CrmData>(snapshotKey, {
             ...previous,
             tasks: previous.tasks.map((task) =>
               optimisticCompletedTask(task, taskId, completedAt),
@@ -244,7 +263,7 @@ export function useCrmActions() {
       },
       onError: (error, _taskId, context) => {
         if (context?.previous)
-          client.setQueryData(crmKeys.all, context.previous);
+          client.setQueryData(snapshotKey, context.previous);
         context?.previousTaskRanges.forEach(([queryKey, tasks]) =>
           client.setQueryData(queryKey, tasks),
         );
