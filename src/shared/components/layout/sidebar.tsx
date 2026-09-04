@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   BarChart3, BookOpen, Building2, Calendar, ChevronDown, ClipboardCheck,
-  Handshake, LayoutDashboard, LogOut, Megaphone, PanelLeftClose,
+  Gift, Handshake, LayoutDashboard, LogOut, Megaphone, PanelLeftClose,
   PanelLeftOpen, Settings, ShieldCheck, UserRoundSearch, Users, Wallet,
 } from "lucide-react";
 import type { Permission } from "@/shared/permissions/permissions";
@@ -18,6 +18,7 @@ export const navigationItems = [
   { to: "/agenda", label: "Agenda", icon: Calendar, permission: "agenda.view" },
   { to: "/clientes", label: "Clientes", icon: Users, permission: "customers.view" },
   { to: "/financeiro", label: "Financeiro", icon: Wallet, permission: "finance.view" },
+  { to: "/indique-e-ganhe", label: "Indique e Ganhe", icon: Gift, permission: "settings.view" },
   { to: "/relatorios", label: "Relatórios", icon: BarChart3, permission: "reports.view" },
   { to: "/configuracoes", label: "Configurações", icon: Settings, permission: "settings.view" },
 ] satisfies { to: string; label: string; icon: typeof LayoutDashboard; permission: Permission }[];
@@ -48,6 +49,7 @@ export function SidebarNavigation({ collapsed = false, onNavigate }: { collapsed
     {isPlatformAdmin && <NavGroup collapsed={collapsed} label="Plataforma" icon={ShieldCheck} open={platformOpen} setOpen={setPlatformOpen} active={pathname.startsWith("/plataforma")}>
       <NavLink end onClick={onNavigate} to="/plataforma" className={linkClass(false)}>Visão geral</NavLink>
       <NavLink onClick={onNavigate} to="/plataforma/leads" className={linkClass(false)}><UserRoundSearch size={16}/>Leads de Produto</NavLink>
+      <NavLink onClick={onNavigate} to="/plataforma/indicacoes" className={linkClass(false)}><Gift size={16}/>Indicações</NavLink>
       <NavLink onClick={onNavigate} to="/plataforma/organizacoes" className={linkClass(false)}><Building2 size={16}/>Organizações</NavLink>
     </NavGroup>}
   </nav>;
