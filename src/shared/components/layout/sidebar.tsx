@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   BarChart3, BookOpen, Building2, Calendar, ChevronDown, ClipboardCheck,
-  Gift, Handshake, LayoutDashboard, LogOut, Megaphone, PanelLeftClose,
+  Gift, Handshake, LayoutDashboard, LogOut, Megaphone, MessageCircle, PanelLeftClose,
   PanelLeftOpen, Settings, ShieldCheck, UserRoundSearch, Users, Wallet,
 } from "lucide-react";
 import type { Permission } from "@/shared/permissions/permissions";
@@ -15,6 +15,7 @@ import { useCurrentUserProfile } from "@/modules/profile/hooks";
 export const navigationItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, permission: "dashboard.view" },
   { to: "/crm", label: "CRM", icon: Handshake, permission: "crm.view" },
+  { to: "/whatsapp", label: "WhatsApp", icon: MessageCircle, permission: "crm.view" },
   { to: "/agenda", label: "Agenda", icon: Calendar, permission: "agenda.view" },
   { to: "/clientes", label: "Clientes", icon: Users, permission: "customers.view" },
   { to: "/financeiro", label: "Financeiro", icon: Wallet, permission: "finance.view" },
