@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   LogOut,
   Megaphone,
+  MessageCircle,
   PanelLeftClose,
   PanelLeftOpen,
   ShieldCheck,
@@ -39,6 +40,12 @@ export const navigationItems = [
     to: "/crm",
     label: "CRM",
     icon: Handshake,
+    permission: "crm.view",
+  },
+  {
+    to: "/whatsapp",
+    label: "WhatsApp",
+    icon: MessageCircle,
     permission: "crm.view",
   },
   {
@@ -124,8 +131,8 @@ export function SidebarNavigation({
     pathname.startsWith("/plataforma"),
   );
 
-  const mainBeforeMarketing = navigationItems.slice(0, 5);
-  const mainAfterMarketing = navigationItems.slice(5);
+  const mainBeforeMarketing = navigationItems.slice(0, 6);
+  const mainAfterMarketing = navigationItems.slice(6);
 
   const renderLink = ({
     to,

@@ -9,6 +9,7 @@ import {
   Handshake,
   Home,
   Menu,
+  MessageCircle,
   Megaphone,
   Plus,
   ShieldCheck,
@@ -44,6 +45,12 @@ const navigation = [
 ];
 
 const more = [
+  {
+    to: "/whatsapp",
+    label: "WhatsApp",
+    icon: MessageCircle,
+    permission: "crm.view" as const,
+  },
   {
     to: "/clientes",
     label: "Clientes",

@@ -15,6 +15,7 @@ const InviteAcceptancePage=page(()=>import("@/modules/auth/InviteAcceptancePage"
 const InitialOwnerPage=page(()=>import("@/modules/settings/InitialOwnerPage"),"InitialOwnerPage");
 const RestrictedAccessPage=page(()=>import("@/modules/settings/RestrictedAccessPage"),"RestrictedAccessPage");
 const DashboardPage=page(()=>import("@/modules/dashboard/DashboardPage"),"DashboardPage");
+const WhatsAppInboxPage=page(()=>import("@/modules/whatsapp/pages/WhatsAppInboxPage"),"WhatsAppInboxPage");
 const CrmPage=page(()=>import("@/modules/crm/CrmPage"),"CrmPage");
 const CompanyCentralPage=page(()=>import("@/modules/crm/pages/CompanyCentralPage"),"CompanyCentralPage");
 const AgendaPage=page(()=>import("@/modules/agenda/AgendaPage"),"AgendaPage");
@@ -59,6 +60,7 @@ export function App() {
           <Route path="assinatura-suspensa" element={<SubscriptionBlockedPage />} />
           <Route element={<TenantSubscriptionRoute />}>
           <Route index element={<PermissionRoute permission="dashboard.view"><DashboardPage /></PermissionRoute>} />
+          <Route path="whatsapp" element={<PermissionRoute permission="crm.view"><WhatsAppInboxPage /></PermissionRoute>} />
           <Route path="crm" element={<PermissionRoute permission="crm.view"><CrmPage /></PermissionRoute>} />
           <Route path="crm/empresas/:id" element={<PermissionRoute permission="crm.view"><CompanyCentralPage /></PermissionRoute>} />
           <Route path="crm/companies/:id" element={<PermissionRoute permission="crm.view"><CompanyCentralPage /></PermissionRoute>} />
