@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Building2,
@@ -829,9 +829,51 @@ function OpportunityKanban({
   onOpen: (opportunity: Opportunity) => void;
 }) {
   const [dragging, setDragging] = useState<Opportunity>();
+  const kanbanScrollRef = useRef<HTMLDivElement>(null);
+  const stickyScrollRef = useRef<HTMLDivElement>(null);
+  const [kanbanScrollSize, setKanbanScrollSize] = useState({
+    content: 0,
+    viewport: 0,
+  });
+
+  useEffect(() => {
+    const kanban = kanbanScrollRef.current;
+    if (!kanban) return;
+
+    const updateScrollWidth = () =>
+      setKanbanScrollSize({
+        content: kanban.scrollWidth,
+        viewport: kanban.clientWidth,
+      });
+    updateScrollWidth();
+
+    const observer = new ResizeObserver(updateScrollWidth);
+    observer.observe(kanban);
+    for (const column of kanban.children) observer.observe(column);
+
+    return () => observer.disconnect();
+  }, [stages]);
+
+  const syncHorizontalScroll = (
+    source: HTMLDivElement,
+    target: HTMLDivElement | null,
+  ) => {
+    if (target && Math.abs(target.scrollLeft - source.scrollLeft) > 1) {
+      target.scrollLeft = source.scrollLeft;
+    }
+  };
+
   return (
-    <div aria-label="Pipeline por etapas" className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-5 md:mx-0 md:snap-none md:px-0">
-      {[...stages]
+    <div className="relative">
+      <div
+        ref={kanbanScrollRef}
+        aria-label="Pipeline por etapas"
+        className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-5 md:mx-0 md:snap-none md:px-0 md:pb-6 md:[scrollbar-width:none] md:[&::-webkit-scrollbar]:hidden"
+        onScroll={(event) =>
+          syncHorizontalScroll(event.currentTarget, stickyScrollRef.current)
+        }
+      >
+        {[...stages]
         .sort((a, b) => a.position - b.position)
         .map((stage) => {
           const rows = opportunities.filter(
@@ -901,6 +943,19 @@ function OpportunityKanban({
             </section>
           );
         })}
+      </div>
+      {kanbanScrollSize.content > kanbanScrollSize.viewport && (
+        <div
+          ref={stickyScrollRef}
+          aria-label="Rolagem horizontal do Kanban"
+          className="sticky bottom-0 z-20 hidden h-4 overflow-x-auto border-y border-border/50 bg-background/95 backdrop-blur md:block"
+          onScroll={(event) =>
+            syncHorizontalScroll(event.currentTarget, kanbanScrollRef.current)
+          }
+        >
+          <div style={{ width: kanbanScrollSize.content, height: 1 }} />
+        </div>
+      )}
     </div>
   );
 }
