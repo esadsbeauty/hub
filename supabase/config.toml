@@ -26,3 +26,6 @@ verify_jwt = true
 
 [functions.asaas-webhook]
 verify_jwt = false
+
+[functions.whatsapp-send-message]
+verify_jwt = true
