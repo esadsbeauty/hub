@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Drawer } from "@/shared/components/overlays/drawer";
@@ -18,6 +20,8 @@ import type {
 } from "../types";
 import { currency, daysSince, formatDateTime } from "../utils/formatters";
 import { ActivityTimeline } from "./activity-timeline";
+import { NextActionStatus } from "./next-action-status";
+import { isOpenStage, lastContactForOpportunity } from "../next-action";
 const lossReasons: {
   value: LostOpportunityFormData["reason"];
   label: string;
@@ -48,6 +52,7 @@ export function OpportunityDetails({
   onLost,
   onAddNote,
   onAddFollowUp,
+  onRescheduleNextTask,
 }: {
   opportunity?: Opportunity;
   company?: Company;
@@ -61,14 +66,18 @@ export function OpportunityDetails({
   onEdit: () => void;
   onDuplicate: () => void;
   onArchive: () => void;
-  onWon: () => void;
+  onWon: (value: number) => void;
   onLost: (data: LostOpportunityFormData) => void;
   onAddNote: () => void;
   onAddFollowUp: () => void;
+  onRescheduleNextTask: (dueAt: string) => void;
 }) {
   const [confirmWon, setConfirmWon] = useState(false);
+  const [closedValue, setClosedValue] = useState(() => opportunity?.value ? opportunity.value.toFixed(2).replace(".",",") : "");
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [lossOpen, setLossOpen] = useState(false);
+  const [nextDate,setNextDate]=useState("");
+  const [nextTime,setNextTime]=useState("");
   const {
     register,
     handleSubmit,
@@ -77,8 +86,11 @@ export function OpportunityDetails({
     resolver: zodResolver(lostOpportunitySchema),
     defaultValues: { reason: "no_response", notes: "" },
   });
+  useEffect(()=>{setClosedValue(opportunity?.value?opportunity.value.toFixed(2).replace(".",","):"");const due=nextTask?new Date(nextTask.dueAt):undefined;setNextDate(due?due.toISOString().slice(0,10):"");setNextTime(due?due.toTimeString().slice(0,5):"")},[opportunity?.id,opportunity?.value,nextTask?.id,nextTask?.dueAt]);
   if (!opportunity) return null;
   const stage = stages.find((item) => item.id === opportunity.stageId);
+  const lastContact=lastContactForOpportunity(opportunity,activities);
+  const requiresNextAction = isOpenStage(opportunity, stages);
   return (
     <>
       <Drawer open={open} title="Detalhe da oportunidade" onClose={onClose}>
@@ -117,6 +129,7 @@ export function OpportunityDetails({
           >
             {stages
               .filter((item) => item.pipelineId === opportunity.pipelineId)
+              .filter((item) => !item.isWon && !item.isLost)
               .sort((a, b) => a.position - b.position)
               .map((item) => (
                 <option key={item.id} value={item.id}>
@@ -145,10 +158,7 @@ export function OpportunityDetails({
                       ? "Perdida"
                       : "Arquivada",
               ],
-              [
-                "Próximo follow-up",
-                nextTask ? formatDateTime(nextTask.dueAt) : "Nenhum",
-              ],
+              ["Último contato",lastContact?formatDateTime(lastContact.createdAt):"Nenhum contato registrado"],
             ].map(([label, value]) => (
               <div key={label} className="border-b pb-2">
                 <dt className="text-muted-foreground">{label}</dt>
@@ -156,6 +166,8 @@ export function OpportunityDetails({
               </div>
             ))}
           </dl>
+          <NextActionStatus opportunity={opportunity} stages={stages} task={nextTask}/>
+          {requiresNextAction&&nextTask&&<div className="grid grid-cols-[1fr_1fr_auto] gap-2"><Input aria-label="Data da próxima ação" type="date" value={nextDate} onChange={event=>setNextDate(event.target.value)}/><Input aria-label="Horário da próxima ação" type="time" value={nextTime} onChange={event=>setNextTime(event.target.value)}/><Button variant="outline" disabled={!nextDate||!nextTime} onClick={()=>onRescheduleNextTask(new Date(`${nextDate}T${nextTime}`).toISOString())}>Reagendar</Button></div>}
           {opportunity.description && (
             <p className="rounded-xl bg-muted p-4 text-sm">
               {opportunity.description}
@@ -169,9 +181,11 @@ export function OpportunityDetails({
             <Button variant="outline" onClick={onEdit}>
               Editar
             </Button>
-            <Button variant="outline" onClick={onAddFollowUp}>
-              Novo follow-up
-            </Button>
+            {requiresNextAction && (
+              <Button variant="outline" onClick={onAddFollowUp}>
+                {nextTask ? "Nova próxima ação" : "Definir próxima ação"}
+              </Button>
+            )}
             <Button variant="outline" onClick={onAddNote}>
               Nova nota
             </Button>
@@ -238,15 +252,7 @@ export function OpportunityDetails({
           setConfirmArchive(false);
         }}
       />
-      <ConfirmDialog
-        open={confirmWon}
-        title={`Marcar “${opportunity.title}” como ganha por ${currency.format(opportunity.value)}?`}
-        onCancel={() => setConfirmWon(false)}
-        onConfirm={() => {
-          onWon();
-          setConfirmWon(false);
-        }}
-      />
+      {confirmWon&&<div className="fixed inset-0 z-[70] grid place-items-center bg-black/45 p-5"><form className="w-full max-w-sm rounded-2xl bg-card p-6 shadow-overlay" onSubmit={event=>{event.preventDefault();const value=Number(closedValue.replace(/\./g,"").replace(",","."));if(value>0){onWon(value);setConfirmWon(false)}}}><h2 className="text-xl font-bold">Marcar como ganha</h2><p className="mt-2 text-sm text-muted-foreground">Registre o valor efetivamente fechado para manter os indicadores sincronizados.</p><div className="mt-5"><Label htmlFor="closed-value">Valor fechado</Label><Input id="closed-value" autoFocus inputMode="decimal" placeholder="R$ 3.500,00" value={closedValue} onChange={event=>setClosedValue(event.target.value.replace(/[^\d.,]/g,""))}/></div><div className="mt-6 flex justify-end gap-2"><Button type="button" variant="outline" onClick={()=>setConfirmWon(false)}>Cancelar</Button><Button type="submit" disabled={!(Number(closedValue.replace(/\./g,"").replace(",","."))>0)}>Confirmar ganho</Button></div></form></div>}
     </>
   );
 }

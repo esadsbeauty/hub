@@ -77,7 +77,7 @@ describe("fundação pública do blog", () => {
     expect(migration).toContain("create or replace function public.save_blog_post");
     expect(migration).toContain("(storage.foldername(name))[1]=public.current_organization_id()::text");
     expect(repository).toContain('.rpc("save_blog_post"');
-    expect(repository).toContain("post_category_id:input.categoryId?.trim()||null");
+    expect(repository).toContain("post_category_ids:input.categoryIds??[]");
     expect(repository).toContain("details:error.details,hint:error.hint");
     expect(repository).toContain('`${organization.data}/covers/${crypto.randomUUID()}.${extension}`');
   });

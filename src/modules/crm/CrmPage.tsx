@@ -38,6 +38,8 @@ import { FollowUpQuickForm } from "./components/simple-forms";
 import { OpportunityForm } from "./components/opportunity-form";
 import { OpportunityDetails } from "./components/opportunity-details";
 import { MobileCrmView } from "./components/mobile-crm-view";
+import { NextActionStatus } from "./components/next-action-status";
+import { isOpenStage, lastContactForOpportunity, nextActionForOpportunity, prioritizedPendingActions } from "./next-action";
 import { useCrmActions, useCrmData } from "./hooks";
 import type { CompanyFormData } from "./schema";
 import type {
@@ -97,11 +99,12 @@ export function CrmPage() {
   const [duplicates, setDuplicates] = useState<Company[]>([]);
   const [selected, setSelected] = useState<Opportunity>();
   const [quickCompanyId, setQuickCompanyId] = useState("");
+  const [quickOpportunityId, setQuickOpportunityId] = useState("");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [mobileSortOpen, setMobileSortOpen] = useState(false);
   useEffect(() => { const requested = searchParams.get("new"); if (requested === "company" || requested === "opportunity") setModal(requested); }, [searchParams]);
   useEffect(() => { const requestedQuery = searchParams.get("q"); if (requestedQuery !== null) { setQuery(requestedQuery); sessionStorage.setItem("crm-query", requestedQuery); } }, [searchParams]);
-  const closeModal = () => { setModal(null); if (searchParams.has("new")) { const next = new URLSearchParams(searchParams); next.delete("new"); next.delete("quick"); setSearchParams(next, { replace: true }); } };
+  const closeModal = () => { setModal(null); setQuickCompanyId(""); setQuickOpportunityId(""); if (searchParams.has("new")) { const next = new URLSearchParams(searchParams); next.delete("new"); next.delete("quick"); setSearchParams(next, { replace: true }); } };
   const updateFilters = (next: CrmFilters) => {
     setFilters(next);
     sessionStorage.setItem("crm-filters", JSON.stringify(next));
@@ -207,8 +210,7 @@ export function CrmPage() {
         .filter(
           (item) =>
             item.companyId === companyId &&
-            item.status === "pending" &&
-            item.type === "follow_up",
+            item.status === "pending",
         )
         .sort((a, b) => a.dueAt.localeCompare(b.dueAt))[0];
     }
@@ -251,10 +253,10 @@ export function CrmPage() {
       .filter(
         (item) =>
           item.companyId === companyId &&
-          item.status === "pending" &&
-          item.type === "follow_up",
+          item.status === "pending",
       )
       .sort((a, b) => a.dueAt.localeCompare(b.dueAt))[0];
+  const nextAction = (opportunity: Opportunity) => nextActionForOpportunity(opportunity, tasks);
   const lastEvent = (companyId: string) =>
     events
       .filter((item) => item.companyId === companyId)
@@ -316,7 +318,8 @@ export function CrmPage() {
         onOpenOpportunity={setSelected}
         onCreateOpportunity={()=>setModal("opportunity")}
         onMoveOpportunity={(opportunity,stageId)=>actions.moveOpportunity.mutate({opportunityId:opportunity.id,stageId},{onError:()=>notify({title:"Não foi possível mover",description:"A oportunidade voltou para a etapa anterior."})})}
-        nextTask={nextTask}
+        nextTask={nextAction}
+        lastContact={(opportunity)=>lastContactForOpportunity(opportunity,events)}
       />
       <div className="hidden md:contents">
       <PageHeader
@@ -373,6 +376,7 @@ export function CrmPage() {
         />
         </div>
       </section>
+      <NextActionsOverview tasks={tasks} opportunities={opportunities} stages={data.stages} companies={companies} onOpen={setSelected}/>
       <div className="flex flex-col justify-between gap-3 sm:flex-row">
         <div className="inline-flex rounded-xl border bg-muted/50 p-1">
           <Button
@@ -540,7 +544,8 @@ export function CrmPage() {
           )}
           stages={data.stages}
           companyById={companyById}
-          nextTask={nextTask}
+          nextTask={nextAction}
+          lastContact={(opportunity)=>lastContactForOpportunity(opportunity,events)}
           onMove={(opportunity, stageId) =>
             actions.moveOpportunity.mutate(
               { opportunityId: opportunity.id, stageId },
@@ -702,10 +707,12 @@ export function CrmPage() {
               onSubmit={async (form) => {
                 await actions.createFollowUp.mutateAsync({
                   companyId: quickCompanyId,
+                  opportunityId: quickOpportunityId || undefined,
                   data: form,
                 });
                 setModal(null);
                 setQuickCompanyId("");
+                setQuickOpportunityId("");
                 notify({ title: "Follow-up criado" });
               }}
             />
@@ -722,7 +729,7 @@ export function CrmPage() {
         activities={data.events.filter(
           (event) => event.opportunityId === selected?.id,
         )}
-        nextTask={selected ? nextTask(selected.companyId) : undefined}
+        nextTask={selected ? nextAction(selected) : undefined}
         open={Boolean(selected)}
         onClose={() => setSelected(undefined)}
         onMove={(stageId) =>
@@ -744,18 +751,26 @@ export function CrmPage() {
             onSuccess: () => setSelected(undefined),
           })
         }
-        onWon={() =>
+        onWon={(value) =>
           selected &&
-          actions.markOpportunityWon.mutate(selected.id, {
+          actions.markOpportunityWon.mutate({id:selected.id,data:{value}}, {
             onSuccess: () => setSelected(undefined),
           })
         }
         onAddNote={() =>
           notify({ title: "Abra a empresa para adicionar uma nota" })
         }
-        onAddFollowUp={() =>
-          notify({ title: "Abra a empresa para criar um follow-up" })
-        }
+        onAddFollowUp={() => {
+          if (!selected) return;
+          setQuickCompanyId(selected.companyId);
+          setQuickOpportunityId(selected.id);
+          setModal("followup");
+        }}
+        onRescheduleNextTask={(dueAt) => {
+          if (!selected) return;
+          const task = nextAction(selected);
+          if (task) actions.rescheduleTask.mutate({ id: task.id, dueAt });
+        }}
         onLost={(form) =>
           selected &&
           actions.markOpportunityLost.mutate(
@@ -766,6 +781,21 @@ export function CrmPage() {
       />
     </PageContainer>
   );
+}
+
+function NextActionsOverview({tasks,opportunities,stages,companies,onOpen}:{tasks:Task[];opportunities:Opportunity[];stages:PipelineStage[];companies:Company[];onOpen:(opportunity:Opportunity)=>void}) {
+  const now=new Date();
+  const nextTasks = opportunities
+    .filter((opportunity) => isOpenStage(opportunity, stages))
+    .map((opportunity) => nextActionForOpportunity(opportunity, tasks))
+    .filter((task): task is Task => Boolean(task));
+  const pending=prioritizedPendingActions([...new Map(nextTasks.map((task) => [task.id, task])).values()],now);
+  const groups=[
+    {label:"Atrasados",items:pending.filter(task=>new Date(task.dueAt)<now)},
+    {label:"Hoje",items:pending.filter(task=>{const due=new Date(task.dueAt),end=new Date(now);end.setHours(24,0,0,0);return due>=now&&due<end})},
+    {label:"Próximos",items:pending.filter(task=>{const end=new Date(now);end.setHours(24,0,0,0);return new Date(task.dueAt)>=end})},
+  ];
+  return <section aria-label="Próximas ações" className="grid gap-3 rounded-2xl border bg-card p-4 lg:grid-cols-3">{groups.map(group=><div key={group.label}><h2 className="text-sm font-semibold">{group.label} <span className="text-muted-foreground">({group.items.length})</span></h2><div className="mt-2 space-y-2">{group.items.slice(0,3).map(task=>{const opportunity=opportunities.find(item=>item.id===task.opportunityId);const company=companies.find(item=>item.id===opportunity?.companyId);return opportunity?<button key={task.id} onClick={()=>onOpen(opportunity)} className="block min-h-12 w-full rounded-xl bg-muted/60 px-3 py-2 text-left text-sm premium-focus"><b>{company?.fantasyName??opportunity.title}</b><span className="block text-muted-foreground">{task.title} · {formatDateTime(task.dueAt)}</span></button>:null})}{!group.items.length&&<p className="py-2 text-sm text-muted-foreground">Nenhuma ação.</p>}</div></div>)}</section>;
 }
 function FilterSelect({
   value,
@@ -799,13 +829,15 @@ function OpportunityKanban({
   stages,
   companyById,
   nextTask,
+  lastContact,
   onMove,
   onOpen,
 }: {
   opportunities: Opportunity[];
   stages: PipelineStage[];
   companyById: Map<string, Company>;
-  nextTask: (companyId: string) => Task | undefined;
+  nextTask: (opportunity: Opportunity) => Task | undefined;
+  lastContact: (opportunity: Opportunity) => TimelineEvent | undefined;
   onMove: (opportunity: Opportunity, stageId: string) => void;
   onOpen: (opportunity: Opportunity) => void;
 }) {
@@ -841,7 +873,7 @@ function OpportunityKanban({
                 ) : (
                   rows.map((item) => {
                     const company = companyById.get(item.companyId);
-                    const task = nextTask(item.companyId);
+                    const task = nextTask(item);
                     return (
                       <Card
                         key={item.id}
@@ -865,14 +897,10 @@ function OpportunityKanban({
                               </p>
                               {company && <div className="flex flex-wrap justify-end gap-2"><TemperatureBadge temperature={company.temperature}/><PriorityBadge priority={company.priority}/></div>}
                             </div>
-                            <p className="mt-3 text-base text-muted-foreground md:mt-2 md:text-xs">
-                              {item.owner ?? "Sem responsável"}
-                            </p>
-                            {task && (
-                              <p className="mt-3 text-base md:mt-2 md:text-xs">
-                                Próximo: {formatDateTime(task.dueAt)}
-                              </p>
-                            )}
+                            <p className="mt-2 text-base text-muted-foreground md:text-xs">{company?.whatsapp??"WhatsApp não informado"}</p>
+                            <p className="mt-2 text-base text-muted-foreground md:text-xs">{item.owner ?? "Sem responsável"}</p>
+                            <p className="mt-2 text-xs text-muted-foreground">Último contato: {lastContact(item)?formatDateTime(lastContact(item)!.createdAt):"Nenhum registrado"}</p>
+                            <NextActionStatus opportunity={item} stages={stages} task={task} compact/>
                           </button>
                         </CardContent>
                       </Card>

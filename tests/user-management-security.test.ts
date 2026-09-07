@@ -82,7 +82,9 @@ describe("gestão segura de funcionários", () => {
   });
 
   test("membership suspensa é revalidada mesmo com sessão existente", () => {
-    expect(appState).toContain("30_000");
+    expect(appState).toContain('table:"organization_members"');
+    expect(appState).toContain('event:"*"');
+    expect(appState).not.toContain("setInterval");
     expect(appState).toContain('visibilityState === "visible"');
     expect(lifecycleMigration).toContain("m.status='active'");
   });

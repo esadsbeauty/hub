@@ -5,6 +5,7 @@ import type {
   FollowUpFormData,
   LostOpportunityFormData,
   OpportunityFormData,
+  WonOpportunityFormData,
   TaskFormData,
 } from "./schema";
 import type {
@@ -401,7 +402,7 @@ export const crmRepository = defineCrmRepository({
       source: source.source,
     });
   },
-  async moveOpportunity(opportunityId: string, stageId: string) {
+  async moveOpportunity(opportunityId: string, stageId: string, allowTerminal = false) {
     const data = read();
     const stage = data.stages.find((item) => item.id === stageId);
     const current = data.opportunities.find(
@@ -409,6 +410,8 @@ export const crmRepository = defineCrmRepository({
     );
     if (!stage || !current || stage.pipelineId !== current.pipelineId)
       throw new Error("Oportunidade ou etapa não encontrada");
+    if (!allowTerminal && (stage.isWon || stage.isLost))
+      throw new Error("Use a ação de ganho ou perda para encerrar a oportunidade.");
     if (current.stageId === stageId) return current;
     const previous = data.stages.find((item) => item.id === current.stageId);
     const changedAt = now();
@@ -459,7 +462,7 @@ export const crmRepository = defineCrmRepository({
     write(data);
     return updated;
   },
-  async markOpportunityWon(opportunityId: string) {
+  async markOpportunityWon(opportunityId: string, input: WonOpportunityFormData) {
     const data = read();
     const opportunity = data.opportunities.find(
       (item) => item.id === opportunityId,
@@ -469,7 +472,8 @@ export const crmRepository = defineCrmRepository({
       (item) => item.pipelineId === opportunity.pipelineId && item.isWon,
     );
     if (!wonStage) throw new Error("Pipeline sem etapa de ganho");
-    return this.moveOpportunity(opportunityId, wonStage.id);
+    await this.updateOpportunity(opportunityId,{value:input.value});
+    return this.moveOpportunity(opportunityId, wonStage.id, true);
   },
   async markOpportunityLost(
     opportunityId: string,
@@ -484,7 +488,7 @@ export const crmRepository = defineCrmRepository({
       (item) => item.pipelineId === opportunity.pipelineId && item.isLost,
     );
     if (!lostStage) throw new Error("Pipeline sem etapa de perda");
-    await this.moveOpportunity(opportunityId, lostStage.id);
+    await this.moveOpportunity(opportunityId, lostStage.id, true);
     const refreshed = read();
     refreshed.opportunities = refreshed.opportunities.map((item) =>
       item.id === opportunityId
@@ -851,7 +855,7 @@ export const opportunityRepository = {
   duplicate: (id: string) => crmRepository.duplicateOpportunity(id),
   move: (id: string, stageId: string) =>
     crmRepository.moveOpportunity(id, stageId),
-  markWon: (id: string) => crmRepository.markOpportunityWon(id),
+  markWon: (id: string, input: WonOpportunityFormData) => crmRepository.markOpportunityWon(id,input),
   markLost: (id: string, input: LostOpportunityFormData) =>
     crmRepository.markOpportunityLost(id, input),
   archive: crmRepository.archiveOpportunity,

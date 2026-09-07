@@ -27,18 +27,18 @@ Deno.serve(async (request) => {
 
   const { data: allowed } = await userClient.rpc("has_permission", { required_permission: "users.manage" });
   if (!allowed) return reply(403, { code: "permission_denied", message: "Você não possui permissão para gerenciar usuários." });
-  const { data: actorMembership } = await admin.from("organization_members").select("organization_id").eq("user_id", auth.user.id).eq("status", "active").limit(1).maybeSingle();
-  if (!actorMembership) return reply(403, { code: "permission_denied", message: "Você não possui permissão para gerenciar usuários." });
+  const { data: activeOrganizationId } = await userClient.rpc("current_organization_id");
+  if (!activeOrganizationId) return reply(403, { code: "active_organization_required", message: "Selecione uma organização ativa válida." });
 
   if (action === "invite") {
     const name = payload.name?.trim();
     const email = payload.email?.trim().toLowerCase();
     if (!name || !email || !emailPattern.test(email) || !payload.roleId) return reply(400, { code: "invalid_input", message: "Preencha nome, email e função." });
     const { data: role } = await admin.from("roles").select("id,slug,organization_id").eq("id", payload.roleId).maybeSingle();
-    if (!role || role.slug === "owner" || (role.organization_id && role.organization_id !== actorMembership.organization_id)) return reply(400, { code: "invalid_role", message: "Função inválida para convite." });
+    if (!role || role.slug === "owner" || (role.organization_id && role.organization_id !== activeOrganizationId)) return reply(400, { code: "invalid_role", message: "Função inválida para convite." });
     const { data: existingProfile } = await admin.from("profiles").select("id").ilike("email", email).maybeSingle();
     if (existingProfile) {
-      const { data: membership } = await admin.from("organization_members").select("id,status").eq("organization_id", actorMembership.organization_id).eq("user_id", existingProfile.id).maybeSingle();
+      const { data: membership } = await admin.from("organization_members").select("id,status").eq("organization_id", activeOrganizationId).eq("user_id", existingProfile.id).maybeSingle();
       if (membership?.status === "active") return reply(409, { code: "member_exists", message: "Este usuário já faz parte da equipe." });
       if (membership?.status === "invited") return reply(409, { code: "invite_pending", message: "Este email já possui um convite pendente." });
     }
@@ -54,7 +54,7 @@ Deno.serve(async (request) => {
 
   if (action === "resend" || action === "cancel") {
     if (!payload.memberId) return reply(400, { code: "invalid_member", message: "Usuário inválido." });
-    const { data: member } = await admin.from("organization_members").select("user_id,role_id,status,profiles!inner(email)").eq("organization_id", actorMembership.organization_id).eq("id", payload.memberId).maybeSingle();
+    const { data: member } = await admin.from("organization_members").select("user_id,role_id,status,profiles!inner(email)").eq("organization_id", activeOrganizationId).eq("id", payload.memberId).maybeSingle();
     if (!member || member.status !== "invited") return reply(409, { code: "invite_not_pending", message: "Este convite não está mais pendente." });
     const email = (member.profiles as unknown as { email: string }).email;
     if (action === "resend") {

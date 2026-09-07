@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/auth-context";
 import type { Permission, RoleSlug } from "@/shared/permissions/permissions";
 import { AppStateContext, type AppState, type Authorization } from "./app-state-context";
+import { useQueryClient } from "@tanstack/react-query";
 
 const denied: Authorization = { organizationId: "", organizationName: "", role: "reader", permissions: [], status: "unlinked" };
 export function SupabaseAppStateProvider({ children }: { children: React.ReactNode }) {
@@ -10,6 +11,7 @@ export function SupabaseAppStateProvider({ children }: { children: React.ReactNo
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [authorization, setAuthorization] = useState<Authorization>(denied);
   const [authorizationLoading, setAuthorizationLoading] = useState(true);
+  const queryClient = useQueryClient();
   useEffect(() => {
     if (authLoading) return;
     if (!supabase || !user) { setAuthorization(denied); setAuthorizationLoading(false); return; }
@@ -20,11 +22,11 @@ export function SupabaseAppStateProvider({ children }: { children: React.ReactNo
       setAuthorizationLoading(false);
     });
     void loadAuthorization();
-    const interval = window.setInterval(() => void loadAuthorization(), 30_000);
+    const membershipChannel=client.channel(`authorization:${user.id}`).on("postgres_changes",{event:"*",schema:"public",table:"organization_members",filter:`user_id=eq.${user.id}`},()=>void loadAuthorization()).subscribe();
     const onVisibility = () => { if (document.visibilityState === "visible") void loadAuthorization(); };
     document.addEventListener("visibilitychange", onVisibility);
-    return () => { window.clearInterval(interval); document.removeEventListener("visibilitychange", onVisibility); };
+    return () => {document.removeEventListener("visibilitychange", onVisibility);void client.removeChannel(membershipChannel);};
   }, [authLoading, user?.id]);
-  const value = useMemo<AppState>(() => { const isAdministrator = authorization.status === "active" && (authorization.role === "owner" || authorization.role === "admin"); const can = (key: Permission) => isAdministrator || authorization.permissions.includes(key); return ({ ...authorization, authorizationLoading, theme, setTheme, can, canAny: (keys) => keys.some(can), canAll: (keys) => keys.every(can) }); }, [authorization, authorizationLoading, theme]);
+  const value = useMemo<AppState>(() => { const isAdministrator = authorization.status === "active" && (authorization.role === "owner" || authorization.role === "admin"); const can = (key: Permission) => isAdministrator || authorization.permissions.includes(key); const setActiveOrganization=async(organizationId:string)=>{if(!supabase)throw new Error("Supabase indisponível");const{error}=await supabase.rpc("set_active_organization",{target_organization_id:organizationId});if(error)throw error;queryClient.clear();setAuthorizationLoading(true);const{data,error:authorizationError}=await supabase.rpc("current_authorization");if(authorizationError||!data)throw authorizationError??new Error("Organização ativa inválida");const current=data as unknown as {organization_id:string;organization_name:string;role:RoleSlug;status:Authorization["status"];permissions:Permission[]};setAuthorization({organizationId:current.organization_id,organizationName:current.organization_name,role:current.role,status:current.status,permissions:current.status==="active"?current.permissions:[]});setAuthorizationLoading(false);};return ({ ...authorization, authorizationLoading, theme, setTheme, setActiveOrganization, can, canAny: (keys) => keys.some(can), canAll: (keys) => keys.every(can) }); }, [authorization, authorizationLoading, theme, queryClient]);
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;
 }

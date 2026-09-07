@@ -2,6 +2,7 @@ import { useState } from "react";
 import { BarChart3, BookOpen, Calendar, ClipboardCheck, Handshake, Home, Menu, Megaphone, Plus, Settings, UserPlus, Users, Wallet } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
 import { useAppState } from "@/shared/state/app-state-context";
+import { BrandLogo } from "@/shared/components/brand/brand-logo";
 
 const navigation = [
   { to: "/", label: "Início", icon: Home, permission: "dashboard.view" as const },
@@ -45,7 +46,7 @@ export function MobileNavigation() {
     {sheet && <div className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[2px] lg:hidden" onClick={() => setSheet(null)}>
       <section role="dialog" aria-modal="true" aria-label={sheet === "new" ? "Ações rápidas" : "Mais opções"} className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-auto rounded-t-[2rem] bg-card px-5 pt-3 shadow-overlay pb-[max(1.5rem,env(safe-area-inset-bottom))]" onClick={(event) => event.stopPropagation()}>
         <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-border"/>
-        <p className="text-xs font-semibold uppercase tracking-[.18em] text-muted-foreground">ESADS Beauty</p>
+        <BrandLogo compact/>
         <h2 className="mt-1 text-2xl font-semibold tracking-[-.035em]">{sheet === "new" ? "O que deseja criar?" : "Mais opções"}</h2>
         <div className="mt-5 grid gap-2">
           {sheet === "new" ? actions.map(({label, detail, to, icon: Icon}) => <Link onClick={() => setSheet(null)} className="flex min-h-[4.5rem] items-center gap-4 rounded-2xl border border-border/60 px-4 py-3 premium-focus active:bg-muted" key={to} to={to}><span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-champagne-soft"><Icon size={23}/></span><span><b className="block text-[17px]">{label}</b><span className="text-[15px] leading-5 text-muted-foreground">{detail}</span></span></Link>) : more.filter((item) => can(item.permission)).map(({to,label,icon:Icon}) => <Link onClick={() => setSheet(null)} className="flex min-h-16 items-center gap-4 rounded-2xl px-3 text-[17px] font-semibold premium-focus active:bg-muted" key={to} to={to}><Icon size={24}/>{label}</Link>)}
