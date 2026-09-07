@@ -8,11 +8,12 @@ import { MetricCard } from "@/shared/components/data-display/metric-card";
 import { PriorityBadge, TemperatureBadge } from "@/shared/components/data-display/status-badges";
 import { SearchInput } from "@/shared/components/forms/search-input";
 import { Modal } from "@/shared/components/overlays/modal";
-import type { Company, CompanyContact, Opportunity, PipelineStage, Task } from "../types";
+import type { Company, CompanyContact, Opportunity, PipelineStage, Task, TimelineEvent } from "../types";
 import type { CrmFilters, CrmSort } from "../CrmPage";
 import { currency, formatDateTime } from "../utils/formatters";
 import { contactWhatsappUrl } from "../utils/contact-links";
 import { crmTerminology, type BusinessMode } from "../business-mode";
+import { NextActionStatus } from "./next-action-status";
 
 type Props = {
   businessMode: BusinessMode;
@@ -32,7 +33,8 @@ type Props = {
   onOpenOpportunity: (opportunity: Opportunity) => void;
   onCreateOpportunity: () => void;
   onMoveOpportunity: (opportunity: Opportunity, stageId: string) => void;
-  nextTask: (companyId: string, opportunityId?: string) => Task | undefined;
+  nextTask: (opportunity: Opportunity) => Task | undefined;
+  lastContact: (opportunity: Opportunity) => TimelineEvent | undefined;
 };
 
 const emptyFilters: CrmFilters = {owner:"all",source:"all",temperature:"all",priority:"all",state:"all",openOpportunity:"all",overdue:"all",activity:"all",created:"all"};
@@ -69,28 +71,120 @@ function MobileMetric({label,value,hint}:{label:string;value:number;hint:string}
 
 const sortLabel:Record<CrmSort,string>={newest:"Mais recentes",oldest:"Mais antigos",name:"Nome",activity:"Última atividade",followup:"Próximo follow-up",priority:"Prioridade"};
 
-function MobileCompanyList(props:Props){const b2c=props.businessMode==="b2c";return <section className="grid gap-3" aria-label={`${crmTerminology(props.businessMode).companies} em lista`}>{props.companies.map(company=>{const contact=props.contacts.find(item=>item.companyId===company.id&&item.isPrimary);const task=props.nextTask(company.id);return <button key={company.id} onClick={()=>props.onOpenCompany(company)} className="rounded-[1.25rem] bg-card p-4 text-left shadow-soft premium-focus"><div className="flex items-start justify-between gap-3"><div><h2 className="text-xl font-semibold tracking-[-.025em]">{company.fantasyName}</h2><p className="mt-1 text-sm text-muted-foreground">{b2c?(company.businessArea??"Interesse não informado"):(contact?.name??"Sem contato principal")}</p></div><span className="rounded-full bg-muted px-3 py-1.5 text-sm font-semibold">{props.opportunities.filter(item=>item.companyId===company.id&&item.status==="open").length} abertas</span></div><div className="mt-3 flex flex-wrap gap-2"><TemperatureBadge temperature={company.temperature}/><PriorityBadge priority={company.priority}/></div><div className="mt-4 border-t pt-3 text-base"><p>{company.whatsapp??company.phone??"Contato não informado"}</p><p className="mt-2 text-muted-foreground">Próximo passo: {task?formatDateTime(task.dueAt):"Nenhum"}</p></div></button>})}</section>}
+function MobileCompanyList(props:Props){
+  const b2c=props.businessMode==="b2c";
+  return <section className="grid gap-3" aria-label={`${crmTerminology(props.businessMode).companies} em lista`}>
+    {props.companies.map(company=>{
+      const contact=props.contacts.find(item=>item.companyId===company.id&&item.isPrimary);
+      const companyOpportunities=props.opportunities.filter(item=>item.companyId===company.id&&item.status==="open");
+      const task=companyOpportunities
+        .map(props.nextTask)
+        .filter((item):item is Task=>Boolean(item))
+        .sort((a,b)=>a.dueAt.localeCompare(b.dueAt))[0];
+
+      return <button key={company.id} onClick={()=>props.onOpenCompany(company)} className="rounded-[1.25rem] bg-card p-4 text-left shadow-soft premium-focus">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold tracking-[-.025em]">{company.fantasyName}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {b2c?(company.businessArea??"Interesse não informado"):(contact?.name??"Sem contato principal")}
+            </p>
+          </div>
+          <span className="rounded-full bg-muted px-3 py-1.5 text-sm font-semibold">{companyOpportunities.length} abertas</span>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <TemperatureBadge temperature={company.temperature}/>
+          <PriorityBadge priority={company.priority}/>
+        </div>
+        <div className="mt-4 border-t pt-3 text-base">
+          <p>{company.whatsapp??company.phone??"Contato não informado"}</p>
+          <p className="mt-2 text-muted-foreground">Próximo passo: {task?formatDateTime(task.dueAt):"Nenhum"}</p>
+        </div>
+      </button>
+    })}
+  </section>
+}
 
 function MobileKanban({stageFilter,...props}:Props&{stageFilter:string}){
- const ordered=useMemo(()=>[...props.stages].sort((a,b)=>a.position-b.position),[props.stages]);const visible=useMemo(()=>stageFilter==="all"?ordered:ordered.filter(item=>item.id===stageFilter),[ordered,stageFilter]);const[first,setFirst]=useState(visible[0]?.id??ordered[0]?.id??"");useEffect(()=>{if(visible.length&&!visible.some(item=>item.id===first))setFirst(visible[0].id)},[stageFilter,first,visible]);const[moving,setMoving]=useState<Opportunity>();
+ const ordered=useMemo(()=>[...props.stages].sort((a,b)=>a.position-b.position),[props.stages]);
+ const visible=useMemo(()=>stageFilter==="all"?ordered:ordered.filter(item=>item.id===stageFilter),[ordered,stageFilter]);
+ const[first,setFirst]=useState(visible[0]?.id??ordered[0]?.id??"");
+ useEffect(()=>{if(visible.length&&!visible.some(item=>item.id===first))setFirst(visible[0].id)},[stageFilter,first,visible]);
+ const[moving,setMoving]=useState<Opportunity>();
  const jump=(stageId:string)=>{setFirst(stageId);document.getElementById(`mobile-stage-${stageId}`)?.scrollIntoView({behavior:"smooth",inline:"center",block:"nearest"})};
- return <section className="space-y-3"><div className="rounded-2xl bg-card p-4 shadow-soft"><div className="flex items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[.12em] text-muted-foreground">Etapa do pipeline</p><p className="mt-1 text-base font-semibold">{ordered.find(item=>item.id===first)?.name??"Pipeline"}</p></div><span className="text-sm text-muted-foreground">{Math.max(1,visible.findIndex(item=>item.id===first)+1)} de {visible.length}</span></div><Select className="mt-2" aria-label="Ir para etapa" value={first} onChange={event=>jump(event.target.value)}>{visible.map(stage=><option key={stage.id} value={stage.id}>{stage.name}</option>)}</Select></div><div className="-mx-4 flex min-[430px]:-mx-5 snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-4 min-[430px]:px-5 pb-5" aria-label="Pipeline por etapas">{visible.map((stage,index)=>{const rows=props.opportunities.filter(item=>item.stageId===stage.id);return <section id={`mobile-stage-${stage.id}`} key={stage.id} onFocus={()=>setFirst(stage.id)} className="min-w-[86vw] max-w-[24rem] snap-center rounded-[1.5rem] bg-muted/55 p-4"><header className="mb-4 border-b pb-3"><div className="flex items-start justify-between gap-3"><div><h2 className="text-xl font-semibold">{stage.name}</h2><p className="mt-1 text-sm text-muted-foreground">{rows.length} {rows.length===1?"oportunidade":"oportunidades"} · etapa {index+1}</p></div><span className="rounded-full bg-card px-3 py-1.5 text-base font-semibold shadow-soft">{rows.length}</span></div><p className="mt-2.5 text-lg font-semibold">{currency.format(rows.reduce((sum,item)=>sum+item.value,0))}</p></header><div className="space-y-3">{rows.length?rows.map(item=><MobileOpportunityCard key={item.id} item={item} stage={stage} company={props.companies.find(company=>company.id===item.companyId)} contact={props.contacts.find(contact=>contact.companyId===item.companyId&&contact.isPrimary&&!contact.deletedAt)??props.contacts.find(contact=>contact.companyId===item.companyId&&!contact.deletedAt)} task={props.nextTask(item.companyId,item.id)} open={()=>props.onOpenOpportunity(item)} move={()=>setMoving(item)}/>):<div className="rounded-2xl border border-dashed bg-card/70 p-6 text-center"><p className="text-lg font-semibold">Nenhuma oportunidade nesta etapa</p><p className="mt-2 text-base text-muted-foreground">Crie uma oportunidade ou mova uma negociação para cá.</p><Button className="mt-5 w-full" onClick={props.onCreateOpportunity}>+ Criar oportunidade</Button></div>}</div></section>})}</div><Modal open={Boolean(moving)} title="Mover etapa" onClose={()=>setMoving(undefined)}>{moving&&<div className="grid gap-3">{ordered.map(stage=><button key={stage.id} onClick={()=>{props.onMoveOpportunity(moving,stage.id);setMoving(undefined)}} className="flex min-h-16 items-center justify-between rounded-2xl border px-5 text-left text-base font-semibold premium-focus"><span>{stage.name}</span>{stage.id===moving.stageId&&<span className="text-sm text-muted-foreground">Atual</span>}</button>)}</div>}</Modal></section>;
+
+ return <section className="space-y-3">
+   <div className="rounded-2xl bg-card p-4 shadow-soft">
+     <div className="flex items-center justify-between gap-3">
+       <div>
+         <p className="text-xs font-semibold uppercase tracking-[.12em] text-muted-foreground">Etapa do pipeline</p>
+         <p className="mt-1 text-base font-semibold">{ordered.find(item=>item.id===first)?.name??"Pipeline"}</p>
+       </div>
+       <span className="text-sm text-muted-foreground">{Math.max(1,visible.findIndex(item=>item.id===first)+1)} de {visible.length}</span>
+     </div>
+     <Select className="mt-2" aria-label="Ir para etapa" value={first} onChange={event=>jump(event.target.value)}>
+       {visible.map(stage=><option key={stage.id} value={stage.id}>{stage.name}</option>)}
+     </Select>
+   </div>
+
+   <div className="-mx-4 flex min-[430px]:-mx-5 snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-4 min-[430px]:px-5 pb-5" aria-label="Pipeline por etapas">
+     {visible.map((stage,index)=>{
+       const rows=props.opportunities.filter(item=>item.stageId===stage.id);
+       return <section id={`mobile-stage-${stage.id}`} key={stage.id} onFocus={()=>setFirst(stage.id)} className="min-w-[86vw] max-w-[24rem] snap-center rounded-[1.5rem] bg-muted/55 p-4">
+         <header className="mb-4 border-b pb-3">
+           <div className="flex items-start justify-between gap-3">
+             <div>
+               <h2 className="text-xl font-semibold">{stage.name}</h2>
+               <p className="mt-1 text-sm text-muted-foreground">{rows.length} {rows.length===1?"oportunidade":"oportunidades"} · etapa {index+1}</p>
+             </div>
+             <span className="rounded-full bg-card px-3 py-1.5 text-base font-semibold shadow-soft">{rows.length}</span>
+           </div>
+           <p className="mt-2.5 text-lg font-semibold">{currency.format(rows.reduce((sum,item)=>sum+item.value,0))}</p>
+         </header>
+
+         <div className="space-y-3">
+           {rows.length?rows.map(item=><MobileOpportunityCard
+             key={item.id}
+             item={item}
+             company={props.companies.find(company=>company.id===item.companyId)}
+             contact={props.contacts.find(contact=>contact.companyId===item.companyId&&contact.isPrimary&&!contact.deletedAt)??props.contacts.find(contact=>contact.companyId===item.companyId&&!contact.deletedAt)}
+             task={props.nextTask(item)}
+             lastContact={props.lastContact(item)}
+             stages={props.stages}
+             open={()=>props.onOpenOpportunity(item)}
+             move={()=>setMoving(item)}
+           />):<div className="rounded-2xl border border-dashed bg-card/70 p-6 text-center">
+             <p className="text-lg font-semibold">Nenhuma oportunidade nesta etapa</p>
+             <p className="mt-2 text-base text-muted-foreground">Crie uma oportunidade ou mova uma negociação para cá.</p>
+             <Button className="mt-5 w-full" onClick={props.onCreateOpportunity}>+ Criar oportunidade</Button>
+           </div>}
+         </div>
+       </section>
+     })}
+   </div>
+
+   <Modal open={Boolean(moving)} title="Mover etapa" onClose={()=>setMoving(undefined)}>
+     {moving&&<div className="grid gap-3">{ordered.map(stage=><button key={stage.id} onClick={()=>{props.onMoveOpportunity(moving,stage.id);setMoving(undefined)}} className="flex min-h-16 items-center justify-between rounded-2xl border px-5 text-left text-base font-semibold premium-focus"><span>{stage.name}</span>{stage.id===moving.stageId&&<span className="text-sm text-muted-foreground">Atual</span>}</button>)}</div>}
+   </Modal>
+ </section>;
 }
 
 function MobileOpportunityCard({
   item,
-  stage,
   company,
   contact,
   task,
+  lastContact,
+  stages,
   open,
   move,
 }: {
   item: Opportunity;
-  stage: PipelineStage;
   company?: Company;
   contact?: CompanyContact;
   task?: Task;
+  lastContact?: TimelineEvent;
+  stages: PipelineStage[];
   open: () => void;
   move: () => void;
 }) {
@@ -101,7 +195,6 @@ function MobileOpportunityCard({
     company?.phone;
 
   const whatsapp = contactWhatsappUrl(phone);
-
   const leadName =
     contact?.name ??
     company?.responsibleName ??
@@ -123,9 +216,7 @@ function MobileOpportunityCard({
           )}
 
           {phone && (
-            <p className="mt-2 text-[15px] font-medium">
-              {phone}
-            </p>
+            <p className="mt-2 text-[15px] font-medium">{phone}</p>
           )}
 
           {item.owner && (
@@ -134,16 +225,11 @@ function MobileOpportunityCard({
             </p>
           )}
 
-          {task && !stage.isWon && !stage.isLost && (
-            <div className="mt-3 rounded-xl border border-champagne/50 bg-champagne-soft/60 p-3 text-sm">
-              <p className="font-semibold">
-                Próxima ação: {task.title || "Follow-up"}
-              </p>
-              <p className="mt-1 text-muted-foreground">
-                {formatDateTime(task.dueAt)}
-              </p>
-            </div>
-          )}
+          <p className="mt-2 text-sm text-muted-foreground">
+            Último contato: {lastContact ? formatDateTime(lastContact.createdAt) : "Nenhum registrado"}
+          </p>
+
+          <NextActionStatus opportunity={item} stages={stages} task={task}/>
         </button>
 
         <div className="mt-3 grid grid-cols-3 gap-2 border-t pt-3">
@@ -155,14 +241,14 @@ function MobileOpportunityCard({
               target="_blank"
               rel="noreferrer"
             >
-              <MessageCircle size={21} />
+              <MessageCircle size={21}/>
             </a>
           ) : (
             <span
               aria-label="WhatsApp não informado"
               className="grid min-h-12 place-items-center rounded-xl bg-muted text-muted-foreground opacity-50"
             >
-              <MessageCircle size={21} />
+              <MessageCircle size={21}/>
             </span>
           )}
 
@@ -171,14 +257,14 @@ function MobileOpportunityCard({
             className="grid min-h-12 place-items-center rounded-xl bg-muted premium-focus"
             onClick={open}
           >
-            <CalendarPlus size={21} />
+            <CalendarPlus size={21}/>
           </button>
 
           <button
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground premium-focus"
             onClick={move}
           >
-            <MoveRight size={19} />
+            <MoveRight size={19}/>
             Mover
           </button>
         </div>
