@@ -405,8 +405,7 @@ export function CompanyCentralPage() {
             .filter(
               (item) =>
                 item.opportunityId === selected?.id &&
-                item.status === "pending" &&
-                item.type === "follow_up",
+                item.status === "pending",
             )
             .sort((a, b) => a.dueAt.localeCompare(b.dueAt))[0]
         }
@@ -449,6 +448,10 @@ export function CompanyCentralPage() {
         }
         onAddNote={() => setModal("note")}
         onAddFollowUp={() => setModal("followup")}
+        onRescheduleNextTask={(dueAt) => {
+          const task=related.tasks.filter(item=>item.opportunityId===selected?.id&&item.status==="pending").sort((a,b)=>a.dueAt.localeCompare(b.dueAt))[0];
+          if(task)actions.rescheduleTask.mutate({id:task.id,dueAt},{onSuccess:()=>success("Próxima ação reagendada")});
+        }}
         onLost={(form) =>
           selected &&
           actions.markOpportunityLost.mutate(
