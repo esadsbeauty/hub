@@ -25,7 +25,14 @@ export type Database = {
       whatsapp_connections: Table<Base & { phone_number_id:string;waba_id:string;display_phone_number:string;status:string }>;
       whatsapp_conversations: Table<Base & { connection_id:string;company_id:string|null;contact_id:string|null;opportunity_id:string|null;wa_id:string;contact_name:string|null;status:string;assigned_user_id:string|null;last_message_at:string|null }>;
       whatsapp_messages: Table<Omit<Base,"updated_at"> & { conversation_id:string;external_message_id:string;direction:"inbound"|"outbound";message_type:string;text_body:string|null;message_timestamp:string|null;raw_payload:Json }>;
-      organizations: Table<
+      organization_services: Table<
+        Base & {
+          name: string;
+          default_price: number | null;
+          is_active: boolean;
+          position: number;
+        }
+      >;      organizations: Table<
         Omit<Base, "organization_id"> & {
           name: string;
           slug: string;
