@@ -98,7 +98,7 @@ export function ChatPanel({
   };
 
   return (
-    <section className="flex min-h-0 flex-col bg-background">
+    <section className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
       <header className="flex min-h-16 items-center gap-3 border-b bg-card px-3 md:px-5">
         <button
           onClick={onBack}
