@@ -54,7 +54,7 @@ Deno.serve(async (request) => {
       ? requestOrigin
       : productionOrigin || "null",
     "Access-Control-Allow-Headers":
-      "authorization, apikey, content-type",
+      "authorization, apikey, content-type, x-client-info, x-supabase-api-version",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Content-Type": "application/json",
   };
