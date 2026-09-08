@@ -71,7 +71,7 @@ export function CompanyForm({
     defaultValues: toFormValues(company),
   });
 
-  const terms=crmTerminology(businessMode),b2c=businessMode==="b2c";
+  const terms=crmTerminology(businessMode),b2c=(businessMode==="b2c"||businessMode==="b2c_beauty");
   return (
     <form onSubmit={handleSubmit(data=>onSubmit(b2c?{...data,responsibleName:data.fantasyName}:data))} className="space-y-6 md:space-y-5"><p className="text-[15px] leading-6 text-muted-foreground md:hidden">Cadastre o essencial agora. Você poderá completar os dados depois.</p>
       <div className="grid gap-4 md:grid-cols-2 md:gap-3">

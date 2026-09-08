@@ -53,7 +53,7 @@ import type {
 } from "./types";
 import { currency, formatDateTime } from "./utils/formatters";
 import { contactWhatsappUrl } from "./utils/contact-links";
-import { crmTerminology, useBusinessMode } from "./business-mode";
+import { crmTerminology, isB2CMode, useBusinessMode } from "./business-mode";
 type View = "kanban" | "list";
 export type CrmSort = "newest" | "oldest" | "name" | "activity" | "followup" | "priority";
 export type CrmFilters = {
@@ -83,7 +83,7 @@ export function CrmPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { data, isLoading, isError, refetch } = useCrmData();
   const actions = useCrmActions();
-  const businessModeQuery=useBusinessMode();const businessMode=businessModeQuery.data??"b2b";const terms=crmTerminology(businessMode);const b2c=businessMode==="b2c";
+  const businessModeQuery=useBusinessMode();const businessMode=businessModeQuery.data??"b2b";const terms=crmTerminology(businessMode);const b2c=isB2CMode(businessMode);
   const { notify } = useToast();
   const [query, setQuery] = useState(
     () => searchParams.get("q") ?? sessionStorage.getItem("crm-query") ?? "",
@@ -248,6 +248,17 @@ export function CrmPage() {
         <ErrorState retry={() => refetch()} />
       </PageContainer>
     );
+  const defaultPipeline =
+    data.pipelines.find((item) => item.isDefault) ?? data.pipelines[0];
+
+  const crmStages = defaultPipeline
+    ? data.stages.filter(
+        (stage) =>
+          stage.pipelineId === defaultPipeline.id &&
+          stage.isActive !== false,
+      )
+    : data.stages.filter((stage) => stage.isActive !== false);
+
   const companyById = new Map<string, Company>(
     companies.map((item) => [item.id, item]),
   );
@@ -312,7 +323,7 @@ export function CrmPage() {
         contacts={contacts}
         opportunities={opportunities.filter((item)=>filtered.some((company)=>company.id===item.companyId))}
         tasks={tasks}
-        stages={data.stages}
+        stages={crmStages}
         query={query}
         filters={filters}
         sort={sort}
@@ -382,7 +393,7 @@ export function CrmPage() {
         />
         </div>
       </section>
-      <NextActionsOverview tasks={tasks} opportunities={opportunities} stages={data.stages} companies={companies} onOpen={setSelected}/>
+      <NextActionsOverview tasks={tasks} opportunities={opportunities} stages={crmStages} companies={companies} onOpen={setSelected}/>
       <div className="flex flex-col justify-between gap-3 sm:flex-row">
         <div className="inline-flex rounded-xl border bg-muted/50 p-1">
           <Button
@@ -549,7 +560,7 @@ export function CrmPage() {
           opportunities={opportunities.filter((item) =>
             filtered.some((company) => company.id === item.companyId),
           )}
-          stages={data.stages}
+          stages={crmStages}
           companyById={companyById}
           contacts={contacts}
           nextTask={nextAction}
@@ -686,7 +697,7 @@ export function CrmPage() {
         <OpportunityForm
           companies={companies}
           pipelines={data.pipelines}
-          stages={data.stages}
+          stages={crmStages}
           onCancel={closeModal}
           onSubmit={async (form) => {
             await actions.createOpportunity.mutateAsync(form);
@@ -737,7 +748,7 @@ export function CrmPage() {
         pipeline={data.pipelines.find(
           (item) => item.id === selected?.pipelineId,
         )}
-        stages={data.stages}
+        stages={crmStages}
         activities={data.events.filter(
           (event) => event.opportunityId === selected?.id,
         )}

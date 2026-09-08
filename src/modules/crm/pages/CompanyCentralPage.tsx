@@ -44,7 +44,7 @@ const tabs: { value: Tab; label: string }[] = [
 ];
 export function CompanyCentralPage() {
   const { id = "" } = useParams();
-  const businessMode=useBusinessMode().data??"b2b",b2c=businessMode==="b2c",terms=crmTerminology(businessMode);
+  const businessMode=useBusinessMode().data??"b2b",b2c=(businessMode==="b2c"||businessMode==="b2c_beauty"),terms=crmTerminology(businessMode);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { data, isLoading } = useCrmData();

@@ -32,7 +32,7 @@ export type Database = {
           timezone: string;
           currency: string;
           locale: string;
-          business_mode: "b2c" | "b2b";
+          business_mode: "b2c" | "b2b" | "b2c_beauty";
         }
       >;
       profiles: Table<
@@ -231,8 +231,14 @@ export type Database = {
       save_blog_post: { Args: { post_id: string | null; post_title: string; post_slug: string; post_excerpt: string; post_content: string; post_cover_image_path: string | null; post_category_id: string | null; post_seo_title: string | null; post_seo_description: string | null }; Returns: string };
       set_blog_post_status: { Args: { post_id: string; next_status: string }; Returns: undefined };
       current_organization_id: { Args: Record<string, never>; Returns: string };
-      current_business_mode: { Args: Record<string, never>; Returns: "b2c" | "b2b" };
-      update_organization_business_mode: { Args: { next_mode: "b2c" | "b2b" }; Returns: "b2c" | "b2b" };
+      current_business_mode: {
+        Args: Record<string, never>;
+        Returns: "b2c" | "b2b" | "b2c_beauty";
+      };
+      update_organization_business_mode: {
+        Args: { next_mode: "b2c" | "b2b" | "b2c_beauty" };
+        Returns: "b2c" | "b2b" | "b2c_beauty";
+      };
       current_user_profile: { Args: Record<string, never>; Returns: Json };
       update_own_profile: { Args: { profile_name: string; next_avatar_path: string | null }; Returns: Json };
       base_organization_id: { Args: Record<string, never>; Returns: string };

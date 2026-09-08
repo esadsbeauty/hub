@@ -44,7 +44,7 @@ export function MobileCrmView(props: Props) {
   const [filterSheet,setFilterSheet]=useState(false);
   const [sortSheet,setSortSheet]=useState(false);
   const [stageFilter,setStageFilter]=useState("all");
-  const clients=props.companies.filter(item=>item.lifecycleStage==="customer").length,terms=crmTerminology(props.businessMode),b2c=props.businessMode==="b2c";
+  const clients=props.companies.filter(item=>item.lifecycleStage==="customer").length,terms=crmTerminology(props.businessMode),b2c=(props.businessMode==="b2c"||props.businessMode==="b2c_beauty");
   return <div className="space-y-6 md:hidden">
     <header><p className="text-[15px] font-medium text-muted-foreground">Gestão comercial</p><h1 className="mt-1 text-[2rem] font-bold leading-none tracking-[-.055em]">CRM</h1><p className="mt-2 text-base leading-6 text-muted-foreground">{b2c?"Leads, clientes e próximos passos.":"Empresas, oportunidades e próximos passos."}</p></header>
     <section aria-label="Indicadores do CRM" className="-mx-4 flex min-[430px]:-mx-5 snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-4 min-[430px]:px-5 pb-2">
@@ -72,7 +72,7 @@ function MobileMetric({label,value,hint}:{label:string;value:number;hint:string}
 const sortLabel:Record<CrmSort,string>={newest:"Mais recentes",oldest:"Mais antigos",name:"Nome",activity:"Última atividade",followup:"Próximo follow-up",priority:"Prioridade"};
 
 function MobileCompanyList(props:Props){
-  const b2c=props.businessMode==="b2c";
+  const b2c=(props.businessMode==="b2c"||props.businessMode==="b2c_beauty");
   return <section className="grid gap-3" aria-label={`${crmTerminology(props.businessMode).companies} em lista`}>
     {props.companies.map(company=>{
       const contact=props.contacts.find(item=>item.companyId===company.id&&item.isPrimary);

@@ -40,7 +40,7 @@ type Props = {
 
 export function OpportunityDetails(props: Props) {
   const { opportunity, company, contact, pipeline, stages, nextTask, activities } = props;
-  const businessMode=props.businessMode??"b2b",b2c=businessMode==="b2c",terms=crmTerminology(businessMode);
+  const businessMode=props.businessMode??"b2b",b2c=(businessMode==="b2c"||businessMode==="b2c_beauty"),terms=crmTerminology(businessMode);
   const [confirmWon,setConfirmWon]=useState(false),[confirmArchive,setConfirmArchive]=useState(false),[lossOpen,setLossOpen]=useState(false);
   const [note,setNote]=useState(""),[savingNote,setSavingNote]=useState(false),[rescheduling,setRescheduling]=useState(false),[newDueAt,setNewDueAt]=useState("");
   const [proposalValue,setProposalValue]=useState(opportunity?.value??0),[savingValue,setSavingValue]=useState(false);

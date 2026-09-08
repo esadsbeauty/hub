@@ -4,18 +4,37 @@ import { supabase } from "@/lib/supabase";
 import { useAppState } from "@/shared/state/app-state-context";
 import type { BusinessMode } from "./business-mode-model";
 
-export { crmTerminology, type BusinessMode } from "./business-mode-model";
-export const businessModeKey = (organizationId: string) => ["organization", organizationId, "business-mode"] as const;
+export {
+  crmTerminology,
+  isB2CMode,
+  isBeautyMode,
+  type BusinessMode,
+} from "./business-mode-model";
+
+export const businessModeKey = (organizationId: string) =>
+  ["organization", organizationId, "business-mode"] as const;
+
+function normalizeBusinessMode(value: unknown): BusinessMode {
+  if (value === "b2c") return "b2c";
+  if (value === "b2c_beauty") return "b2c_beauty";
+  return "b2b";
+}
 
 export function useBusinessMode() {
   const { organizationId } = useAppState();
+
   return useQuery({
     queryKey: businessModeKey(organizationId),
     queryFn: async (): Promise<BusinessMode> => {
       if (isLocalMode || !supabase) return "b2b";
+
       const result = await supabase.rpc("current_business_mode");
-      if (result.error) throw new Error("Não foi possível carregar o tipo de operação.");
-      return result.data === "b2c" ? "b2c" : "b2b";
+
+      if (result.error) {
+        throw new Error("Não foi possível carregar o tipo de operação.");
+      }
+
+      return normalizeBusinessMode(result.data);
     },
     enabled: Boolean(organizationId),
     staleTime: 60_000,
@@ -25,16 +44,37 @@ export function useBusinessMode() {
 export function useUpdateBusinessMode() {
   const { organizationId } = useAppState();
   const client = useQueryClient();
+
   return useMutation({
-    mutationFn: async (mode: BusinessMode) => {
+    mutationFn: async (mode: BusinessMode): Promise<BusinessMode> => {
       if (isLocalMode || !supabase) return mode;
-      const result = await supabase.rpc("update_organization_business_mode", { next_mode: mode });
+
+      const result = await supabase.rpc(
+        "update_organization_business_mode",
+        {
+          next_mode: mode,
+        },
+      );
+
       if (result.error) {
-        if (import.meta.env.DEV) console.error("[BusinessMode] update failed", { code: result.error.code, message: result.error.message });
-        throw new Error(result.error.code === "42501" ? "Você não possui permissão para alterar o tipo de operação." : "Não foi possível salvar o tipo de operação.");
+        if (import.meta.env.DEV) {
+          console.error("[BusinessMode] update failed", {
+            code: result.error.code,
+            message: result.error.message,
+          });
+        }
+
+        throw new Error(
+          result.error.code === "42501"
+            ? "Você não possui permissão para alterar o tipo de operação."
+            : "Não foi possível salvar o tipo de operação.",
+        );
       }
-      return result.data === "b2c" ? "b2c" : "b2b";
+
+      return normalizeBusinessMode(result.data);
     },
-    onSuccess: mode => client.setQueryData(businessModeKey(organizationId), mode),
+
+    onSuccess: (mode) =>
+      client.setQueryData(businessModeKey(organizationId), mode),
   });
 }
