@@ -38,7 +38,7 @@ describe("public sitemap and canonical domain", () => {
 
   test("includes indexable public routes and excludes private routes", () => {
     const xml = buildSitemap();
-    for (const route of ["/sistema","/blog","/diagnostico","/privacidade","/termos"])
+    for (const route of ["/sistema","/blog","/diagnostico","/politica-de-privacidade","/termos-de-uso"])
       expect(xml).toContain(`${OFFICIAL_SITE_URL}${route}</loc>`);
     for (const route of ["/login","/crm","/agenda","/clientes","/configuracoes","/plataforma"])
       expect(xml).not.toContain(`${OFFICIAL_SITE_URL}${route}</loc>`);

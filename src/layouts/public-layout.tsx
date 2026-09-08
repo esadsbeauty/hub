@@ -26,7 +26,7 @@ export function PublicLayout() {
       <footer className="mt-20 border-t border-black/5 bg-white">
         <div className="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-10 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:px-8">
           <BrandLogo size="sm" />
-          <p>ESADS Beauty · Organização comercial para negócios de beleza.</p><nav className="flex flex-wrap gap-5 font-semibold text-foreground"><Link to="/sistema">Sistema</Link><Link to="/diagnostico">Diagnóstico</Link><Link to="/blog">Blog</Link><a href="/login">Entrar</a></nav>
+          <p>ESADS Beauty · Organização comercial para negócios de beleza.</p><nav className="flex flex-wrap gap-5 font-semibold text-foreground"><Link to="/sistema">Sistema</Link><Link to="/diagnostico">Diagnóstico</Link><Link to="/blog">Blog</Link><Link to="/politica-de-privacidade">Privacidade</Link><Link to="/termos-de-uso">Termos</Link><a href="/login">Entrar</a></nav>
         </div>
       </footer>
     </div>

@@ -3,8 +3,8 @@ const PUBLIC_ROUTES = [
   { path: "/sistema", changefreq: "weekly", priority: "1.0" },
   { path: "/blog", changefreq: "daily", priority: "0.9" },
   { path: "/diagnostico", changefreq: "monthly", priority: "0.9" },
-  { path: "/privacidade", changefreq: "yearly", priority: "0.3" },
-  { path: "/termos", changefreq: "yearly", priority: "0.3" },
+  { path: "/politica-de-privacidade", changefreq: "yearly", priority: "0.3" },
+  { path: "/termos-de-uso", changefreq: "yearly", priority: "0.3" },
 ];
 
 const xmlEscape = value => value.replace(/[<>&'\"]/g, character => ({ "<":"&lt;", ">":"&gt;", "&":"&amp;", "'":"&apos;", '\"':"&quot;" })[character]);
