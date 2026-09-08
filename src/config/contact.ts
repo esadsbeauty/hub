@@ -10,7 +10,6 @@ export function supportWhatsappUrl(message: string) {
 
 export function diagnosticWhatsappUrl(name: string, score: number) {
   const text = `Olá! Fiz o Diagnóstico do meu Negócio da ESADS Beauty. Meu nome é ${name} e meu resultado foi ${score}/100. Gostaria de conversar sobre o resultado.`;
+
   return `https://wa.me/${whatsapp}?text=${encodeURIComponent(text)}`;
 }
-export function supportWhatsappUrl(message:string){return`https://wa.me/${whatsapp}?text=${encodeURIComponent(message)}`}
-export function diagnosticWhatsappUrl(name:string,score:number){const text=`Olá! Fiz o Diagnóstico do meu Negócio da ESADS Beauty. Meu nome é ${name} e meu resultado foi ${score}/100. Gostaria de conversar sobre o resultado.`;return`https://wa.me/${whatsapp}?text=${encodeURIComponent(text)}`}
