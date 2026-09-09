@@ -35,3 +35,6 @@ entrypoint = "./functions/whatsapp-webhook/index.ts"
 
 [functions.whatsapp-send-message]
 verify_jwt = true
+
+[functions.whatsapp-embedded-signup]
+verify_jwt = true

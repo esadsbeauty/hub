@@ -118,14 +118,11 @@ Deno.serve(async (request) => {
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
   const serviceRoleKey =
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const accessToken =
-    Deno.env.get("WHATSAPP_ACCESS_TOKEN");
 
   if (
     !url ||
     !anonKey ||
-    !serviceRoleKey ||
-    !accessToken
+    !serviceRoleKey
   ) {
     return reply(
       503,
@@ -279,6 +276,59 @@ Deno.serve(async (request) => {
       409,
       "active_connection_not_found",
       "Não há uma conexão ativa do WhatsApp para esta organização.",
+    );
+  }
+
+  const secretResult =
+    await admin
+      .from("whatsapp_connection_secrets")
+      .select("access_token,token_expires_at")
+      .eq("connection_id", connection.id)
+      .maybeSingle();
+
+  if (secretResult.error) {
+    console.error(
+      "Failed to load WhatsApp connection token",
+      {
+        connectionId: connection.id,
+        organizationId,
+        code: secretResult.error.code,
+      },
+    );
+  }
+
+  let accessToken =
+    secretResult.data?.access_token ?? null;
+
+  /*
+   * Fallback temporário para a conexão V2 já existente.
+   * Pode ser removido depois que todas as organizações
+   * estiverem conectadas pelo Embedded Signup V3.
+   */
+  if (!accessToken) {
+    accessToken =
+      Deno.env.get("WHATSAPP_ACCESS_TOKEN") ?? null;
+  }
+
+  if (!accessToken) {
+    return reply(
+      409,
+      "connection_token_missing",
+      "A conexão do WhatsApp não possui um token válido. Reconecte o WhatsApp em Configurações.",
+    );
+  }
+
+  const tokenExpiresAt =
+    secretResult.data?.token_expires_at ?? null;
+
+  if (
+    tokenExpiresAt &&
+    new Date(tokenExpiresAt).getTime() <= Date.now()
+  ) {
+    return reply(
+      409,
+      "connection_token_expired",
+      "A autorização do WhatsApp expirou. Reconecte o WhatsApp em Configurações.",
     );
   }
 
