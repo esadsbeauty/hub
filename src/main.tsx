@@ -5,13 +5,33 @@ import "./styles/globals.css";
 
 console.info("[ESADS APP MODE]", { appMode, isLocalMode });
 
-const isReferralLanding = window.location.pathname === "/" && new URLSearchParams(window.location.search).has("ref");
-const isPublicRoute = isReferralLanding || /^\/(?:sistema|blog|diagnostico|privacidade|termos|politica-de-privacidade|termos-de-uso)(?:\/|$)/.test(window.location.pathname);
-const ApplicationRoot = lazy(() => isPublicRoute ? import("./app/public-app-root") : isLocalMode ? import("./app/local-app-root") : import("./app/supabase-app-root"));
+const isReferralLanding =
+  window.location.pathname === "/" &&
+  new URLSearchParams(window.location.search).has("ref");
+
+const isPublicRoute =
+  isReferralLanding ||
+  /^\/(?:sistema|blog|diagnostico|privacidade|termos|politica-de-privacidade|termos-de-uso|exclusao-de-dados)(?:\/|$)/.test(
+    window.location.pathname,
+  );
+
+const ApplicationRoot = lazy(() =>
+  isPublicRoute
+    ? import("./app/public-app-root")
+    : isLocalMode
+      ? import("./app/local-app-root")
+      : import("./app/supabase-app-root"),
+);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <Suspense fallback={<div className="grid min-h-dvh place-items-center text-sm text-muted-foreground">Carregando Hub…</div>}>
+    <Suspense
+      fallback={
+        <div className="grid min-h-dvh place-items-center text-sm text-muted-foreground">
+          Carregando Hub…
+        </div>
+      }
+    >
       <ApplicationRoot />
     </Suspense>
   </React.StrictMode>,
