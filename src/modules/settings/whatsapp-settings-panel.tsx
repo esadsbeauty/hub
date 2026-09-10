@@ -65,6 +65,7 @@ type EmbeddedSignupPayload = {
   data?: {
     waba_id?: string;
     phone_number_id?: string;
+    business_id?: string;
   };
 };
 
@@ -72,7 +73,6 @@ const connectionKey = (organizationId: string) =>
   ["organization", organizationId, "whatsapp-connection"] as const;
 
 const appId = import.meta.env.VITE_META_APP_ID as string | undefined;
-
 const configId = import.meta.env
   .VITE_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID as string | undefined;
 
@@ -136,6 +136,10 @@ export function WhatsAppSettingsPanel({
 
   useEffect(() => {
     if (!configured || !appId) {
+      console.warn("[WhatsApp Embedded Signup] Ambiente não configurado", {
+        hasAppId: Boolean(appId),
+        hasConfigId: Boolean(configId),
+      });
       setSdkReady(false);
       return;
     }
@@ -153,9 +157,19 @@ export function WhatsAppSettingsPanel({
           version: "v26.0",
         });
 
+        console.info("[WhatsApp Embedded Signup] SDK Meta inicializado", {
+          appId,
+          configId,
+        });
+
         setSdkReady(true);
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error(
+          "[WhatsApp Embedded Signup] Falha ao carregar SDK",
+          error,
+        );
+
         if (active) setSdkReady(false);
       });
 
@@ -179,23 +193,51 @@ export function WhatsAppSettingsPanel({
         try {
           payload = JSON.parse(event.data) as EmbeddedSignupPayload;
         } catch {
+          console.debug(
+            "[WhatsApp Embedded Signup] Mensagem da Meta ignorada: não é JSON",
+            event.data,
+          );
           return;
         }
       } else {
         payload = event.data as EmbeddedSignupPayload;
       }
 
-      if (!payload || payload.type !== "WA_EMBEDDED_SIGNUP") return;
+      if (!payload || payload.type !== "WA_EMBEDDED_SIGNUP") {
+        return;
+      }
+
+      console.info(
+        "[WhatsApp Embedded Signup] Evento recebido",
+        payload,
+      );
 
       if (payload.event === "FINISH") {
         signupRef.current = {
           wabaId: payload.data?.waba_id,
           phoneNumberId: payload.data?.phone_number_id,
         };
+
+        console.info(
+          "[WhatsApp Embedded Signup] Sessão finalizada",
+          signupRef.current,
+        );
       }
 
       if (payload.event === "CANCEL") {
         signupRef.current = {};
+
+        console.warn(
+          "[WhatsApp Embedded Signup] Usuário cancelou o fluxo",
+          payload,
+        );
+      }
+
+      if (payload.event === "ERROR") {
+        console.error(
+          "[WhatsApp Embedded Signup] Meta retornou erro de sessão",
+          payload,
+        );
       }
     };
 
@@ -223,6 +265,11 @@ export function WhatsAppSettingsPanel({
         .maybeSingle();
 
       if (result.error) {
+        console.error(
+          "[WhatsApp Embedded Signup] Falha ao carregar conexão existente",
+          result.error,
+        );
+
         throw new Error(
           "Não foi possível carregar a conexão do WhatsApp.",
         );
@@ -252,12 +299,40 @@ export function WhatsAppSettingsPanel({
 
       signupRef.current = {};
 
+      console.info(
+        "[WhatsApp Embedded Signup] Abrindo FB.login",
+        {
+          appId,
+          configId,
+          extras: {
+            version: "v4",
+            sessionInfoVersion: "3",
+            featureType: "whatsapp_business_app_onboarding",
+            setup: {},
+          },
+        },
+      );
+
       const code = await new Promise<string>((resolve, reject) => {
         window.FB!.login(
           (response) => {
+            console.info(
+              "[WhatsApp Embedded Signup] Callback FB.login",
+              {
+                status: response.status,
+                hasAuthResponse: Boolean(response.authResponse),
+                hasCode: Boolean(response.authResponse?.code),
+              },
+            );
+
             const authorizationCode = response.authResponse?.code;
 
             if (!authorizationCode) {
+              console.error(
+                "[WhatsApp Embedded Signup] Nenhum authorization code retornado",
+                response,
+              );
+
               reject(
                 new Error("Conexão cancelada ou não autorizada."),
               );
@@ -271,12 +346,19 @@ export function WhatsAppSettingsPanel({
             response_type: "code",
             override_default_response_type: true,
             extras: {
-              sessionInfoVersion: "3",
               version: "v4",
+              sessionInfoVersion: "3",
+              featureType:
+                "whatsapp_business_app_onboarding",
+              setup: {},
             },
           },
         );
       });
+
+      console.info(
+        "[WhatsApp Embedded Signup] Authorization code recebido",
+      );
 
       const session = await new Promise<SignupSession>(
         (resolve, reject) => {
@@ -287,19 +369,41 @@ export function WhatsAppSettingsPanel({
 
             if (current.wabaId && current.phoneNumberId) {
               window.clearInterval(timer);
+
+              console.info(
+                "[WhatsApp Embedded Signup] IDs da sessão recebidos",
+                current,
+              );
+
               resolve(current);
               return;
             }
 
-            if (Date.now() - startedAt > 10000) {
+            if (Date.now() - startedAt > 15000) {
               window.clearInterval(timer);
+
+              console.error(
+                "[WhatsApp Embedded Signup] Timeout aguardando waba_id e phone_number_id",
+                signupRef.current,
+              );
+
               reject(
                 new Error(
-                  "A Meta autorizou o acesso, mas não retornou os dados do número. Tente novamente.",
+                  "A Meta autorizou o acesso, mas não retornou os dados do número. Verifique o Console e tente novamente.",
                 ),
               );
             }
           }, 150);
+        },
+      );
+
+      console.info(
+        "[WhatsApp Embedded Signup] Enviando dados para Edge Function",
+        {
+          organizationId,
+          wabaId: session.wabaId,
+          phoneNumberId: session.phoneNumberId,
+          hasCode: true,
         },
       );
 
@@ -315,6 +419,14 @@ export function WhatsAppSettingsPanel({
         },
       );
 
+      console.info(
+        "[WhatsApp Embedded Signup] Resposta da Edge Function",
+        {
+          hasError: Boolean(result.error),
+          data: result.data,
+        },
+      );
+
       if (result.error) {
         let message = result.error.message;
 
@@ -326,6 +438,14 @@ export function WhatsAppSettingsPanel({
         ) {
           message = result.data.message;
         }
+
+        console.error(
+          "[WhatsApp Embedded Signup] Edge Function retornou erro",
+          {
+            error: result.error,
+            data: result.data,
+          },
+        );
 
         throw new Error(
           message || "Não foi possível conectar o WhatsApp.",
@@ -346,6 +466,11 @@ export function WhatsAppSettingsPanel({
     },
 
     onError: (error) => {
+      console.error(
+        "[WhatsApp Embedded Signup] Fluxo encerrado com erro",
+        error,
+      );
+
       notify({
         title:
           error instanceof Error
@@ -408,8 +533,8 @@ export function WhatsAppSettingsPanel({
 
           <CardContent className="space-y-4">
             <p className="max-w-2xl text-sm text-muted-foreground">
-              A Meta abrirá o Cadastro incorporado para selecionar e autorizar
-              os ativos do WhatsApp Business da sua empresa.
+              Modo de diagnóstico ativo. Abra o Console do navegador antes de
+              conectar para registrar a resposta da Meta.
             </p>
 
             {!configured && (
@@ -455,9 +580,7 @@ export function WhatsAppSettingsPanel({
           <CardContent className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl bg-muted/50 p-4">
-                <span className="text-xs text-muted-foreground">
-                  Conta
-                </span>
+                <span className="text-xs text-muted-foreground">Conta</span>
 
                 <b className="mt-1 block">
                   {connection.verified_name || "WhatsApp Business"}
@@ -465,9 +588,7 @@ export function WhatsAppSettingsPanel({
               </div>
 
               <div className="rounded-xl bg-muted/50 p-4">
-                <span className="text-xs text-muted-foreground">
-                  Número
-                </span>
+                <span className="text-xs text-muted-foreground">Número</span>
 
                 <b className="mt-1 block">
                   {connection.display_phone_number ||
