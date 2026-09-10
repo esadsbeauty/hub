@@ -69,19 +69,12 @@ type EmbeddedSignupPayload = {
 };
 
 const connectionKey = (organizationId: string) =>
-  [
-    "organization",
-    organizationId,
-    "whatsapp-connection",
-  ] as const;
+  ["organization", organizationId, "whatsapp-connection"] as const;
 
-const appId = import.meta.env
-  .VITE_META_APP_ID as string | undefined;
+const appId = import.meta.env.VITE_META_APP_ID as string | undefined;
 
 const configId = import.meta.env
-  .VITE_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID as
-  | string
-  | undefined;
+  .VITE_WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID as string | undefined;
 
 function loadFacebookSdk() {
   return new Promise<void>((resolve, reject) => {
@@ -90,12 +83,9 @@ function loadFacebookSdk() {
       return;
     }
 
-    window.fbAsyncInit = () => {
-      resolve();
-    };
+    window.fbAsyncInit = () => resolve();
 
-    const existing =
-      document.getElementById("facebook-jssdk");
+    const existing = document.getElementById("facebook-jssdk");
 
     if (existing) {
       const interval = window.setInterval(() => {
@@ -109,11 +99,7 @@ function loadFacebookSdk() {
         window.clearInterval(interval);
 
         if (!window.FB) {
-          reject(
-            new Error(
-              "Não foi possível carregar a Meta.",
-            ),
-          );
+          reject(new Error("Não foi possível carregar a Meta."));
         }
       }, 10000);
 
@@ -126,16 +112,9 @@ function loadFacebookSdk() {
     script.async = true;
     script.defer = true;
     script.crossOrigin = "anonymous";
-    script.src =
-      "https://connect.facebook.net/pt_BR/sdk.js";
-
-    script.onerror = () => {
-      reject(
-        new Error(
-          "Não foi possível carregar a Meta.",
-        ),
-      );
-    };
+    script.src = "https://connect.facebook.net/pt_BR/sdk.js";
+    script.onerror = () =>
+      reject(new Error("Não foi possível carregar a Meta."));
 
     document.body.appendChild(script);
   });
@@ -150,15 +129,10 @@ export function WhatsAppSettingsPanel({
   const { notify } = useToast();
   const queryClient = useQueryClient();
 
-  const [sdkReady, setSdkReady] =
-    useState(false);
+  const [sdkReady, setSdkReady] = useState(false);
+  const signupRef = useRef<SignupSession>({});
 
-  const signupRef =
-    useRef<SignupSession>({});
-
-  const configured = Boolean(
-    appId && configId,
-  );
+  const configured = Boolean(appId && configId);
 
   useEffect(() => {
     if (!configured || !appId) {
@@ -170,12 +144,7 @@ export function WhatsAppSettingsPanel({
 
     loadFacebookSdk()
       .then(() => {
-        if (
-          !active ||
-          !window.FB
-        ) {
-          return;
-        }
+        if (!active || !window.FB) return;
 
         window.FB.init({
           appId,
@@ -187,9 +156,7 @@ export function WhatsAppSettingsPanel({
         setSdkReady(true);
       })
       .catch(() => {
-        if (active) {
-          setSdkReady(false);
-        }
+        if (active) setSdkReady(false);
       });
 
     return () => {
@@ -198,102 +165,62 @@ export function WhatsAppSettingsPanel({
   }, [configured]);
 
   useEffect(() => {
-    const handler = (
-      event: MessageEvent,
-    ) => {
+    const handler = (event: MessageEvent) => {
       if (
-        event.origin !==
-          "https://www.facebook.com" &&
-        event.origin !==
-          "https://web.facebook.com"
+        event.origin !== "https://www.facebook.com" &&
+        event.origin !== "https://web.facebook.com"
       ) {
         return;
       }
 
       let payload: EmbeddedSignupPayload;
 
-      if (
-        typeof event.data === "string"
-      ) {
+      if (typeof event.data === "string") {
         try {
-          payload = JSON.parse(
-            event.data,
-          ) as EmbeddedSignupPayload;
+          payload = JSON.parse(event.data) as EmbeddedSignupPayload;
         } catch {
           return;
         }
       } else {
-        payload =
-          event.data as EmbeddedSignupPayload;
+        payload = event.data as EmbeddedSignupPayload;
       }
 
-      if (
-        !payload ||
-        payload.type !==
-          "WA_EMBEDDED_SIGNUP"
-      ) {
-        return;
-      }
+      if (!payload || payload.type !== "WA_EMBEDDED_SIGNUP") return;
 
-      if (
-        payload.event === "FINISH"
-      ) {
+      if (payload.event === "FINISH") {
         signupRef.current = {
-          wabaId:
-            payload.data?.waba_id,
-          phoneNumberId:
-            payload.data
-              ?.phone_number_id,
+          wabaId: payload.data?.waba_id,
+          phoneNumberId: payload.data?.phone_number_id,
         };
       }
 
-      if (
-        payload.event === "CANCEL"
-      ) {
+      if (payload.event === "CANCEL") {
         signupRef.current = {};
       }
     };
 
-    window.addEventListener(
-      "message",
-      handler,
-    );
+    window.addEventListener("message", handler);
 
     return () => {
-      window.removeEventListener(
-        "message",
-        handler,
-      );
+      window.removeEventListener("message", handler);
     };
   }, []);
 
   const connectionQuery = useQuery({
-    queryKey:
-      connectionKey(organizationId),
-
-    enabled: Boolean(
-      organizationId && supabase,
-    ),
+    queryKey: connectionKey(organizationId),
+    enabled: Boolean(organizationId && supabase),
 
     queryFn: async () => {
-      if (!supabase) {
-        return null as Connection | null;
-      }
+      if (!supabase) return null as Connection | null;
 
-      const result =
-        await supabase
-          .from(
-            "whatsapp_connections",
-          )
-          .select(
-            "id,organization_id,waba_id,phone_number_id,display_phone_number,verified_name,status,connected_at",
-          )
-          .eq(
-            "organization_id",
-            organizationId,
-          )
-          .eq("status", "active")
-          .maybeSingle();
+      const result = await supabase
+        .from("whatsapp_connections")
+        .select(
+          "id,organization_id,waba_id,phone_number_id,display_phone_number,verified_name,status,connected_at",
+        )
+        .eq("organization_id", organizationId)
+        .eq("status", "active")
+        .maybeSingle();
 
       if (result.error) {
         throw new Error(
@@ -301,34 +228,23 @@ export function WhatsAppSettingsPanel({
         );
       }
 
-      return (
-        result.data ?? null
-      ) as Connection | null;
+      return (result.data ?? null) as Connection | null;
     },
   });
 
   const connect = useMutation({
     mutationFn: async () => {
       if (!supabase) {
-        throw new Error(
-          "Supabase não configurado.",
-        );
+        throw new Error("Supabase não configurado.");
       }
 
-      if (
-        !configured ||
-        !appId ||
-        !configId
-      ) {
+      if (!configured || !appId || !configId) {
         throw new Error(
           "Integração com a Meta ainda não está configurada.",
         );
       }
 
-      if (
-        !sdkReady ||
-        !window.FB
-      ) {
+      if (!sdkReady || !window.FB) {
         throw new Error(
           "A integração com a Meta ainda está carregando. Tente novamente em alguns segundos.",
         );
@@ -336,141 +252,83 @@ export function WhatsAppSettingsPanel({
 
       signupRef.current = {};
 
-      const code =
-        await new Promise<string>(
-          (resolve, reject) => {
-            window.FB!.login(
-              (response) => {
-                const authorizationCode =
-                  response
-                    .authResponse?.code;
+      const code = await new Promise<string>((resolve, reject) => {
+        window.FB!.login(
+          (response) => {
+            const authorizationCode = response.authResponse?.code;
 
-                if (
-                  !authorizationCode
-                ) {
-                  reject(
-                    new Error(
-                      "Conexão cancelada ou não autorizada.",
-                    ),
-                  );
-
-                  return;
-                }
-
-                resolve(
-                  authorizationCode,
-                );
-              },
-              {
-                config_id:
-                  configId,
-
-                response_type:
-                  "code",
-
-                override_default_response_type:
-                  true,
-
-                extras: {
-                  version: "v4",
-                  featureType:
-                    "whatsapp_business_app_onboarding",
-                  sessionInfoVersion: "3",
-                },
-              },
-            );
-          },
-        );
-
-      /*
-       * O código de autorização chega pelo callback do FB.login.
-       * Os IDs da WABA e do telefone chegam via MessageEvent.
-       * Os eventos podem chegar em momentos diferentes.
-       */
-
-      const session =
-        await new Promise<SignupSession>(
-          (resolve, reject) => {
-            const startedAt =
-              Date.now();
-
-            const timer =
-              window.setInterval(
-                () => {
-                  const current =
-                    signupRef.current;
-
-                  if (
-                    current.wabaId &&
-                    current.phoneNumberId
-                  ) {
-                    window.clearInterval(
-                      timer,
-                    );
-
-                    resolve(
-                      current,
-                    );
-
-                    return;
-                  }
-
-                  if (
-                    Date.now() -
-                      startedAt >
-                    10000
-                  ) {
-                    window.clearInterval(
-                      timer,
-                    );
-
-                    reject(
-                      new Error(
-                        "A Meta autorizou o acesso, mas não retornou os dados do número. Tente novamente.",
-                      ),
-                    );
-                  }
-                },
-                150,
+            if (!authorizationCode) {
+              reject(
+                new Error("Conexão cancelada ou não autorizada."),
               );
-          },
-        );
+              return;
+            }
 
-      const result =
-        await supabase.functions.invoke(
-          "whatsapp-embedded-signup",
+            resolve(authorizationCode);
+          },
           {
-            body: {
-              organizationId,
-              code,
-              wabaId:
-                session.wabaId,
-              phoneNumberId:
-                session.phoneNumberId,
+            config_id: configId,
+            response_type: "code",
+            override_default_response_type: true,
+            extras: {
+              sessionInfoVersion: "3",
+              version: "v4",
             },
           },
         );
+      });
+
+      const session = await new Promise<SignupSession>(
+        (resolve, reject) => {
+          const startedAt = Date.now();
+
+          const timer = window.setInterval(() => {
+            const current = signupRef.current;
+
+            if (current.wabaId && current.phoneNumberId) {
+              window.clearInterval(timer);
+              resolve(current);
+              return;
+            }
+
+            if (Date.now() - startedAt > 10000) {
+              window.clearInterval(timer);
+              reject(
+                new Error(
+                  "A Meta autorizou o acesso, mas não retornou os dados do número. Tente novamente.",
+                ),
+              );
+            }
+          }, 150);
+        },
+      );
+
+      const result = await supabase.functions.invoke(
+        "whatsapp-embedded-signup",
+        {
+          body: {
+            organizationId,
+            code,
+            wabaId: session.wabaId,
+            phoneNumberId: session.phoneNumberId,
+          },
+        },
+      );
 
       if (result.error) {
-        let message =
-          result.error.message;
+        let message = result.error.message;
 
         if (
           result.data &&
-          typeof result.data ===
-            "object" &&
-          "message" in
-            result.data &&
-          typeof result.data
-            .message === "string"
+          typeof result.data === "object" &&
+          "message" in result.data &&
+          typeof result.data.message === "string"
         ) {
-          message =
-            result.data.message;
+          message = result.data.message;
         }
 
         throw new Error(
-          message ||
-            "Não foi possível conectar o WhatsApp.",
+          message || "Não foi possível conectar o WhatsApp.",
         );
       }
 
@@ -478,18 +336,12 @@ export function WhatsAppSettingsPanel({
     },
 
     onSuccess: async () => {
-      await queryClient.invalidateQueries(
-        {
-          queryKey:
-            connectionKey(
-              organizationId,
-            ),
-        },
-      );
+      await queryClient.invalidateQueries({
+        queryKey: connectionKey(organizationId),
+      });
 
       notify({
-        title:
-          "WhatsApp conectado.",
+        title: "WhatsApp conectado.",
       });
     },
 
@@ -503,39 +355,30 @@ export function WhatsAppSettingsPanel({
     },
   });
 
-  const connection =
-    connectionQuery.data ?? null;
+  const connection = connectionQuery.data ?? null;
 
-  if (
-    connectionQuery.isLoading
-  ) {
+  if (connectionQuery.isLoading) {
     return (
       <Card>
         <CardContent className="p-6 text-sm text-muted-foreground">
-          Carregando conexão do
-          WhatsApp…
+          Carregando conexão do WhatsApp…
         </CardContent>
       </Card>
     );
   }
 
-  if (
-    connectionQuery.isError
-  ) {
+  if (connectionQuery.isError) {
     return (
       <Card>
         <CardContent className="p-6">
           <p className="font-semibold">
-            Não foi possível carregar a
-            conexão do WhatsApp.
+            Não foi possível carregar a conexão do WhatsApp.
           </p>
 
           <Button
             className="mt-4"
             variant="outline"
-            onClick={() =>
-              void connectionQuery.refetch()
-            }
+            onClick={() => void connectionQuery.refetch()}
           >
             Tentar novamente
           </Button>
@@ -547,14 +390,10 @@ export function WhatsAppSettingsPanel({
   return (
     <section className="space-y-5">
       <div>
-        <h2 className="text-xl font-semibold">
-          WhatsApp
-        </h2>
+        <h2 className="text-xl font-semibold">WhatsApp</h2>
 
         <p className="mt-1 text-sm text-muted-foreground">
-          Conecte a conta do WhatsApp
-          Business da sua empresa ao
-          ESADS Beauty.
+          Conecte a conta do WhatsApp Business da sua empresa ao ESADS Beauty.
         </p>
       </div>
 
@@ -562,60 +401,39 @@ export function WhatsAppSettingsPanel({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <MessageCircleMore
-                size={19}
-              />
+              <MessageCircleMore size={19} />
               Conectar WhatsApp
             </CardTitle>
           </CardHeader>
 
           <CardContent className="space-y-4">
             <p className="max-w-2xl text-sm text-muted-foreground">
-              Conecte o WhatsApp Business
-              ao ESADS Beauty mantendo o
-              atendimento no aplicativo
-              quando a conta for elegível
-              ao modo de coexistência da
-              Meta.
+              A Meta abrirá o Cadastro incorporado para selecionar e autorizar
+              os ativos do WhatsApp Business da sua empresa.
             </p>
 
             {!configured && (
               <p className="rounded-xl border p-3 text-sm">
-                O Embedded Signup ainda
-                precisa ser configurado
-                no ambiente do ESADS
-                Beauty.
+                O Embedded Signup ainda precisa ser configurado no ambiente do
+                ESADS Beauty.
               </p>
             )}
 
-            {configured &&
-              !sdkReady && (
-                <p className="rounded-xl border p-3 text-sm text-muted-foreground">
-                  Carregando integração
-                  com a Meta…
-                </p>
-              )}
+            {configured && !sdkReady && (
+              <p className="rounded-xl border p-3 text-sm text-muted-foreground">
+                Carregando integração com a Meta…
+              </p>
+            )}
 
             {editable && (
               <Button
-                disabled={
-                  !configured ||
-                  !sdkReady ||
-                  connect.isPending
-                }
-                onClick={() =>
-                  connect.mutate()
-                }
+                disabled={!configured || !sdkReady || connect.isPending}
+                onClick={() => connect.mutate()}
               >
                 {connect.isPending ? (
-                  <Loader2
-                    className="animate-spin"
-                    size={16}
-                  />
+                  <Loader2 className="animate-spin" size={16} />
                 ) : (
-                  <MessageCircleMore
-                    size={16}
-                  />
+                  <MessageCircleMore size={16} />
                 )}
 
                 {connect.isPending
@@ -629,9 +447,7 @@ export function WhatsAppSettingsPanel({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CheckCircle2
-                size={19}
-              />
+              <CheckCircle2 size={19} />
               WhatsApp conectado
             </CardTitle>
           </CardHeader>
@@ -644,8 +460,7 @@ export function WhatsAppSettingsPanel({
                 </span>
 
                 <b className="mt-1 block">
-                  {connection.verified_name ||
-                    "WhatsApp Business"}
+                  {connection.verified_name || "WhatsApp Business"}
                 </b>
               </div>
 
@@ -664,12 +479,7 @@ export function WhatsAppSettingsPanel({
             {connection.connected_at && (
               <p className="text-xs text-muted-foreground">
                 Conectado em{" "}
-                {new Date(
-                  connection.connected_at,
-                ).toLocaleString(
-                  "pt-BR",
-                )}
-                .
+                {new Date(connection.connected_at).toLocaleString("pt-BR")}.
               </p>
             )}
           </CardContent>
