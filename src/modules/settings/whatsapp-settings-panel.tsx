@@ -344,11 +344,8 @@ export function WhatsAppSettingsPanel({
             response_type: "code",
             override_default_response_type: true,
             extras: {
-              version: "v4",
               sessionInfoVersion: "3",
-              featureType:
-                "whatsapp_business_app_onboarding",
-              setup: {},
+              version: "v4",
             },
           },
         );
