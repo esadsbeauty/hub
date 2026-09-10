@@ -305,11 +305,9 @@ export function WhatsAppSettingsPanel({
           appId,
           configId,
           extras: {
-            version: "v4",
-            sessionInfoVersion: "3",
-            featureType: "whatsapp_business_app_onboarding",
-            setup: {},
-          },
+  sessionInfoVersion: "3",
+  version: "v4",
+},
         },
       );
 
