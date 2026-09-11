@@ -10,6 +10,7 @@ const allowedRoles = new Set(["owner", "admin"]);
 type ConnectionMode = "standard" | "coexistence";
 
 type Input = {
+  action?: "connect" | "sync";
   organizationId?: string;
   code?: string;
   wabaId?: string;
@@ -34,6 +35,64 @@ type PhoneNumberDetails = PhoneNumber & {
   is_on_biz_app?: boolean;
   platform_type?: string;
 };
+
+type SyncType = "history" | "smb_app_state_sync";
+
+type SyncResult = {
+  ok: boolean;
+  status: number;
+  requestId?: string;
+  errorCode?: number;
+  errorMessage?: string;
+};
+
+async function requestSmbAppData(
+  phoneNumberId: string,
+  accessToken: string,
+  syncType: SyncType,
+): Promise<SyncResult> {
+  const response = await fetch(
+    `https://graph.facebook.com/${graphVersion}/${encodeURIComponent(
+      phoneNumberId,
+    )}/smb_app_data`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        sync_type: syncType,
+      }),
+    },
+  );
+
+  const payload = (await response.json().catch(() => ({}))) as {
+    request_id?: string;
+    error?: {
+      code?: number;
+      message?: string;
+    };
+  };
+
+  if (!response.ok) {
+    console.error("WhatsApp coexistence sync request failed", {
+      syncType,
+      status: response.status,
+      providerCode: payload.error?.code,
+      providerMessage: payload.error?.message,
+    });
+  }
+
+  return {
+    ok: response.ok,
+    status: response.status,
+    requestId: payload.request_id,
+    errorCode: payload.error?.code,
+    errorMessage: payload.error?.message,
+  };
+}
 
 function reply(
   origin: string | null,
@@ -162,6 +221,7 @@ Deno.serve(async (request) => {
 
   const body = (await request.json().catch(() => ({}))) as Input;
 
+  const action = body.action === "sync" ? "sync" : "connect";
   const organizationId = body.organizationId?.trim();
   const code = body.code?.trim();
   const wabaId = body.wabaId?.trim();
@@ -169,17 +229,10 @@ Deno.serve(async (request) => {
   const connectionMode: ConnectionMode =
     body.connectionMode === "coexistence" ? "coexistence" : "standard";
 
-  if (!organizationId || !code || !wabaId) {
+  if (!organizationId) {
     return reply(origin, 422, {
       code: "invalid_request",
-      message: "Dados de conexão incompletos.",
-    });
-  }
-
-  if (connectionMode === "standard" && !requestedPhoneNumberId) {
-    return reply(origin, 422, {
-      code: "phone_number_required",
-      message: "O número selecionado não foi informado.",
+      message: "Organização não informada.",
     });
   }
 
@@ -207,6 +260,108 @@ Deno.serve(async (request) => {
     return reply(origin, 403, {
       code: "connection_forbidden",
       message: "Você não pode configurar o WhatsApp desta organização.",
+    });
+  }
+
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+
+  if (action === "sync") {
+    const connectionResult = await admin
+      .from("whatsapp_connections")
+      .select("id,phone_number_id,connected_at")
+      .eq("organization_id", organizationId)
+      .eq("status", "active")
+      .order("connected_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (connectionResult.error || !connectionResult.data) {
+      return reply(origin, 409, {
+        code: "active_connection_not_found",
+        message: "Não há uma conexão ativa do WhatsApp para sincronizar.",
+      });
+    }
+
+    const secretResult = await admin
+      .from("whatsapp_connection_secrets")
+      .select("access_token,token_expires_at")
+      .eq("connection_id", connectionResult.data.id)
+      .maybeSingle();
+
+    if (
+      secretResult.error ||
+      !secretResult.data?.access_token
+    ) {
+      return reply(origin, 409, {
+        code: "connection_token_missing",
+        message: "A conexão não possui autorização válida. Reconecte o WhatsApp.",
+      });
+    }
+
+    if (
+      secretResult.data.token_expires_at &&
+      new Date(secretResult.data.token_expires_at).getTime() <= Date.now()
+    ) {
+      return reply(origin, 409, {
+        code: "connection_token_expired",
+        message: "A autorização do WhatsApp expirou. Reconecte o WhatsApp.",
+      });
+    }
+
+    const accessToken = secretResult.data.access_token;
+    const phoneNumberId = connectionResult.data.phone_number_id;
+
+    const contacts = await requestSmbAppData(
+      phoneNumberId,
+      accessToken,
+      "smb_app_state_sync",
+    );
+
+    const history = await requestSmbAppData(
+      phoneNumberId,
+      accessToken,
+      "history",
+    );
+
+    if (!contacts.ok && !history.ok) {
+      return reply(origin, 502, {
+        code: "coexistence_sync_failed",
+        message:
+          "A Meta não aceitou a sincronização. Verifique se o número foi conectado há menos de 24 horas e se o compartilhamento de histórico foi autorizado.",
+        sync: {
+          contacts,
+          history,
+        },
+      });
+    }
+
+    return reply(origin, 200, {
+      code: "coexistence_sync_requested",
+      message:
+        "Sincronização solicitada. O histórico e os contatos chegarão pelos webhooks da Meta.",
+      sync: {
+        contacts,
+        history,
+      },
+    });
+  }
+
+  if (!code || !wabaId) {
+    return reply(origin, 422, {
+      code: "invalid_request",
+      message: "Dados de conexão incompletos.",
+    });
+  }
+
+  if (connectionMode === "standard" && !requestedPhoneNumberId) {
+    return reply(origin, 422, {
+      code: "phone_number_required",
+      message: "O número selecionado não foi informado.",
     });
   }
 
@@ -384,13 +539,6 @@ Deno.serve(async (request) => {
     });
   }
 
-  const admin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-
   const now = new Date().toISOString();
 
   const deactivate = await admin
@@ -463,6 +611,30 @@ Deno.serve(async (request) => {
     });
   }
 
+  let coexistenceSync: {
+    contacts: SyncResult;
+    history: SyncResult;
+  } | null = null;
+
+  if (connectionMode === "coexistence") {
+    const contacts = await requestSmbAppData(
+      phone.id,
+      accessToken,
+      "smb_app_state_sync",
+    );
+
+    const history = await requestSmbAppData(
+      phone.id,
+      accessToken,
+      "history",
+    );
+
+    coexistenceSync = {
+      contacts,
+      history,
+    };
+  }
+
   return reply(origin, 200, {
     code: "whatsapp_connected",
     message:
@@ -474,5 +646,6 @@ Deno.serve(async (request) => {
     phoneNumberId: phone.id,
     isOnBusinessApp: phone.is_on_biz_app ?? null,
     platformType: phone.platform_type ?? null,
+    coexistenceSync,
   });
 });

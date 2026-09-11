@@ -248,11 +248,11 @@ Deno.serve(async (request) => {
     );
   }
 
-  const connectionResult =
+  let connectionResult =
     await admin
       .from("whatsapp_connections")
       .select(
-        "id,organization_id,phone_number_id,status",
+        "id,organization_id,phone_number_id,status,connected_at",
       )
       .eq(
         "id",
@@ -265,8 +265,67 @@ Deno.serve(async (request) => {
       .eq("status", "active")
       .maybeSingle();
 
-  const connection =
+  let connection =
     connectionResult.data;
+
+  /*
+   * Após uma reconexão/Embedded Signup, conversas antigas podem
+   * continuar apontando para uma conexão que foi marcada como inactive.
+   * Nesse caso, usamos a conexão ativa mais recente da organização
+   * e reatribuímos a conversa antes de enviar.
+   */
+  if (!connection) {
+    connectionResult =
+      await admin
+        .from("whatsapp_connections")
+        .select(
+          "id,organization_id,phone_number_id,status,connected_at",
+        )
+        .eq(
+          "organization_id",
+          organizationId,
+        )
+        .eq("status", "active")
+        .order(
+          "connected_at",
+          { ascending: false },
+        )
+        .limit(1)
+        .maybeSingle();
+
+    connection =
+      connectionResult.data;
+
+    if (connection) {
+      const rebound =
+        await admin
+          .from("whatsapp_conversations")
+          .update({
+            connection_id: connection.id,
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq(
+            "id",
+            conversationId,
+          )
+          .eq(
+            "organization_id",
+            organizationId,
+          );
+
+      if (rebound.error) {
+        console.error(
+          "Failed to rebind conversation to active WhatsApp connection",
+          {
+            conversationId,
+            organizationId,
+            code: rebound.error.code,
+          },
+        );
+      }
+    }
+  }
 
   if (
     connectionResult.error ||

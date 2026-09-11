@@ -485,6 +485,60 @@ export function WhatsAppSettingsPanel({
     },
   });
 
+
+  const syncHistory = useMutation({
+    mutationFn: async () => {
+      if (!supabase) {
+        throw new Error("Supabase não configurado.");
+      }
+
+      const result = await supabase.functions.invoke(
+        "whatsapp-embedded-signup",
+        {
+          body: {
+            action: "sync",
+            organizationId,
+          },
+        },
+      );
+
+      if (result.error) {
+        let message = result.error.message;
+
+        if (
+          result.data &&
+          typeof result.data === "object" &&
+          "message" in result.data &&
+          typeof result.data.message === "string"
+        ) {
+          message = result.data.message;
+        }
+
+        throw new Error(
+          message || "Não foi possível solicitar a sincronização.",
+        );
+      }
+
+      return result.data;
+    },
+
+    onSuccess: () => {
+      notify({
+        title:
+          "Sincronização solicitada. O histórico pode levar alguns minutos para aparecer.",
+      });
+    },
+
+    onError: (error) => {
+      notify({
+        title:
+          error instanceof Error
+            ? error.message
+            : "Não foi possível sincronizar o histórico.",
+      });
+    },
+  });
+
   const connection = connectionQuery.data ?? null;
 
   if (connectionQuery.isLoading) {
@@ -607,6 +661,31 @@ export function WhatsAppSettingsPanel({
                 Conectado em{" "}
                 {new Date(connection.connected_at).toLocaleString("pt-BR")}.
               </p>
+            )}
+
+            {editable && (
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  disabled={syncHistory.isPending}
+                  onClick={() => syncHistory.mutate()}
+                >
+                  {syncHistory.isPending ? (
+                    <Loader2 className="animate-spin" size={16} />
+                  ) : (
+                    <MessageCircleMore size={16} />
+                  )}
+
+                  {syncHistory.isPending
+                    ? "Solicitando sincronização…"
+                    : "Sincronizar histórico"}
+                </Button>
+
+                <p className="text-xs text-muted-foreground">
+                  Use após conectar um número em coexistência. A Meta permite a
+                  sincronização inicial de histórico dentro da janela de onboarding.
+                </p>
+              </div>
             )}
           </CardContent>
         </Card>
