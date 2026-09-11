@@ -212,7 +212,10 @@ export function WhatsAppSettingsPanel({
         payload,
       );
 
-      if (payload.event === "FINISH") {
+      if (
+        payload.event === "FINISH" ||
+        payload.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING"
+      ) {
         signupRef.current = {
           wabaId: payload.data?.waba_id,
           phoneNumberId: payload.data?.phone_number_id,
@@ -220,7 +223,13 @@ export function WhatsAppSettingsPanel({
 
         console.info(
           "[WhatsApp Embedded Signup] Sessão finalizada",
-          signupRef.current,
+          {
+            mode:
+              payload.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING"
+                ? "coexistence"
+                : "standard",
+            ...signupRef.current,
+          },
         );
       }
 
@@ -344,6 +353,8 @@ export function WhatsAppSettingsPanel({
             override_default_response_type: true,
             extras: {
               setup: {},
+              featureType: "whatsapp_business_app_onboarding",
+              sessionInfoVersion: "3",
             },
           },
         );
@@ -360,11 +371,11 @@ export function WhatsAppSettingsPanel({
           const timer = window.setInterval(() => {
             const current = signupRef.current;
 
-            if (current.wabaId && current.phoneNumberId) {
+            if (current.wabaId) {
               window.clearInterval(timer);
 
               console.info(
-                "[WhatsApp Embedded Signup] IDs da sessão recebidos",
+                "[WhatsApp Embedded Signup] Dados da sessão recebidos",
                 current,
               );
 
@@ -376,13 +387,13 @@ export function WhatsAppSettingsPanel({
               window.clearInterval(timer);
 
               console.error(
-                "[WhatsApp Embedded Signup] Timeout aguardando waba_id e phone_number_id",
+                "[WhatsApp Embedded Signup] Timeout aguardando waba_id",
                 signupRef.current,
               );
 
               reject(
                 new Error(
-                  "A Meta autorizou o acesso, mas não retornou os dados do número. Verifique o Console e tente novamente.",
+                  "A Meta autorizou o acesso, mas não retornou a conta do WhatsApp. Verifique o Console e tente novamente.",
                 ),
               );
             }
@@ -407,7 +418,8 @@ export function WhatsAppSettingsPanel({
             organizationId,
             code,
             wabaId: session.wabaId,
-            phoneNumberId: session.phoneNumberId,
+            phoneNumberId: session.phoneNumberId ?? null,
+            connectionMode: "coexistence",
           },
         },
       );
@@ -511,7 +523,7 @@ export function WhatsAppSettingsPanel({
         <h2 className="text-xl font-semibold">WhatsApp</h2>
 
         <p className="mt-1 text-sm text-muted-foreground">
-          Conecte a conta do WhatsApp Business da sua empresa ao ESADS Beauty.
+          Conecte o WhatsApp Business ao ESADS Beauty em modo de coexistência, mantendo o mesmo número ativo no celular e na Cloud API.
         </p>
       </div>
 
