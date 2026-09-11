@@ -10,7 +10,7 @@ const allowedRoles = new Set(["owner", "admin"]);
 type ConnectionMode = "standard" | "coexistence";
 
 type Input = {
-  action?: "connect" | "sync";
+  action?: "connect" | "sync" | "disconnect";
   organizationId?: string;
   code?: string;
   wabaId?: string;
@@ -221,7 +221,12 @@ Deno.serve(async (request) => {
 
   const body = (await request.json().catch(() => ({}))) as Input;
 
-  const action = body.action === "sync" ? "sync" : "connect";
+  const action =
+    body.action === "sync"
+      ? "sync"
+      : body.action === "disconnect"
+        ? "disconnect"
+        : "connect";
   const organizationId = body.organizationId?.trim();
   const code = body.code?.trim();
   const wabaId = body.wabaId?.trim();
@@ -269,6 +274,80 @@ Deno.serve(async (request) => {
       autoRefreshToken: false,
     },
   });
+
+  if (action === "disconnect") {
+    const connectionResult = await admin
+      .from("whatsapp_connections")
+      .select("id,phone_number_id,connected_at")
+      .eq("organization_id", organizationId)
+      .eq("status", "active")
+      .order("connected_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (connectionResult.error) {
+      console.error("Could not load active WhatsApp connection for disconnect", {
+        organizationId,
+        code: connectionResult.error.code,
+      });
+
+      return reply(origin, 500, {
+        code: "disconnect_lookup_failed",
+        message: "Não foi possível localizar a conexão ativa.",
+      });
+    }
+
+    if (!connectionResult.data) {
+      return reply(origin, 200, {
+        code: "whatsapp_already_disconnected",
+        message: "O WhatsApp já está desconectado do ESADS Beauty.",
+      });
+    }
+
+    const now = new Date().toISOString();
+
+    const deactivate = await admin
+      .from("whatsapp_connections")
+      .update({
+        status: "inactive",
+        disconnected_at: now,
+      })
+      .eq("id", connectionResult.data.id)
+      .eq("organization_id", organizationId)
+      .eq("status", "active");
+
+    if (deactivate.error) {
+      console.error("Could not deactivate WhatsApp connection", {
+        organizationId,
+        connectionId: connectionResult.data.id,
+        code: deactivate.error.code,
+      });
+
+      return reply(origin, 500, {
+        code: "disconnect_failed",
+        message: "Não foi possível desconectar o WhatsApp.",
+      });
+    }
+
+    const deleteSecret = await admin
+      .from("whatsapp_connection_secrets")
+      .delete()
+      .eq("connection_id", connectionResult.data.id);
+
+    if (deleteSecret.error) {
+      console.error("WhatsApp disconnected but token cleanup failed", {
+        organizationId,
+        connectionId: connectionResult.data.id,
+        code: deleteSecret.error.code,
+      });
+    }
+
+    return reply(origin, 200, {
+      code: "whatsapp_disconnected",
+      message: "WhatsApp desconectado do ESADS Beauty.",
+      credentialCleanupCompleted: !deleteSecret.error,
+    });
+  }
 
   if (action === "sync") {
     const connectionResult = await admin

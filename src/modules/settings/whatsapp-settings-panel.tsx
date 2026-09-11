@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Loader2,
   MessageCircleMore,
+  Unplug,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -539,6 +540,78 @@ export function WhatsAppSettingsPanel({
     },
   });
 
+
+  const disconnect = useMutation({
+    mutationFn: async () => {
+      if (!supabase) {
+        throw new Error("Supabase não configurado.");
+      }
+
+      const confirmed = window.confirm(
+        "Desconectar o WhatsApp do ESADS Beauty? O WhatsApp Business continuará funcionando normalmente no celular e o histórico já salvo no CRM será mantido.",
+      );
+
+      if (!confirmed) {
+        throw new Error("__disconnect_cancelled__");
+      }
+
+      const result = await supabase.functions.invoke(
+        "whatsapp-embedded-signup",
+        {
+          body: {
+            action: "disconnect",
+            organizationId,
+          },
+        },
+      );
+
+      if (result.error) {
+        let message = result.error.message;
+
+        if (
+          result.data &&
+          typeof result.data === "object" &&
+          "message" in result.data &&
+          typeof result.data.message === "string"
+        ) {
+          message = result.data.message;
+        }
+
+        throw new Error(
+          message || "Não foi possível desconectar o WhatsApp.",
+        );
+      }
+
+      return result.data;
+    },
+
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: connectionKey(organizationId),
+      });
+
+      notify({
+        title: "WhatsApp desconectado do ESADS Beauty.",
+      });
+    },
+
+    onError: (error) => {
+      if (
+        error instanceof Error &&
+        error.message === "__disconnect_cancelled__"
+      ) {
+        return;
+      }
+
+      notify({
+        title:
+          error instanceof Error
+            ? error.message
+            : "Não foi possível desconectar o WhatsApp.",
+      });
+    },
+  });
+
   const connection = connectionQuery.data ?? null;
 
   if (connectionQuery.isLoading) {
@@ -664,27 +737,52 @@ export function WhatsAppSettingsPanel({
             )}
 
             {editable && (
-              <div className="space-y-2">
-                <Button
-                  variant="outline"
-                  disabled={syncHistory.isPending}
-                  onClick={() => syncHistory.mutate()}
-                >
-                  {syncHistory.isPending ? (
-                    <Loader2 className="animate-spin" size={16} />
-                  ) : (
-                    <MessageCircleMore size={16} />
-                  )}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Button
+                    variant="outline"
+                    disabled={syncHistory.isPending || disconnect.isPending}
+                    onClick={() => syncHistory.mutate()}
+                  >
+                    {syncHistory.isPending ? (
+                      <Loader2 className="animate-spin" size={16} />
+                    ) : (
+                      <MessageCircleMore size={16} />
+                    )}
 
-                  {syncHistory.isPending
-                    ? "Solicitando sincronização…"
-                    : "Sincronizar histórico"}
-                </Button>
+                    {syncHistory.isPending
+                      ? "Solicitando sincronização…"
+                      : "Sincronizar histórico"}
+                  </Button>
 
-                <p className="text-xs text-muted-foreground">
-                  Use após conectar um número em coexistência. A Meta permite a
-                  sincronização inicial de histórico dentro da janela de onboarding.
-                </p>
+                  <p className="text-xs text-muted-foreground">
+                    Use após conectar um número em coexistência. A Meta permite a
+                    sincronização inicial de histórico dentro da janela de onboarding.
+                  </p>
+                </div>
+
+                <div className="border-t pt-4">
+                  <Button
+                    variant="outline"
+                    disabled={disconnect.isPending || syncHistory.isPending}
+                    onClick={() => disconnect.mutate()}
+                  >
+                    {disconnect.isPending ? (
+                      <Loader2 className="animate-spin" size={16} />
+                    ) : (
+                      <Unplug size={16} />
+                    )}
+
+                    {disconnect.isPending
+                      ? "Desconectando…"
+                      : "Desconectar do ESADS Beauty"}
+                  </Button>
+
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Isso remove a conexão do CRM, mas mantém o WhatsApp Business
+                    funcionando normalmente no celular e preserva o histórico já salvo.
+                  </p>
+                </div>
               </div>
             )}
           </CardContent>
