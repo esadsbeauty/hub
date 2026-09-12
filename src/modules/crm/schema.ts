@@ -39,6 +39,7 @@ export const companySchema = z.object({
   businessArea: optionalText,
   leadSource: optionalText,
   owner: optionalText,
+  ownerId: optionalText,
   temperature: z.enum(["frio", "morno", "quente"]),
   priority: z.enum(["baixa", "media", "alta"]),
   notes: optionalText,

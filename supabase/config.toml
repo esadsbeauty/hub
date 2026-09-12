@@ -17,3 +17,24 @@ additional_redirect_urls = ["http://localhost:5173/aceitar-convite"]
 
 [functions.invite-user]
 verify_jwt = true
+
+[functions.provision-organization]
+verify_jwt = true
+
+[functions.create-billing-charge]
+verify_jwt = true
+
+[functions.asaas-webhook]
+verify_jwt = false
+
+[functions.whatsapp-webhook]
+enabled = true
+verify_jwt = false
+import_map = "./functions/whatsapp-webhook/deno.json"
+entrypoint = "./functions/whatsapp-webhook/index.ts"
+
+[functions.whatsapp-send-message]
+verify_jwt = true
+
+[functions.whatsapp-embedded-signup]
+verify_jwt = true

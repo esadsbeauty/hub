@@ -53,7 +53,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     async resetPassword(email) { if (!supabase) throw unavailable(); const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: authRedirectUrls.passwordRecovery }); if (error) throw new Error("Não foi possível enviar a recuperação agora."); },
     async updatePassword(password) { if (!supabase) throw unavailable(); const { error } = await supabase.auth.updateUser({ password }); if (error) throw new Error("Não foi possível atualizar a senha."); setPasswordRecovery(false); },
     async completeInvitation(password) { if (!supabase) throw unavailable(); const { error } = await supabase.auth.updateUser({ password }); if (error) throw new Error("Não foi possível criar seu acesso."); const membership = await supabase.rpc("accept_own_invitation"); if (membership.error) throw new Error("Seu convite não está mais disponível."); queryClient.clear(); window.location.assign("/"); },
-    async signOut() { queryClient.clear(); setSession(null); activeUserId.current = null; if (supabase) await supabase.auth.signOut(); },
+    async signOut() { queryClient.clear(); setSession(null); activeUserId.current = null; if (supabase) { await supabase.rpc("platform_clear_tenant_context"); await supabase.auth.signOut(); } },
   }), [session, loading, passwordRecovery, queryClient]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

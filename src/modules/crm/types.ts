@@ -103,6 +103,7 @@ export type PipelineStage = {
   probability: number;
   isWon: boolean;
   isLost: boolean;
+  isActive?: boolean;
   createdAt: string;
   updatedAt: string;
 };
