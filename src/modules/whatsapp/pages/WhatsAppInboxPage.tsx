@@ -1,4 +1,5 @@
-import{useEffect,useMemo,useState}from"react";
+import{useEffect,useMemo,useRef,useState}from"react";
+import{useSearchParams}from"react-router-dom";
 import{MessageCircle,RefreshCw}from"lucide-react";
 import{Button}from"@/components/ui/button";
 import{useAppState}from"@/shared/state/app-state-context";
@@ -8,13 +9,40 @@ import{CrmPanel}from"../components/crm-panel";
 import{useSendWhatsAppMessage,useWhatsAppInbox,useWhatsAppMessages,useWhatsAppRealtime}from"../hooks/use-whatsapp-inbox";
 import type{WhatsAppConversation}from"../types";
 
+const digits=(value?:string)=>(value??"").replace(/\D/g,"");
+
+const phoneMatches=(left?:string,right?:string)=>{
+  const a=digits(left),b=digits(right);
+  if(!a||!b)return false;
+  if(a===b)return true;
+
+  const aWithoutCountry=a.startsWith("55")?a.slice(2):a;
+  const bWithoutCountry=b.startsWith("55")?b.slice(2):b;
+
+  if(aWithoutCountry===bWithoutCountry)return true;
+
+  const a10=aWithoutCountry.length>=10?aWithoutCountry.slice(-10):aWithoutCountry;
+  const b10=bWithoutCountry.length>=10?bWithoutCountry.slice(-10):bWithoutCountry;
+
+  return a10===b10;
+};
+
+const externalWhatsAppUrl=(phone:string)=>{
+  const normalized=digits(phone);
+  if(!normalized)return undefined;
+  const withCountry=normalized.startsWith("55")?normalized:`55${normalized}`;
+  return `https://wa.me/${withCountry}`;
+};
+
 export function WhatsAppInboxPage(){
+  const[searchParams]=useSearchParams();
   const{organizationId,role,isPlatformAdmin}=useAppState(),
   inbox=useWhatsAppInbox(),
   [selectedId,setSelectedId]=useState<string>(),
   [query,setQuery]=useState(""),
   [status,setStatus]=useState("all"),
-  [details,setDetails]=useState(false);
+  [details,setDetails]=useState(false),
+  deepLinkHandled=useRef("");
 
   const selected=inbox.data?.conversations.find(item=>item.id===selectedId);
   const messages=useWhatsAppMessages(selectedId);
@@ -26,7 +54,41 @@ export function WhatsAppInboxPage(){
   useEffect(()=>{
     setSelectedId(undefined);
     setDetails(false);
+    deepLinkHandled.current="";
   },[organizationId]);
+
+  useEffect(()=>{
+    if(inbox.isLoading||!inbox.data)return;
+
+    const opportunity=searchParams.get("opportunity")??"";
+    const contact=searchParams.get("contact")??"";
+    const phone=searchParams.get("phone")??"";
+
+    if(!opportunity&&!contact&&!phone)return;
+
+    const key=`${organizationId}|${opportunity}|${contact}|${phone}`;
+    if(deepLinkHandled.current===key)return;
+
+    const conversations=inbox.data.conversations??[];
+    const match=conversations.find(item=>
+      (opportunity&&item.opportunityId===opportunity)||
+      (contact&&item.contactId===contact)||
+      (phone&&phoneMatches(item.waId,phone))
+    );
+
+    deepLinkHandled.current=key;
+
+    if(match){
+      setSelectedId(match.id);
+      setDetails(false);
+      return;
+    }
+
+    if(phone){
+      const url=externalWhatsAppUrl(phone);
+      if(url)window.location.href=url;
+    }
+  },[inbox.data,inbox.isLoading,organizationId,searchParams]);
 
   const filtered=useMemo(()=>{
     const normalized=query.trim().toLocaleLowerCase("pt-BR");
