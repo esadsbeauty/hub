@@ -47,7 +47,7 @@ const mapConversation=(r:Row,last?:WhatsAppMessage):WhatsAppConversation=>({
 });
 
 const configured=()=>{
-  if(!supabase)throw new Error("Não foi possível conectar à Inbox do WhatsApp.");
+  if(!supabase)throw new Error("Não foi possível conectar Ã  Inbox do WhatsApp.");
   return supabase;
 };
 
@@ -214,6 +214,39 @@ export const whatsappRepository={
           new Date(a.messageTimestamp||a.createdAt).getTime()-
           new Date(b.messageTimestamp||b.createdAt).getTime()
       );
+  },
+
+  async linkCrmContext(input:{
+    organizationId:string;
+    conversationId:string;
+    companyId?:string;
+    contactId?:string;
+    opportunityId?:string;
+  }):Promise<void>{
+    if(isLocalMode)return;
+
+    const payload:{
+      company_id?:string|null;
+      contact_id?:string|null;
+      opportunity_id?:string|null;
+    }={};
+
+    if(input.companyId!==undefined)payload.company_id=input.companyId||null;
+    if(input.contactId!==undefined)payload.contact_id=input.contactId||null;
+    if(input.opportunityId!==undefined)payload.opportunity_id=input.opportunityId||null;
+
+    if(!Object.keys(payload).length)return;
+
+    const result=await configured()
+      .from("whatsapp_conversations")
+      .update(payload)
+      .eq("id",input.conversationId)
+      .eq("organization_id",input.organizationId);
+
+    if(result.error){
+      console.error("[WhatsApp CRM link]",result.error);
+      throw new Error("Não foi possível vincular esta conversa ao CRM.");
+    }
   },
 
   async sendMessage(
