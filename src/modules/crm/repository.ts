@@ -137,7 +137,7 @@ function seed(): CrmData {
         id: pipelineId,
         organizationId: ORGANIZATION_ID,
         name: "Pipeline Comercial",
-        description: "Pipeline padrão da ESADS Beauty",
+        description: "Pipeline padrÃ£o da ESADS Beauty",
         isDefault: true,
         createdAt,
         updatedAt: createdAt,
@@ -212,7 +212,7 @@ export const crmRepository = defineCrmRepository({
     const createdAt = now();
     const defaultPipeline = data.pipelines.find((pipeline) => pipeline.isDefault);
     const initialStage = data.stages.find((stage) => stage.pipelineId === defaultPipeline?.id && (stage.slug === "novo_lead" || stage.name.toLowerCase() === "novo lead"));
-    if (!defaultPipeline || !initialStage) throw new Error("Pipeline padrão ou etapa Novo Lead não configurados.");
+    if (!defaultPipeline || !initialStage) throw new Error("Pipeline padrÃ£o ou etapa Novo Lead nÃ£o configurados.");
     const company: Company = {
       id: id(),
       organizationId: ORGANIZATION_ID,
@@ -276,7 +276,7 @@ export const crmRepository = defineCrmRepository({
   async updateCompany(companyId: string, input: Partial<CompanyFormData>) {
     const data = read();
     const existing = data.companies.find((company) => company.id === companyId);
-    if (!existing) throw new Error("Empresa não encontrada");
+    if (!existing) throw new Error("Empresa nÃ£o encontrada");
     const { tags: tagList, ...patch } = input;
     const updated = {
       ...existing,
@@ -316,13 +316,150 @@ export const crmRepository = defineCrmRepository({
   },
   async duplicateCompany(companyId: string) {
     const source = read().companies.find((company) => company.id === companyId);
-    if (!source) throw new Error("Empresa não encontrada");
+    if (!source) throw new Error("Empresa nÃ£o encontrada");
     return this.createCompany({
       ...source,
-      fantasyName: `${source.fantasyName} (cópia)`,
+      fantasyName: `${source.fantasyName} (cÃ³pia)`,
       tags: source.tags.join(", "),
     });
   },
+
+  async createPipelineStage(
+    pipelineId: string,
+    name: string,
+    probability = 0,
+  ): Promise<PipelineStage> {
+    const data = read();
+    const pipeline = data.pipelines.find((item) => item.id === pipelineId);
+    if (!pipeline) throw new Error("Pipeline não encontrado.");
+
+    const trimmedName = name.trim();
+    if (!trimmedName) throw new Error("Informe o nome da etapa.");
+    if (probability < 0 || probability > 100)
+      throw new Error("A probabilidade deve estar entre 0 e 100.");
+
+    const createdAt = now();
+    const position =
+      Math.max(
+        -1,
+        ...data.stages
+          .filter((item) => item.pipelineId === pipelineId && item.isActive !== false)
+          .map((item) => item.position),
+      ) + 1;
+    const stage: PipelineStage = {
+      id: id(),
+      pipelineId,
+      name: trimmedName,
+      slug: `custom_${id().replaceAll("-", "").slice(0, 8)}`,
+      position,
+      probability,
+      isWon: false,
+      isLost: false,
+      isActive: true,
+      createdAt,
+      updatedAt: createdAt,
+    };
+
+    data.stages.push(stage);
+    write(data);
+    return stage;
+  },
+
+  async updatePipelineStage(
+    stageId: string,
+    input: { name?: string; probability?: number },
+  ): Promise<PipelineStage> {
+    const data = read();
+    const current = data.stages.find((item) => item.id === stageId);
+    if (!current) throw new Error("Etapa não encontrada.");
+
+    const nextName = input.name === undefined ? current.name : input.name.trim();
+    if (!nextName) throw new Error("Informe o nome da etapa.");
+    if (
+      input.probability !== undefined &&
+      (input.probability < 0 || input.probability > 100)
+    )
+      throw new Error("A probabilidade deve estar entre 0 e 100.");
+
+    const updated: PipelineStage = {
+      ...current,
+      name: nextName,
+      probability: input.probability ?? current.probability,
+      updatedAt: now(),
+    };
+    data.stages = data.stages.map((item) =>
+      item.id === stageId ? updated : item,
+    );
+    write(data);
+    return updated;
+  },
+
+  async reorderPipelineStages(pipelineId: string, stageIds: string[]) {
+    const data = read();
+    const active = data.stages
+      .filter(
+        (item) => item.pipelineId === pipelineId && item.isActive !== false,
+      )
+      .sort((a, b) => a.position - b.position);
+
+    if (
+      active.length !== stageIds.length ||
+      new Set(stageIds).size !== stageIds.length ||
+      active.some((item) => !stageIds.includes(item.id))
+    )
+      throw new Error("A ordem das etapas é inválida.");
+
+    const order = new Map(stageIds.map((stageId, position) => [stageId, position]));
+    data.stages = data.stages.map((item) =>
+      item.pipelineId === pipelineId && order.has(item.id)
+        ? { ...item, position: order.get(item.id)!, updatedAt: now() }
+        : item,
+    );
+    write(data);
+  },
+
+  async archivePipelineStage(stageId: string): Promise<PipelineStage> {
+    const data = read();
+    const current = data.stages.find((item) => item.id === stageId);
+    if (!current) throw new Error("Etapa não encontrada.");
+    if (current.isWon || current.isLost)
+      throw new Error("As etapas de ganho e perda não podem ser arquivadas.");
+
+    const hasOpportunities = data.opportunities.some(
+      (item) =>
+        item.stageId === stageId &&
+        !item.deletedAt &&
+        item.status !== "archived",
+    );
+    if (hasOpportunities)
+      throw new Error("Mova as oportunidades desta etapa antes de arquivá-la.");
+
+    const archived: PipelineStage = {
+      ...current,
+      isActive: false,
+      updatedAt: now(),
+    };
+    data.stages = data.stages.map((item) =>
+      item.id === stageId ? archived : item,
+    );
+
+    const active = data.stages
+      .filter(
+        (item) =>
+          item.pipelineId === current.pipelineId && item.isActive !== false,
+      )
+      .sort((a, b) => a.position - b.position);
+    const order = new Map(active.map((item, position) => [item.id, position]));
+    data.stages = data.stages.map((item) =>
+      order.has(item.id)
+        ? { ...item, position: order.get(item.id)!, updatedAt: now() }
+        : item,
+    );
+
+    write(data);
+    return archived;
+  },
+
   async createOpportunity(input: OpportunityFormData) {
     const data = read();
     const createdAt = now();
@@ -330,7 +467,7 @@ export const crmRepository = defineCrmRepository({
       (item) =>
         item.id === input.stageId && item.pipelineId === input.pipelineId,
     );
-    if (!stage) throw new Error("Etapa inválida para o pipeline selecionado");
+    if (!stage) throw new Error("Etapa invÃ¡lida para o pipeline selecionado");
     const opportunity: Opportunity = {
       id: id(),
       organizationId: ORGANIZATION_ID,
@@ -350,7 +487,7 @@ export const crmRepository = defineCrmRepository({
         "Oportunidade criada",
         input.companyId,
         opportunity.id,
-        `${opportunity.title} · ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(opportunity.value)}`,
+        `${opportunity.title} Â· ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(opportunity.value)}`,
       ),
     );
     write(data);
@@ -364,7 +501,7 @@ export const crmRepository = defineCrmRepository({
     const current = data.opportunities.find(
       (item) => item.id === opportunityId,
     );
-    if (!current) throw new Error("Oportunidade não encontrada");
+    if (!current) throw new Error("Oportunidade nÃ£o encontrada");
     if (input.stageId && input.stageId !== current.stageId) {
       const { stageId, ...remaining } = input;
       await this.moveOpportunity(opportunityId, stageId);
@@ -381,12 +518,12 @@ export const crmRepository = defineCrmRepository({
     const source = read().opportunities.find(
       (item) => item.id === opportunityId,
     );
-    if (!source) throw new Error("Oportunidade não encontrada");
+    if (!source) throw new Error("Oportunidade nÃ£o encontrada");
     return this.createOpportunity({
       companyId: source.companyId,
       pipelineId: source.pipelineId,
       stageId: source.stageId,
-      title: `${source.title} (cópia)`,
+      title: `${source.title} (cÃ³pia)`,
       description: source.description,
       value: source.value,
       probability: source.probability,
@@ -402,7 +539,7 @@ export const crmRepository = defineCrmRepository({
       (item) => item.id === opportunityId,
     );
     if (!stage || !current || stage.pipelineId !== current.pipelineId)
-      throw new Error("Oportunidade ou etapa não encontrada");
+      throw new Error("Oportunidade ou etapa nÃ£o encontrada");
     if (current.stageId === stageId) return current;
     const previous = data.stages.find((item) => item.id === current.stageId);
     const changedAt = now();
@@ -440,13 +577,13 @@ export const crmRepository = defineCrmRepository({
       activity(
         stage.isWon ? "deal_won" : stage.isLost ? "deal_lost" : "stage_changed",
         stage.isWon
-          ? "Negócio ganho"
+          ? "NegÃ³cio ganho"
           : stage.isLost
-            ? "Negócio perdido"
+            ? "NegÃ³cio perdido"
             : "Etapa atualizada",
         current.companyId,
         current.id,
-        `${previous?.name ?? "Etapa anterior"} → ${stage.name}`,
+        `${previous?.name ?? "Etapa anterior"} â†’ ${stage.name}`,
         { fromStage: previous?.name ?? null, toStage: stage.name },
       ),
     );
@@ -458,7 +595,7 @@ export const crmRepository = defineCrmRepository({
     const opportunity = data.opportunities.find(
       (item) => item.id === opportunityId,
     );
-    if (!opportunity) throw new Error("Oportunidade não encontrada");
+    if (!opportunity) throw new Error("Oportunidade nÃ£o encontrada");
     const wonStage = data.stages.find(
       (item) => item.pipelineId === opportunity.pipelineId && item.isWon,
     );
@@ -473,7 +610,7 @@ export const crmRepository = defineCrmRepository({
     const opportunity = data.opportunities.find(
       (item) => item.id === opportunityId,
     );
-    if (!opportunity) throw new Error("Oportunidade não encontrada");
+    if (!opportunity) throw new Error("Oportunidade nÃ£o encontrada");
     const lostStage = data.stages.find(
       (item) => item.pipelineId === opportunity.pipelineId && item.isLost,
     );
@@ -531,7 +668,7 @@ export const crmRepository = defineCrmRepository({
   async updateContact(contactId: string, input: Partial<ContactFormData>) {
     const data = read();
     const current = data.contacts.find((item) => item.id === contactId);
-    if (!current) throw new Error("Contato não encontrado");
+    if (!current) throw new Error("Contato nÃ£o encontrado");
     if (input.isPrimary)
       data.contacts = data.contacts.map((item) =>
         item.companyId === current.companyId
@@ -585,7 +722,7 @@ export const crmRepository = defineCrmRepository({
             ? "followup_created"
             : "task_created",
         task.type === "meeting"
-          ? "Reunião agendada"
+          ? "ReuniÃ£o agendada"
           : task.type === "follow_up"
             ? "Follow-up criado"
             : "Tarefa criada",
@@ -697,7 +834,7 @@ export const crmRepository = defineCrmRepository({
   async completeTask(taskId: string) {
     const data = read();
     const task = data.tasks.find((item) => item.id === taskId);
-    if (!task) throw new Error("Tarefa não encontrada");
+    if (!task) throw new Error("Tarefa nÃ£o encontrada");
     const completedAt = now();
     data.tasks = data.tasks.map((item) =>
       item.id === taskId
@@ -719,7 +856,7 @@ export const crmRepository = defineCrmRepository({
     data.events.unshift(
       activity(
         eventType,
-        task.type === "follow_up" ? "Follow-up concluído" : "Tarefa concluída",
+        task.type === "follow_up" ? "Follow-up concluÃ­do" : "Tarefa concluÃ­da",
         task.companyId,
         task.opportunityId,
         task.title,
@@ -727,14 +864,14 @@ export const crmRepository = defineCrmRepository({
     );
     write(data);
     const updated = data.tasks.find((item) => item.id === taskId);
-    if (!updated) throw new Error("Tarefa atualizada não encontrada");
+    if (!updated) throw new Error("Tarefa atualizada nÃ£o encontrada");
     return updated;
   },
   async rescheduleTask(taskId: string, dueAt: string) {
     const data = read();
     const task = data.tasks.find((item) => item.id === taskId);
     if (!task || task.status !== "pending")
-      throw new Error("Tarefa pendente não encontrada");
+      throw new Error("Tarefa pendente nÃ£o encontrada");
     data.tasks = data.tasks.map((item) =>
       item.id === taskId ? { ...item, dueAt, updatedAt: now() } : item,
     );
@@ -750,14 +887,14 @@ export const crmRepository = defineCrmRepository({
     );
     write(data);
     const updated = data.tasks.find((item) => item.id === taskId);
-    if (!updated) throw new Error("Tarefa atualizada não encontrada");
+    if (!updated) throw new Error("Tarefa atualizada nÃ£o encontrada");
     return updated;
   },
   async cancelTask(taskId: string) {
     const data = read();
     const task = data.tasks.find((item) => item.id === taskId);
     if (!task || task.status !== "pending")
-      throw new Error("Tarefa pendente não encontrada");
+      throw new Error("Tarefa pendente nÃ£o encontrada");
     const cancelledAt = now();
     data.tasks = data.tasks.map((item) =>
       item.id === taskId
@@ -767,7 +904,7 @@ export const crmRepository = defineCrmRepository({
     data.events.unshift(
       activity(
         task.type === "meeting" ? "meeting_cancelled" : "task_cancelled",
-        task.type === "meeting" ? "Reunião cancelada" : "Tarefa cancelada",
+        task.type === "meeting" ? "ReuniÃ£o cancelada" : "Tarefa cancelada",
         task.companyId,
         task.opportunityId,
         task.title,
@@ -775,7 +912,7 @@ export const crmRepository = defineCrmRepository({
     );
     write(data);
     const updated = data.tasks.find((item) => item.id === taskId);
-    if (!updated) throw new Error("Tarefa atualizada não encontrada");
+    if (!updated) throw new Error("Tarefa atualizada nÃ£o encontrada");
     return updated;
   },
   async addNote(companyId: string, text: string, opportunityId?: string) {
@@ -794,7 +931,7 @@ export const crmRepository = defineCrmRepository({
     data.events.unshift(
       activity(
         "note_created",
-        "Observação criada",
+        "ObservaÃ§Ã£o criada",
         companyId,
         opportunityId,
         text,

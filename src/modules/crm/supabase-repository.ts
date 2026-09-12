@@ -39,33 +39,42 @@ type ActivityRow = Tables["activities"]["Row"];
 type NoteRow = Tables["notes"]["Row"];
 
 function client() {
-  if (!supabase) throw new Error("Supabase não configurado");
+  if (!supabase) throw new Error("Supabase nÃ£o configurado");
   return supabase;
 }
 function friendlyError(error: { message: string; code?: string }) {
   console.error("[CRM]", error);
+  if (error.message.includes("stage_has_opportunities"))
+    return new Error("Mova as oportunidades desta etapa antes de arquiva-la.");
+  if (error.message.includes("protected_stage"))
+    return new Error("As etapas de ganho e perda nao podem ser arquivadas.");
+  if (error.message.includes("invalid_stage_order"))
+    return new Error("Nao foi possivel salvar a nova ordem das etapas.");
+  if (error.message.includes("stage_name_required"))
+    return new Error("Informe o nome da etapa.");
+  if (error.message.includes("invalid_probability"))
+    return new Error("A probabilidade deve estar entre 0 e 100.");
   if (error.code === "23505")
-    return new Error("Já existe um registro com essas informações.");
+    return new Error("Ja existe um registro com essas informacoes.");
   if (error.code === "23503")
-    return new Error(
-      "Não foi possível concluir porque existem dados relacionados.",
-    );
-  return new Error("Não foi possível concluir esta ação. Tente novamente.");
+    return new Error("Nao foi possivel concluir porque existem dados relacionados.");
+  return new Error("Nao foi possivel concluir esta acao. Tente novamente.");
 }
+
 function ensure<T>(
   data: T | null,
   error: { message: string; code?: string } | null,
 ): T {
   if (error) throw friendlyError(error);
-  if (data === null) throw new Error("Registro não encontrado.");
+  if (data === null) throw new Error("Registro nÃ£o encontrado.");
   return data;
 }
 async function context() {
   const api = client();
   const { data: auth } = await api.auth.getUser();
-  if (!auth.user) throw new Error("Sessão expirada. Entre novamente.");
+  if (!auth.user) throw new Error("SessÃ£o expirada. Entre novamente.");
   const result = await api.rpc("active_tenant_actor");
-  if (result.error || !result.data) throw new Error("Selecione uma organização ativa.");
+  if (result.error || !result.data) throw new Error("Selecione uma organizaÃ§Ã£o ativa.");
   return result.data as unknown as ProfileRow;
 }
 
@@ -268,6 +277,23 @@ function task(row: TaskRow, owners: Map<string, string> = new Map()): Task {
   };
 }
 
+
+function pipelineStage(row: StageRow): PipelineStage {
+  return {
+    id: row.id,
+    pipelineId: row.pipeline_id,
+    name: row.name,
+    slug: row.slug,
+    position: row.position,
+    probability: Number(row.probability),
+    isWon: row.is_won,
+    isLost: row.is_lost,
+    isActive: row.is_active,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 async function list(): Promise<CrmData> {
   const api = client();
   const profile = await context();
@@ -411,21 +437,13 @@ async function list(): Promise<CrmData> {
       createdAt: item.created_at,
       updatedAt: item.updated_at,
     })),
-    stages: stageRows.filter(item=>item.is_active!==false).map(
-      (item): PipelineStage => ({
-        id: item.id,
-        pipelineId: item.pipeline_id,
-        name: item.name,
-        slug: item.slug,
-        position: item.position,
-        probability: Number(item.probability),
-        isWon: item.is_won,
-        isLost: item.is_lost,
-        isActive: item.is_active,
-        createdAt: item.created_at,
-        updatedAt: item.updated_at,
-      }),
-    ),
+    stages: stageRows
+      .filter(
+        (item) =>
+          item.is_active !== false &&
+          pipelineRows.some((pipeline) => pipeline.id === item.pipeline_id),
+      )
+      .map(pipelineStage),
     opportunities: opportunityRows.map((item) => opportunity(item, owners)),
     stageHistory: historyRows.map(
       (item): OpportunityStageHistory => ({
@@ -446,7 +464,7 @@ async function list(): Promise<CrmData> {
         opportunityId: item.opportunity_id ?? undefined,
         userId: item.user_id ?? "",
         user: item.user_id
-          ? (owners.get(item.user_id) ?? "Usuário")
+          ? (owners.get(item.user_id) ?? "UsuÃ¡rio")
           : "Sistema",
         type: activityType(item.type),
         title: item.title,
@@ -465,7 +483,7 @@ async function list(): Promise<CrmData> {
         companyId: item.company_id,
         opportunityId: item.opportunity_id ?? undefined,
         text: item.body,
-        author: owners.get(item.created_by) ?? "Usuário",
+        author: owners.get(item.created_by) ?? "UsuÃ¡rio",
         createdAt: item.created_at,
         updatedAt: item.updated_at,
       }),
@@ -586,7 +604,7 @@ export const supabaseCrmRepository = defineCrmRepository({
       new Map([[profile.id, profile.name]]),
     );
     return this.createCompany({
-      fantasyName: `${source.fantasyName} (cópia)`,
+      fantasyName: `${source.fantasyName} (cÃ³pia)`,
       legalName: source.legalName,
       cnpj: source.cnpj,
       phone: source.phone,
@@ -614,6 +632,50 @@ export const supabaseCrmRepository = defineCrmRepository({
       tags: source.tags.join(", "),
     });
   },
+
+  async createPipelineStage(
+    pipelineId: string,
+    name: string,
+    probability = 0,
+  ): Promise<PipelineStage> {
+    const result = await (client() as any).rpc("create_pipeline_stage", {
+      target_pipeline_id: pipelineId,
+      stage_name: name,
+      stage_probability: probability,
+    });
+    const row = ensure(result.data as StageRow | null, result.error);
+    return pipelineStage(row);
+  },
+
+  async updatePipelineStage(
+    stageId: string,
+    input: { name?: string; probability?: number },
+  ): Promise<PipelineStage> {
+    const result = await (client() as any).rpc("update_pipeline_stage", {
+      target_stage_id: stageId,
+      stage_name: input.name ?? null,
+      stage_probability: input.probability ?? null,
+    });
+    const row = ensure(result.data as StageRow | null, result.error);
+    return pipelineStage(row);
+  },
+
+  async reorderPipelineStages(pipelineId: string, stageIds: string[]) {
+    const result = await (client() as any).rpc("reorder_pipeline_stages", {
+      target_pipeline_id: pipelineId,
+      ordered_stage_ids: stageIds,
+    });
+    if (result.error) throw friendlyError(result.error);
+  },
+
+  async archivePipelineStage(stageId: string): Promise<PipelineStage> {
+    const result = await (client() as any).rpc("archive_pipeline_stage", {
+      target_stage_id: stageId,
+    });
+    const row = ensure(result.data as StageRow | null, result.error);
+    return pipelineStage(row);
+  },
+
   async createOpportunity(input: OpportunityFormData) {
     const profile = await context();
     const result = await client()
@@ -670,7 +732,7 @@ export const supabaseCrmRepository = defineCrmRepository({
       .single();
     const stage = ensure(stageResult.data, stageResult.error);
     if (stage.is_won || stage.is_lost)
-      throw new Error("Use a ação de ganho ou perda para encerrar a oportunidade.");
+      throw new Error("Use a aÃ§Ã£o de ganho ou perda para encerrar a oportunidade.");
     const status = stage.is_won ? "won" : stage.is_lost ? "lost" : "open";
     const changedAt = new Date().toISOString();
     const result = await client()
@@ -751,7 +813,7 @@ export const supabaseCrmRepository = defineCrmRepository({
       companyId: source.companyId,
       pipelineId: source.pipelineId,
       stageId: source.stageId,
-      title: `${source.title} (cópia)`,
+      title: `${source.title} (cÃ³pia)`,
       description: source.description,
       value: source.value,
       probability: source.probability,

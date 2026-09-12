@@ -78,7 +78,7 @@ export function useCrmActions() {
   const { notify } = useToast();
   const onError = (error: Error) =>
     notify({
-      title: "Não foi possível concluir",
+      title: "NÃ£o foi possÃ­vel concluir",
       description: error.message || "Tente novamente em alguns instantes.",
     });
   const refresh = () => client.invalidateQueries({ queryKey: crmKeys.all });
@@ -116,6 +116,50 @@ export function useCrmActions() {
       onSuccess: refresh,
       onError,
     }),
+
+    createPipelineStage: useMutation({
+      mutationFn: ({
+        pipelineId,
+        name,
+        probability = 0,
+      }: {
+        pipelineId: string;
+        name: string;
+        probability?: number;
+      }) => crmDataSource.createPipelineStage(pipelineId, name, probability),
+      onSuccess: refresh,
+      onError,
+    }),
+    updatePipelineStage: useMutation({
+      mutationFn: ({
+        id,
+        name,
+        probability,
+      }: {
+        id: string;
+        name?: string;
+        probability?: number;
+      }) => crmDataSource.updatePipelineStage(id, { name, probability }),
+      onSuccess: refresh,
+      onError,
+    }),
+    reorderPipelineStages: useMutation({
+      mutationFn: ({
+        pipelineId,
+        stageIds,
+      }: {
+        pipelineId: string;
+        stageIds: string[];
+      }) => crmDataSource.reorderPipelineStages(pipelineId, stageIds),
+      onSuccess: refresh,
+      onError,
+    }),
+    archivePipelineStage: useMutation({
+      mutationFn: (stageId: string) => crmDataSource.archivePipelineStage(stageId),
+      onSuccess: refresh,
+      onError,
+    }),
+
     createOpportunity: useMutation({
       mutationFn: crmDataSource.createOpportunity,
       onSuccess: refresh,
