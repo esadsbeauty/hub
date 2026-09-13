@@ -11,20 +11,36 @@ import type{WhatsAppConversation}from"../types";
 
 const digits=(value?:string)=>(value??"").replace(/\D/g,"");
 
+const brazilPhoneVariants=(value?:string)=>{
+  const raw=digits(value);
+  const variants=new Set<string>();
+  if(!raw)return variants;
+
+  variants.add(raw);
+
+  const local=raw.startsWith("55")?raw.slice(2):raw;
+  variants.add(local);
+
+  if(local.length===11&&local[2]==="9"){
+    variants.add(local.slice(0,2)+local.slice(3));
+  }
+
+  if(local.length===10){
+    variants.add(local.slice(0,2)+"9"+local.slice(2));
+  }
+
+  for(const item of [...variants]){
+    if(!item.startsWith("55"))variants.add(`55${item}`);
+  }
+
+  return variants;
+};
+
 const phoneMatches=(left?:string,right?:string)=>{
-  const a=digits(left),b=digits(right);
-  if(!a||!b)return false;
-  if(a===b)return true;
-
-  const aWithoutCountry=a.startsWith("55")?a.slice(2):a;
-  const bWithoutCountry=b.startsWith("55")?b.slice(2):b;
-
-  if(aWithoutCountry===bWithoutCountry)return true;
-
-  const a10=aWithoutCountry.length>=10?aWithoutCountry.slice(-10):aWithoutCountry;
-  const b10=bWithoutCountry.length>=10?bWithoutCountry.slice(-10):bWithoutCountry;
-
-  return a10===b10;
+  const a=brazilPhoneVariants(left);
+  const b=brazilPhoneVariants(right);
+  if(!a.size||!b.size)return false;
+  return [...a].some(value=>b.has(value));
 };
 
 const externalWhatsAppUrl=(phone:string)=>{
