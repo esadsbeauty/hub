@@ -86,7 +86,7 @@ export function WhatsAppInboxPage(){
 
     if(phone){
       const url=externalWhatsAppUrl(phone);
-      if(url)window.location.href=url;
+      if(url)window.open(url,"_blank","noopener,noreferrer");
     }
   },[inbox.data,inbox.isLoading,organizationId,searchParams]);
 
