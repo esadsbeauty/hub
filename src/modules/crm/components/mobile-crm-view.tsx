@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDownUp, CalendarPlus, Kanban, List, MessageCircle, MoveRight, SlidersHorizontal } from "lucide-react";
+import { ArrowDownUp, CalendarPlus, Download, Kanban, List, MessageCircle, MoveRight, SlidersHorizontal, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -31,6 +31,8 @@ type Props = {
   onOpenCompany: (company: Company) => void;
   onOpenOpportunity: (opportunity: Opportunity) => void;
   onCreateOpportunity: () => void;
+  onImport: () => void;
+  onExport: () => void;
   onMoveOpportunity: (opportunity: Opportunity, stageId: string) => void;
   nextTask: (companyId: string, opportunityId?: string) => Task | undefined;
 };
@@ -57,6 +59,7 @@ export function MobileCrmView(props: Props) {
         <Button variant={view==="list"?"default":"ghost"} onClick={()=>setView("list")}><List size={18}/>Lista</Button>
       </div>
       <SearchInput value={props.query} onChange={event=>props.onQueryChange(event.target.value)} placeholder="Buscar lead ou contato…"/>
+      <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={props.onImport}><Upload size={18}/>Importar</Button><Button variant="outline" onClick={props.onExport}><Download size={18}/>Exportar</Button></div>
       <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={()=>setFilterSheet(true)}><SlidersHorizontal size={18}/>Filtros{props.activeFilters>0&&` (${props.activeFilters})`}</Button><Button variant="outline" onClick={()=>setSortSheet(true)}><ArrowDownUp size={18}/>{sortLabel[props.sort]}</Button></div>
     </section>
     {view==="kanban"?<MobileKanban {...props} stageFilter={stageFilter}/>:<MobileCompanyList {...props}/>} 

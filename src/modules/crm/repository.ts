@@ -24,6 +24,7 @@ import type {
 } from "./types";
 import { localDateTimeToUtc } from "./utils/formatters";
 import { defineCrmRepository } from "./repository-contract";
+import { normalizeBrazilianWhatsapp, type LeadImportInput, type LeadImportResult } from "./lead-spreadsheet";
 
 const STORAGE = "esads-hub-local-v1:crm";
 const LEGACY_STORAGE = "esads_crm_data_v3";
@@ -802,6 +803,14 @@ export const crmRepository = defineCrmRepository({
     );
     write(data);
     return note;
+  },
+  async importLeads(rows:LeadImportInput[]):Promise<LeadImportResult>{
+    let imported=0,duplicates=0,errors=0;const results:LeadImportResult["results"]=[];
+    for(const row of rows){const data=read(),phone=normalizeBrazilianWhatsapp(row.whatsapp),exists=data.contacts.some(contact=>!contact.deletedAt&&normalizeBrazilianWhatsapp(contact.whatsapp??contact.phone??"")===phone);
+      if(!phone||exists){duplicates+=exists?1:0;errors+=exists?0:1;results.push({row:row.row,status:exists?"duplicate":"error"});continue;}
+      try{const owner=data.profiles.find(profile=>profile.id===row.ownerId);const company=await this.createCompany({fantasyName:row.name,responsibleName:row.name,whatsapp:phone,instagram:row.instagram||undefined,leadSource:row.source||undefined,ownerId:owner?.id,owner:owner?.name,temperature:"morno",priority:"media",notes:undefined,tags:""});const opportunity=read().opportunities.find(item=>item.companyId===company.id);if(row.note)await this.addNote(company.id,row.note,opportunity?.id);imported+=1;results.push({row:row.row,status:"imported",companyId:company.id});}catch{errors+=1;results.push({row:row.row,status:"error"});}
+    }
+    return{imported,duplicates,errors,results};
   },
   async addFile(
     companyId: string,

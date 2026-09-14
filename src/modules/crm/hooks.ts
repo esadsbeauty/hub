@@ -20,6 +20,7 @@ import type {
 import type { CompanyFile, CrmData, Task } from "./types";
 import { useAppState } from "@/shared/state/app-state-context";
 import { dataLayerEventNames, pushDataLayerEvent } from "@/shared/analytics/data-layer";
+import type { LeadImportInput } from "./lead-spreadsheet";
 
 type WithCompany<T> = { companyId: string; data: T; opportunityId?: string };
 type CompleteTaskContext = {
@@ -90,6 +91,14 @@ export function useCrmActions() {
   return {
     createCompany: useMutation({
       mutationFn: crmDataSource.createCompany,
+      onSuccess: async () => {
+        await refresh();
+        await client.invalidateQueries({ queryKey: onboardingKey });
+      },
+      onError,
+    }),
+    importLeads: useMutation({
+      mutationFn: (rows:LeadImportInput[]) => crmDataSource.importLeads(rows),
       onSuccess: async () => {
         await refresh();
         await client.invalidateQueries({ queryKey: onboardingKey });

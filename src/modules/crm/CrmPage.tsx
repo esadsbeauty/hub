@@ -4,11 +4,13 @@ import {
   Building2,
   CalendarClock,
   FilterX,
+  Download,
   Kanban,
   List,
   ArrowDownUp,
   Plus,
   SlidersHorizontal,
+  Upload,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -38,6 +40,7 @@ import { FollowUpQuickForm } from "./components/simple-forms";
 import { OpportunityForm } from "./components/opportunity-form";
 import { OpportunityDetails } from "./components/opportunity-details";
 import { MobileCrmView } from "./components/mobile-crm-view";
+import { LeadImportDialog } from "./components/lead-import-dialog";
 import { useCrmActions, useCrmData } from "./hooks";
 import type { CompanyFormData } from "./schema";
 import type {
@@ -52,6 +55,7 @@ import type {
 import { currency, formatDateTime } from "./utils/formatters";
 import { contactWhatsappUrl } from "./utils/contact-links";
 import { crmTerminology, useBusinessMode } from "./business-mode";
+import { exportLeadsCsv } from "./lead-spreadsheet";
 type View = "kanban" | "list";
 export type CrmSort = "newest" | "oldest" | "name" | "activity" | "followup" | "priority";
 export type CrmFilters = {
@@ -88,6 +92,7 @@ export function CrmPage() {
   );
   const deferredQuery = useDeferredValue(query);
   const [view, setView] = useState<View>("kanban");
+  const [importOpen,setImportOpen]=useState(false);
   const [sort, setSort] = useState<CrmSort>("newest");
   const [filters, setFilters] = useState<CrmFilters>(() => {
     const saved = sessionStorage.getItem("crm-filters");
@@ -322,15 +327,20 @@ export function CrmPage() {
         onOpenCompany={(company)=>navigate(`/crm/companies/${company.id}`)}
         onOpenOpportunity={setSelected}
         onCreateOpportunity={()=>setModal("opportunity")}
+        onImport={()=>setImportOpen(true)}
+        onExport={()=>exportLeadsCsv({companies:filtered,contacts,opportunities:opportunities.filter(item=>filtered.some(company=>company.id===item.companyId)),stages:data.stages,notes:data.notes})}
         onMoveOpportunity={(opportunity,stageId)=>actions.moveOpportunity.mutate({opportunityId:opportunity.id,stageId},{onError:()=>notify({title:"Não foi possível mover",description:"A oportunidade voltou para a etapa anterior."})})}
         nextTask={nextTask}
       />
+      <LeadImportDialog open={importOpen} contacts={contacts} profiles={data.profiles} onClose={()=>setImportOpen(false)} onImport={rows=>actions.importLeads.mutateAsync(rows)}/>
       <div className="hidden md:contents">
       <PageHeader
         title="CRM"
         description={b2c?"Leads, clientes e próximos passos.":"Empresas, oportunidades e próximos passos."}
         actions={
           <>
+            <Button className="hidden md:inline-flex" variant="outline" onClick={()=>setImportOpen(true)}><Upload size={17}/> Importar leads</Button>
+            <Button className="hidden md:inline-flex" variant="outline" onClick={()=>exportLeadsCsv({companies:filtered,contacts,opportunities:opportunities.filter(item=>filtered.some(company=>company.id===item.companyId)),stages:data.stages,notes:data.notes})}><Download size={17}/> Exportar</Button>
             <Button className="hidden md:inline-flex" variant="outline" onClick={() => setModal("followup")}>
               Tarefa / follow-up
             </Button>

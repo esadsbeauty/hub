@@ -251,6 +251,7 @@ export type Database = {
         Args: { company_data: Json; contact_data?: Json };
         Returns: Database["public"]["Tables"]["companies"]["Row"];
       };
+      import_crm_leads: { Args: { import_rows: Json }; Returns: Json };
       complete_task: {
         Args: { target_task_id: string };
         Returns: Database["public"]["Tables"]["tasks"]["Row"];

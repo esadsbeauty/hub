@@ -24,6 +24,7 @@ import type {
 } from "./types";
 import { localDateTimeToUtc } from "./utils/formatters";
 import { defineCrmRepository } from "./repository-contract";
+import type { LeadImportInput, LeadImportResult } from "./lead-spreadsheet";
 
 type Tables = Database["public"]["Tables"];
 type OrganizationRow = Tables["organizations"]["Row"];
@@ -957,6 +958,10 @@ export const supabaseCrmRepository = defineCrmRepository({
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
+  },
+  async importLeads(rows:LeadImportInput[]):Promise<LeadImportResult>{
+    const result=await client().rpc("import_crm_leads",{import_rows:rows as unknown as Json});
+    return ensure(result.data,result.error) as unknown as LeadImportResult;
   },
   async createActivity(companyId: string, input: ActivityFormData) {
     const profile = await context();
