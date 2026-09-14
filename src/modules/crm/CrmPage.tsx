@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Building2,
   CalendarClock,
+  Download,
+  FileUp,
   FilterX,
   Kanban,
   List,
@@ -41,6 +43,7 @@ import { OpportunityDetails } from "./components/opportunity-details";
 import { MobileCrmView } from "./components/mobile-crm-view";
 import { NextActionStatus } from "./components/next-action-status";
 import { PipelineStageManager } from "./components/pipeline-stage-manager";
+import { LeadImportDialog } from "./components/lead-import-dialog";
 import { isOpenStage, lastContactForOpportunity, nextActionForOpportunity, prioritizedPendingActions } from "./next-action";
 import { useCrmActions, useCrmData } from "./hooks";
 import type { CompanyFormData } from "./schema";
@@ -55,6 +58,7 @@ import type {
 } from "./types";
 import { currency, formatDateTime } from "./utils/formatters";
 import { crmTerminology, isB2CMode, useBusinessMode } from "./business-mode";
+import { downloadLeadExport } from "./lead-spreadsheet";
 type View = "kanban" | "list";
 export type CrmSort = "newest" | "oldest" | "name" | "activity" | "followup" | "priority";
 export type CrmFilters = {
@@ -97,7 +101,7 @@ export function CrmPage() {
     return saved ? { ...emptyFilters, ...JSON.parse(saved) } : emptyFilters;
   });
   const [modal, setModal] = useState<
-    "company" | "opportunity" | "followup" | "pipeline" | null
+    "company" | "opportunity" | "followup" | "pipeline" | "import" | null
   >(null);
   const [pendingCompany, setPendingCompany] = useState<CompanyFormData>();
   const [duplicates, setDuplicates] = useState<Company[]>([]);
@@ -316,6 +320,47 @@ export function CrmPage() {
     });
     if (searchParams.get("onboarding") === "1") navigate("/onboarding");
   };
+
+
+  const exportLeads = () => {
+    downloadLeadExport(
+      companies.map((company) => {
+        const companyOpportunities = opportunities
+          .filter((item) => item.companyId === company.id)
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+        const opportunity =
+          companyOpportunities.find((item) => item.status === "open") ??
+          companyOpportunities[0];
+
+        const stage = opportunity
+          ? data.stages.find((item) => item.id === opportunity.stageId)
+          : undefined;
+
+        const latestNote = data.notes
+          .filter((item) => item.companyId === company.id)
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+
+        return {
+          name: company.fantasyName,
+          whatsapp: company.whatsapp ?? company.phone,
+          instagram: company.instagram,
+          note: latestNote?.text ?? company.notes,
+          source: company.leadSource,
+          owner: company.owner,
+          stage: stage?.name,
+          createdAt: company.createdAt
+            ? new Date(company.createdAt).toLocaleString("pt-BR")
+            : "",
+        };
+      }),
+    );
+
+    notify({
+      title: "Exportação concluída",
+      description: `${companies.length} lead(s) exportado(s) para CSV.`,
+    });
+  };
   return (
     <PageContainer>
       <MobileCrmView
@@ -345,6 +390,12 @@ export function CrmPage() {
         description={b2c?"Leads, clientes e próximos passos.":"Empresas, oportunidades e próximos passos."}
         actions={
           <>
+            <Button className="hidden md:inline-flex" variant="outline" onClick={() => setModal("import")}>
+              <FileUp size={17} /> Importar
+            </Button>
+            <Button className="hidden md:inline-flex" variant="outline" onClick={exportLeads}>
+              <Download size={17} /> Exportar
+            </Button>
             <Button className="hidden md:inline-flex" variant="outline" onClick={() => setModal("followup")}>
               Tarefa / follow-up
             </Button>
@@ -757,6 +808,20 @@ export function CrmPage() {
           )}
         </div>
       </Modal>
+      <LeadImportDialog
+        open={modal === "import"}
+        profiles={data.profiles}
+        onClose={closeModal}
+        onImport={async (rows) => {
+          const result = await actions.importLeads.mutateAsync(rows);
+
+          notify({
+            title: "Importação concluída",
+            description: `${result.imported} importado(s), ${result.duplicates} duplicado(s) e ${result.errors} com erro.`,
+          });
+        }}
+      />
+
       <PipelineStageManager
         open={modal === "pipeline"}
         pipeline={defaultPipeline}

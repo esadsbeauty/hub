@@ -19,6 +19,7 @@ import type {
 } from "./schema";
 import type { CompanyFile, CrmData, Task } from "./types";
 import { useAppState } from "@/shared/state/app-state-context";
+import type { LeadSpreadsheetRow } from "./lead-spreadsheet";
 
 type WithCompany<T> = { companyId: string; data: T; opportunityId?: string };
 type CompleteTaskContext = {
@@ -87,6 +88,11 @@ export function useCrmActions() {
     await refresh();
   };
   return {
+    importLeads: useMutation({
+      mutationFn: (rows: LeadSpreadsheetRow[]) => crmDataSource.importLeads(rows),
+      onSuccess: refresh,
+      onError,
+    }),
     createCompany: useMutation({
       mutationFn: crmDataSource.createCompany,
       onSuccess: async () => {

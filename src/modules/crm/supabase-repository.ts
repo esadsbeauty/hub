@@ -24,6 +24,7 @@ import type {
 } from "./types";
 import { localDateTimeToUtc } from "./utils/formatters";
 import { defineCrmRepository } from "./repository-contract";
+import type { LeadSpreadsheetRow } from "./lead-spreadsheet";
 
 type Tables = Database["public"]["Tables"];
 type OrganizationRow = Tables["organizations"]["Row"];
@@ -527,6 +528,53 @@ function companyPayload(input: Partial<CompanyFormData>) {
 
 export const supabaseCrmRepository = defineCrmRepository({
   list,
+
+  async importLeads(rows: LeadSpreadsheetRow[]) {
+    const profile = await context();
+
+    const profilesResult = await client()
+      .from("profiles")
+      .select("id,name")
+      .eq("organization_id", profile.organization_id);
+
+    const profiles = ensure(profilesResult.data, profilesResult.error);
+
+    const ownerByName = new Map(
+      profiles.map((item) => [
+        item.name.trim().toLowerCase(),
+        item.id,
+      ]),
+    );
+
+    const importRows = rows.map((row) => ({
+      row: row.row,
+      name: row.name,
+      whatsapp: row.whatsapp,
+      instagram: row.instagram || null,
+      note: row.note || null,
+      source: row.source || null,
+      ownerId: row.owner
+        ? ownerByName.get(row.owner.trim().toLowerCase()) ?? null
+        : profile.id,
+    }));
+
+    const result = await (client() as any).rpc("import_crm_leads", {
+      import_rows: importRows,
+    });
+
+    if (result.error) throw friendlyError(result.error);
+
+    return result.data as {
+      imported: number;
+      duplicates: number;
+      errors: number;
+      results: Array<{
+        row: number | string;
+        status: "imported" | "duplicate" | "error";
+        companyId?: string;
+      }>;
+    };
+  },
   async listTasksRange(from: string, to: string) {
     const profile = await context();
     const [profilesResult,result] = await Promise.all([

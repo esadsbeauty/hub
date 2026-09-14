@@ -3,6 +3,7 @@ import { crmRepository } from "./repository";
 import { supabaseCrmRepository } from "./supabase-repository";
 import type { FollowUpFormData, TaskFormData } from "./schema";
 import type { CompanyFile, Task } from "./types";
+import type { LeadSpreadsheetRow } from "./lead-spreadsheet";
 
 const source = isLocalMode ? crmRepository : supabaseCrmRepository;
 
@@ -10,6 +11,14 @@ export const crmDataSource = {
   list: () => source.list(),
   listTasksRange: (from: string, to: string) => source.listTasksRange(from, to),
   listOverdueTasks: (until: string) => source.listOverdueTasks(until),
+
+  importLeads: (rows: LeadSpreadsheetRow[]) => {
+    if (isLocalMode) {
+      throw new Error("A importação de leads está disponível apenas com o Supabase.");
+    }
+    return supabaseCrmRepository.importLeads(rows);
+  },
+
   createCompany: (input: Parameters<typeof source.createCompany>[0]) =>
     source.createCompany(input),
   updateCompany: (
