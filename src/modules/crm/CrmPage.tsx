@@ -1093,7 +1093,7 @@ function OpportunityKanban({
                             {phone&&<p className="mt-2 text-sm font-medium md:text-xs">{phone}</p>}
                             {item.owner&&<p className="mt-2 text-sm text-muted-foreground md:text-xs">Responsável: {item.owner}</p>}
                             <p className="mt-2 text-xs text-muted-foreground">
-                              Último contato: {lastContact(item)?formatDateTime(lastContact(item)!.createdAt):"Nenhum registrado"}
+                              Origem: {item.source ?? company?.leadSource ?? "Não informada"}
                             </p>
                             <NextActionStatus opportunity={item} stages={stages} task={task} compact/>
                           </button>

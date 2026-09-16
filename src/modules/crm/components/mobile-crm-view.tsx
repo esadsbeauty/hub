@@ -226,7 +226,7 @@ function MobileOpportunityCard({
           )}
 
           <p className="mt-2 text-sm text-muted-foreground">
-            Último contato: {lastContact ? formatDateTime(lastContact.createdAt) : "Nenhum registrado"}
+            Origem: {item.source ?? company?.leadSource ?? "Não informada"}
           </p>
 
           <NextActionStatus opportunity={item} stages={stages} task={task}/>
