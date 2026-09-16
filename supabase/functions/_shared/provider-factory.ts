@@ -1,0 +1,2 @@
+import type{BillingProvider}from"./billing-provider.ts";import{AsaasPaymentProvider}from"./asaas-provider.ts";
+export function billingProvider():BillingProvider{const provider=Deno.env.get("PAYMENT_PROVIDER")??"asaas";if(provider!=="asaas")throw new Error("unsupported_payment_provider");const key=Deno.env.get("ASAAS_API_KEY"),base=Deno.env.get("ASAAS_BASE_URL");if(!key||!base)throw new Error("billing_provider_not_configured");return new AsaasPaymentProvider(key,base);}

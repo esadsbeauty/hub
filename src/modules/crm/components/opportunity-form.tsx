@@ -1,12 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
-import { type SubmitHandler, useForm } from "react-hook-form";
+import { Controller, type SubmitHandler, useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { opportunitySchema, type OpportunityFormData } from "../schema";
 import type { Company, Opportunity, Pipeline, PipelineStage } from "../types";
+import { OpportunityValueInput } from "./opportunity-value-input";
 
 export function OpportunityForm({
   companyId,
@@ -36,6 +37,7 @@ export function OpportunityForm({
   const defaultStage = availableStages[0];
   const {
     register,
+    control,
     handleSubmit,
     watch,
     setValue,
@@ -114,12 +116,12 @@ export function OpportunityForm({
           </option>
         ))}
       </Select>
-      <Input
-        type="number"
-        min="0"
-        step="0.01"
-        placeholder="Valor"
-        {...register("value", { valueAsNumber: true })}
+      <Controller
+        name="value"
+        control={control}
+        render={({ field }) => (
+          <OpportunityValueInput value={field.value} onChange={field.onChange} />
+        )}
       />
       <Input
         type="number"

@@ -1,0 +1,5 @@
+import { Link } from "react-router-dom";
+import { useAppState } from "@/shared/state/app-state-context";
+import { useSubscriptionAccess } from "./hooks";
+const date=(value?:string)=>value?new Intl.DateTimeFormat("pt-BR").format(new Date(value)):"—";
+export function SubscriptionPastDueBanner(){const{status,isPlatformAdmin}=useAppState();const access=useSubscriptionAccess(status==="active"&&!isPlatformAdmin);if(access.data?.status!=="past_due")return null;return <aside role="status" className="border-b border-amber-200 bg-amber-50 px-5 py-3 text-amber-950"><div className="mx-auto flex max-w-[90rem] flex-col gap-2 sm:flex-row sm:items-center"><div className="flex-1"><b className="text-sm">Pagamento pendente</b><p className="text-sm">Vencimento em {date(access.data.nextDueAt)} · {access.data.daysOverdue} dias em atraso. Regularize até {date(access.data.gracePeriodEndsAt)} para evitar a suspensão.</p></div><Link className="text-sm font-semibold underline" to="/assinatura">Regularizar assinatura</Link></div></aside>;}
