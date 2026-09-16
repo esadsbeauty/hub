@@ -65,6 +65,71 @@ function safeEqual(a: string, b: string) {
   return result === 0;
 }
 
+const TRAFFIC_TEST_ORGANIZATION_ID =
+  "c6ee7876-c88b-4419-abba-b2ed4cc54257";
+
+async function registerPaidTrafficLead(
+  connection: Connection,
+  message: any,
+  waId: string,
+  contactName: string,
+) {
+  if (
+    connection.organization_id !==
+    TRAFFIC_TEST_ORGANIZATION_ID
+  ) {
+    return;
+  }
+
+  const referral = message?.referral;
+
+  if (!referral) {
+    return;
+  }
+
+  const cameFromMetaAd =
+    referral?.source_type === "ad" ||
+    Boolean(referral?.ctwa_clid) ||
+    Boolean(referral?.source_id);
+
+  if (!cameFromMetaAd) {
+    return;
+  }
+
+  const { error } = await supabase.rpc(
+    "upsert_paid_traffic_lead",
+    {
+      p_organization_id:
+        connection.organization_id,
+      p_name: contactName || waId,
+      p_whatsapp: waId,
+    },
+  );
+
+  if (error) {
+    console.error(
+      "Error registering paid traffic lead:",
+      {
+        waId,
+        code: error.code,
+        message: error.message,
+      },
+    );
+    return;
+  }
+
+  console.log(
+    "Paid traffic lead registered",
+    {
+      waId,
+      sourceId:
+        referral?.source_id ?? null,
+      ctwaClid:
+        referral?.ctwa_clid ?? null,
+    },
+  );
+}
+
 async function verifyMetaSignature(
   body: string,
   signatureHeader: string | null,
@@ -413,6 +478,13 @@ async function processStandardMessages(
       conversation.id,
       message,
       "inbound",
+    );
+
+    await registerPaidTrafficLead(
+      connection,
+      message,
+      waId,
+      contactMap.get(waId) ?? waId,
     );
   }
 }
