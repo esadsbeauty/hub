@@ -225,9 +225,9 @@ function MobileOpportunityCard({
             </p>
           )}
 
-          <p className="mt-2 text-sm text-muted-foreground">
-            Origem: {item.source ?? company?.leadSource ?? "Não informada"}
-          </p>
+          <span className="mt-2 inline-flex w-fit items-center rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+  Origem: {item.source ?? company?.leadSource ?? "Não informada"}
+</span>
 
           <NextActionStatus opportunity={item} stages={stages} task={task}/>
         </button>
