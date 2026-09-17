@@ -93,16 +93,46 @@ export function createDiagnosticHtml(submission: DiagnosticSubmission) {
 
 export function downloadDiagnosticPdf(submission: DiagnosticSubmission) {
   const html = createDiagnosticHtml(submission);
-  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const reportWindow = window.open(url, "_blank");
 
-  if (!reportWindow) {
-    URL.revokeObjectURL(url);
-    throw new Error(
-      "O navegador bloqueou a abertura do relatório. Permita pop-ups e tente novamente.",
-    );
+  const iframe = document.createElement("iframe");
+
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  iframe.style.visibility = "hidden";
+
+  document.body.appendChild(iframe);
+
+  const frameDocument =
+    iframe.contentDocument ?? iframe.contentWindow?.document;
+
+  if (!frameDocument) {
+    iframe.remove();
+    throw new Error("Não foi possível preparar o relatório.");
   }
 
-  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  frameDocument.open();
+  frameDocument.write(html);
+  frameDocument.close();
+
+  iframe.onload = () => {
+    window.setTimeout(() => {
+      const frameWindow = iframe.contentWindow;
+
+      if (!frameWindow) {
+        iframe.remove();
+        return;
+      }
+
+      frameWindow.focus();
+      frameWindow.print();
+
+      window.setTimeout(() => {
+        iframe.remove();
+      }, 2000);
+    }, 500);
+  };
 }
