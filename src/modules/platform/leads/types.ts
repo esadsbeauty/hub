@@ -1,0 +1,4 @@
+export type ProductLeadStatus="new"|"contacted"|"conversation"|"meeting"|"customer"|"lost";
+export type ProductLead={id:string;name:string;whatsapp:string;email:string;businessName:string;source:string;status:ProductLeadStatus;notes?:string;lastContactedAt?:string;createdAt:string;updatedAt:string;utmSource?:string;utmMedium?:string;utmCampaign?:string;utmContent?:string;utmTerm?:string;fbclid?:string;landingUrl?:string;referrer?:string};
+export type ProductLeadFilters={query:string;status:""|ProductLeadStatus;source:string;campaign:string;period:""|"7"|"30";sort:"newest"|"oldest"|"updated";page:number;pageSize:number};
+export type ProductLeadPage={items:ProductLead[];total:number;page:number;pageSize:number;metrics:{total:number;new:number;contacted:number;meeting:number;customer:number;lost:number;last7Days:number;last30Days:number};sources:string[];campaigns:string[]};

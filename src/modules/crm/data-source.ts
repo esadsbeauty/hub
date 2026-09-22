@@ -3,6 +3,7 @@ import { crmRepository } from "./repository";
 import { supabaseCrmRepository } from "./supabase-repository";
 import type { FollowUpFormData, TaskFormData } from "./schema";
 import type { CompanyFile, Task } from "./types";
+import type { LeadSpreadsheetRow } from "./lead-spreadsheet";
 
 const source = isLocalMode ? crmRepository : supabaseCrmRepository;
 
@@ -10,6 +11,14 @@ export const crmDataSource = {
   list: () => source.list(),
   listTasksRange: (from: string, to: string) => source.listTasksRange(from, to),
   listOverdueTasks: (until: string) => source.listOverdueTasks(until),
+
+  importLeads: (rows: LeadSpreadsheetRow[]) => {
+    if (isLocalMode) {
+      throw new Error("A importação de leads está disponível apenas com o Supabase.");
+    }
+    return supabaseCrmRepository.importLeads(rows);
+  },
+
   createCompany: (input: Parameters<typeof source.createCompany>[0]) =>
     source.createCompany(input),
   updateCompany: (
@@ -18,6 +27,15 @@ export const crmDataSource = {
   ) => source.updateCompany(id, input),
   deleteCompany: (id: string) => source.deleteCompany(id),
   duplicateCompany: (id: string) => source.duplicateCompany(id),
+  createPipelineStage: (pipelineId: string, name: string, probability = 0) =>
+    source.createPipelineStage(pipelineId, name, probability),
+  updatePipelineStage: (
+    id: string,
+    input: { name?: string; probability?: number },
+  ) => source.updatePipelineStage(id, input),
+  reorderPipelineStages: (pipelineId: string, stageIds: string[]) =>
+    source.reorderPipelineStages(pipelineId, stageIds),
+  archivePipelineStage: (id: string) => source.archivePipelineStage(id),
   createOpportunity: (input: Parameters<typeof source.createOpportunity>[0]) =>
     source.createOpportunity(input),
   updateOpportunity: (
@@ -64,7 +82,10 @@ export const crmDataSource = {
   ) => source.createActivity(companyId, input),
   addFile: async (
     _companyId: string,
-    _file: Omit<CompanyFile, "id" | "organizationId" | "companyId" | "user" | "createdAt">,
+    _file: Omit<
+      CompanyFile,
+      "id" | "organizationId" | "companyId" | "user" | "createdAt"
+    >,
   ) => {
     throw new Error("Arquivos ainda não estão disponíveis neste ambiente.");
   },

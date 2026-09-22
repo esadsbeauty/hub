@@ -1,14 +1,17 @@
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Building2,
   CalendarClock,
+  Download,
+  FileUp,
   FilterX,
   Kanban,
   List,
   ArrowDownUp,
   Plus,
   SlidersHorizontal,
+  Settings2,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -38,6 +41,10 @@ import { FollowUpQuickForm } from "./components/simple-forms";
 import { OpportunityForm } from "./components/opportunity-form";
 import { OpportunityDetails } from "./components/opportunity-details";
 import { MobileCrmView } from "./components/mobile-crm-view";
+import { NextActionStatus } from "./components/next-action-status";
+import { PipelineStageManager } from "./components/pipeline-stage-manager";
+import { LeadImportDialog } from "./components/lead-import-dialog";
+import { isOpenStage, lastContactForOpportunity, nextActionForOpportunity, prioritizedPendingActions } from "./next-action";
 import { useCrmActions, useCrmData } from "./hooks";
 import type { CompanyFormData } from "./schema";
 import type {
@@ -50,6 +57,8 @@ import type {
   TimelineEvent,
 } from "./types";
 import { currency, formatDateTime } from "./utils/formatters";
+import { crmTerminology, isB2CMode, useBusinessMode } from "./business-mode";
+import { downloadLeadExport } from "./lead-spreadsheet";
 type View = "kanban" | "list";
 export type CrmSort = "newest" | "oldest" | "name" | "activity" | "followup" | "priority";
 export type CrmFilters = {
@@ -79,6 +88,7 @@ export function CrmPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { data, isLoading, isError, refetch } = useCrmData();
   const actions = useCrmActions();
+  const businessModeQuery=useBusinessMode();const businessMode=businessModeQuery.data??"b2b";const terms=crmTerminology(businessMode);const b2c=isB2CMode(businessMode);
   const { notify } = useToast();
   const [query, setQuery] = useState(
     () => searchParams.get("q") ?? sessionStorage.getItem("crm-query") ?? "",
@@ -91,17 +101,18 @@ export function CrmPage() {
     return saved ? { ...emptyFilters, ...JSON.parse(saved) } : emptyFilters;
   });
   const [modal, setModal] = useState<
-    "company" | "opportunity" | "followup" | null
+    "company" | "opportunity" | "followup" | "pipeline" | "import" | null
   >(null);
   const [pendingCompany, setPendingCompany] = useState<CompanyFormData>();
   const [duplicates, setDuplicates] = useState<Company[]>([]);
   const [selected, setSelected] = useState<Opportunity>();
   const [quickCompanyId, setQuickCompanyId] = useState("");
+  const [quickOpportunityId, setQuickOpportunityId] = useState("");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [mobileSortOpen, setMobileSortOpen] = useState(false);
   useEffect(() => { const requested = searchParams.get("new"); if (requested === "company" || requested === "opportunity") setModal(requested); }, [searchParams]);
   useEffect(() => { const requestedQuery = searchParams.get("q"); if (requestedQuery !== null) { setQuery(requestedQuery); sessionStorage.setItem("crm-query", requestedQuery); } }, [searchParams]);
-  const closeModal = () => { setModal(null); if (searchParams.has("new")) { const next = new URLSearchParams(searchParams); next.delete("new"); next.delete("quick"); setSearchParams(next, { replace: true }); } };
+  const closeModal = () => { setModal(null); setQuickCompanyId(""); setQuickOpportunityId(""); if (searchParams.has("new")) { const next = new URLSearchParams(searchParams); next.delete("new"); next.delete("quick"); setSearchParams(next, { replace: true }); } };
   const updateFilters = (next: CrmFilters) => {
     setFilters(next);
     sessionStorage.setItem("crm-filters", JSON.stringify(next));
@@ -207,8 +218,7 @@ export function CrmPage() {
         .filter(
           (item) =>
             item.companyId === companyId &&
-            item.status === "pending" &&
-            item.type === "follow_up",
+            item.status === "pending",
         )
         .sort((a, b) => a.dueAt.localeCompare(b.dueAt))[0];
     }
@@ -243,18 +253,30 @@ export function CrmPage() {
         <ErrorState retry={() => refetch()} />
       </PageContainer>
     );
+  const defaultPipeline =
+    data.pipelines.find((item) => item.isDefault) ?? data.pipelines[0];
+
+  const crmStages = defaultPipeline
+    ? data.stages.filter(
+        (stage) =>
+          stage.pipelineId === defaultPipeline.id &&
+          stage.isActive !== false,
+      )
+    : data.stages.filter((stage) => stage.isActive !== false);
+
   const companyById = new Map<string, Company>(
     companies.map((item) => [item.id, item]),
   );
-  const nextTask = (companyId: string) =>
+  const nextTask = (companyId: string, opportunityId?: string) =>
     tasks
       .filter(
         (item) =>
           item.companyId === companyId &&
-          item.status === "pending" &&
-          item.type === "follow_up",
+          (!opportunityId || item.opportunityId === opportunityId) &&
+          item.status === "pending",
       )
       .sort((a, b) => a.dueAt.localeCompare(b.dueAt))[0];
+  const nextAction = (opportunity: Opportunity) => nextActionForOpportunity(opportunity, tasks);
   const lastEvent = (companyId: string) =>
     events
       .filter((item) => item.companyId === companyId)
@@ -296,15 +318,58 @@ export function CrmPage() {
       title: "Lead criado",
       description: "Empresa registrada e oportunidade adicionada em Novo Lead.",
     });
+    if (searchParams.get("onboarding") === "1") navigate("/onboarding");
+  };
+
+
+  const exportLeads = () => {
+    downloadLeadExport(
+      companies.map((company) => {
+        const companyOpportunities = opportunities
+          .filter((item) => item.companyId === company.id)
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+        const opportunity =
+          companyOpportunities.find((item) => item.status === "open") ??
+          companyOpportunities[0];
+
+        const stage = opportunity
+          ? data.stages.find((item) => item.id === opportunity.stageId)
+          : undefined;
+
+        const latestNote = data.notes
+          .filter((item) => item.companyId === company.id)
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+
+        return {
+          name: company.fantasyName,
+          whatsapp: company.whatsapp ?? company.phone,
+          instagram: company.instagram,
+          note: latestNote?.text ?? company.notes,
+          source: company.leadSource,
+          owner: company.owner,
+          stage: stage?.name,
+          createdAt: company.createdAt
+            ? new Date(company.createdAt).toLocaleString("pt-BR")
+            : "",
+        };
+      }),
+    );
+
+    notify({
+      title: "Exportação concluída",
+      description: `${companies.length} lead(s) exportado(s) para CSV.`,
+    });
   };
   return (
     <PageContainer>
       <MobileCrmView
+        businessMode={businessMode}
         companies={filtered}
         contacts={contacts}
         opportunities={opportunities.filter((item)=>filtered.some((company)=>company.id===item.companyId))}
         tasks={tasks}
-        stages={data.stages}
+        stages={crmStages}
         query={query}
         filters={filters}
         sort={sort}
@@ -316,22 +381,32 @@ export function CrmPage() {
         onOpenOpportunity={setSelected}
         onCreateOpportunity={()=>setModal("opportunity")}
         onMoveOpportunity={(opportunity,stageId)=>actions.moveOpportunity.mutate({opportunityId:opportunity.id,stageId},{onError:()=>notify({title:"Não foi possível mover",description:"A oportunidade voltou para a etapa anterior."})})}
-        nextTask={nextTask}
+        nextTask={nextAction}
+        lastContact={(opportunity)=>lastContactForOpportunity(opportunity,events)}
       />
       <div className="hidden md:contents">
       <PageHeader
         title="CRM"
-        description="Empresas, oportunidades e próximos passos."
+        description={b2c?"Leads, clientes e próximos passos.":"Empresas, oportunidades e próximos passos."}
         actions={
           <>
+            <Button className="hidden md:inline-flex" variant="outline" onClick={() => setModal("import")}>
+              <FileUp size={17} /> Importar
+            </Button>
+            <Button className="hidden md:inline-flex" variant="outline" onClick={exportLeads}>
+              <Download size={17} /> Exportar
+            </Button>
             <Button className="hidden md:inline-flex" variant="outline" onClick={() => setModal("followup")}>
               Tarefa / follow-up
             </Button>
             <Button className="hidden md:inline-flex" variant="outline" onClick={() => setModal("opportunity")}>
               Nova oportunidade
             </Button>
+            <Button className="hidden md:inline-flex" variant="outline" onClick={() => setModal("pipeline")}>
+              <Settings2 size={17} /> Editar pipeline
+            </Button>
             <Button className="hidden md:inline-flex" onClick={() => setModal("company")}>
-              <Plus size={17} /> <span className="md:hidden">Novo lead</span><span className="hidden md:inline">Nova empresa</span>
+              <Plus size={17} /> <span>{terms.newCompany}</span>
             </Button>
           </>
         }
@@ -339,9 +414,9 @@ export function CrmPage() {
       <section aria-label="Indicadores do CRM" className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-4">
         <div className="min-w-[82vw] snap-center md:min-w-0">
         <MetricCard
-          label="Empresas"
+          label={terms.companies}
           value={companies.length}
-          hint="Contas no relacionamento comercial"
+          hint={b2c?"Pessoas no relacionamento comercial":"Contas no relacionamento comercial"}
           icon={Building2}
         />
         </div>
@@ -373,7 +448,9 @@ export function CrmPage() {
         />
         </div>
       </section>
+      <NextActionsOverview tasks={tasks} opportunities={opportunities} stages={crmStages} companies={companies} onOpen={setSelected}/>
       <div className="flex flex-col justify-between gap-3 sm:flex-row">
+        <div className="flex items-center gap-2">
         <div className="inline-flex rounded-xl border bg-muted/50 p-1">
           <Button
             size="sm"
@@ -389,6 +466,10 @@ export function CrmPage() {
           >
             <List size={15} /> Lista
           </Button>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setModal("pipeline")}>
+          <Settings2 size={16} /> <span className="hidden sm:inline">Editar pipeline</span>
+        </Button>
         </div>
         <Button className="md:hidden" variant="outline" onClick={()=>setMobileSortOpen(true)}><ArrowDownUp size={19}/> Ordenar</Button>
         <Select
@@ -423,7 +504,7 @@ export function CrmPage() {
             setQuery(event.target.value);
             sessionStorage.setItem("crm-query", event.target.value);
           }}
-          placeholder="Buscar empresa, contato, telefone, email..."
+          placeholder={b2c?"Buscar lead, telefone, WhatsApp ou e-mail...":"Buscar empresa, contato, telefone, email..."}
         />
         <FilterSelect
           value={filters.owner}
@@ -521,7 +602,7 @@ export function CrmPage() {
           <MobileFilterField label="Oportunidade"><Select value={filters.openOpportunity} onChange={(event)=>updateFilters({...filters,openOpportunity:event.target.value})}><option value="all">Todas as empresas</option><option value="true">Com oportunidade aberta</option><option value="false">Sem oportunidade aberta</option></Select></MobileFilterField>
           <MobileFilterField label="Follow-up"><Select value={filters.overdue} onChange={(event)=>updateFilters({...filters,overdue:event.target.value})}><option value="all">Todos os follow-ups</option><option value="true">Com follow-up atrasado</option><option value="false">Sem follow-up atrasado</option></Select></MobileFilterField>
           <MobileFilterField label="Atividade"><Select value={filters.activity} onChange={(event)=>updateFilters({...filters,activity:event.target.value})}><option value="all">Qualquer atividade</option><option value="true">Sem atividade recente</option><option value="false">Com atividade recente</option></Select></MobileFilterField>
-          <MobileFilterField label="Período"><Select value={filters.created} onChange={(event)=>updateFilters({...filters,created:event.target.value})}><option value="all">Qualquer período</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option></Select></MobileFilterField>
+          <MobileFilterField label="Período"><Select value={filters.created} onChange={(event)=>updateFilters({...filters,created:event.target.value})}><option value="all">Qualquer perÃ­odo</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option></Select></MobileFilterField>
           <div className="sticky bottom-0 -mx-5 mt-2 grid grid-cols-2 gap-3 border-t bg-card px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4"><Button variant="outline" onClick={()=>updateFilters(emptyFilters)}>Limpar</Button><Button onClick={()=>setMobileFiltersOpen(false)}>Aplicar filtros</Button></div>
         </div>
       </Modal>
@@ -530,17 +611,20 @@ export function CrmPage() {
       </Modal>
       {filtered.length === 0 ? (
         <EmptyState
-          title="Nenhuma empresa encontrada"
+          title={`Nenhum${b2c?" lead":"a empresa"} encontrado${b2c?"":"a"}`}
           description="Ajuste a busca ou os filtros para continuar."
         />
       ) : view === "kanban" ? (
         <OpportunityKanban
+          businessMode={businessMode}
           opportunities={opportunities.filter((item) =>
             filtered.some((company) => company.id === item.companyId),
           )}
-          stages={data.stages}
+          stages={crmStages}
           companyById={companyById}
-          nextTask={nextTask}
+          contacts={contacts}
+          nextTask={nextAction}
+          lastContact={(opportunity)=>lastContactForOpportunity(opportunity,events)}
           onMove={(opportunity, stageId) =>
             actions.moveOpportunity.mutate(
               { opportunityId: opportunity.id, stageId },
@@ -554,29 +638,37 @@ export function CrmPage() {
             )
           }
           onOpen={setSelected}
+          onWhatsApp={(opportunity, contactId, phone) => {
+            if (!phone) return;
+            const params = new URLSearchParams();
+            params.set("opportunity", opportunity.id);
+            if (contactId) params.set("contact", contactId);
+            params.set("phone", phone);
+            navigate(`/whatsapp?${params.toString()}`);
+          }}
         />
       ) : (
-        <><div className="grid gap-4 md:hidden">{filtered.map(company=><button key={company.id} onClick={()=>navigate(`/crm/companies/${company.id}`)} className="rounded-[1.5rem] bg-card p-5 text-left shadow-soft premium-focus"><div className="flex items-start justify-between gap-3"><div><h2 className="text-xl font-semibold tracking-[-.025em]">{company.fantasyName}</h2><p className="mt-1 text-base text-muted-foreground">{contacts.find(item=>item.companyId===company.id&&item.isPrimary)?.name??"Sem contato principal"}</p></div><span className="rounded-full bg-muted px-3 py-1.5 text-sm font-semibold">{openCount(company.id)} abertas</span></div><div className="mt-5 flex flex-wrap gap-2"><TemperatureBadge temperature={company.temperature}/><PriorityBadge priority={company.priority}/></div><div className="mt-5 border-t pt-4 text-base"><p>{company.whatsapp??company.phone??"Contato não informado"}</p><p className="mt-2 text-muted-foreground">Próximo passo: {nextTask(company.id)?formatDateTime(nextTask(company.id)?.dueAt):"Nenhum"}</p></div></button>)}</div><div className="hidden md:block"><DataTable<Company>
+        <><div className="grid gap-4 md:hidden">{filtered.map(company=><button key={company.id} onClick={()=>navigate(`/crm/companies/${company.id}`)} className="rounded-[1.5rem] bg-card p-5 text-left shadow-soft premium-focus"><div className="flex items-start justify-between gap-3"><div><h2 className="text-xl font-semibold tracking-[-.025em]">{company.fantasyName}</h2><p className="mt-1 text-base text-muted-foreground">{contacts.find(item=>item.companyId===company.id&&item.isPrimary)?.name??"Sem contato principal"}</p></div><span className="rounded-full bg-muted px-3 py-1.5 text-sm font-semibold">{openCount(company.id)} abertas</span></div><div className="mt-5 flex flex-wrap gap-2"><TemperatureBadge temperature={company.temperature}/><PriorityBadge priority={company.priority}/></div><div className="mt-5 border-t pt-4 text-base"><p>{company.whatsapp??company.phone??"Contato nÃ£o informado"}</p><p className="mt-2 text-muted-foreground">Próximo passo: {nextTask(company.id)?formatDateTime(nextTask(company.id)?.dueAt):"Nenhum"}</p></div></button>)}</div><div className="hidden md:block"><DataTable<Company>
           data={filtered}
           onRowClick={(company) => navigate(`/crm/companies/${company.id}`)}
           columns={[
             {
               key: "company",
-              header: "Empresa",
+              header: terms.company,
               render: (company) => (
                 <div>
                   <b>{company.fantasyName}</b>
                   <p className="text-xs text-muted-foreground">
-                    {contacts.find(
+                    {b2c ? (company.businessArea ?? "Interesse nÃ£o informado") : (contacts.find(
                       (item) => item.companyId === company.id && item.isPrimary,
-                    )?.name ?? "Sem contato principal"}
+                    )?.name ?? "Sem contato principal")}
                   </p>
                 </div>
               ),
             },
             {
               key: "contact",
-              header: "Contato",
+              header: b2c ? "WhatsApp / telefone" : "Contato",
               render: (company) => (
                 <div className="text-sm">
                   {company.whatsapp ?? company.phone ?? "—"}
@@ -621,17 +713,19 @@ export function CrmPage() {
       )}</div>
       <Modal
         open={modal === "company"}
-        title="Nova empresa"
+        title={terms.newCompany}
         onClose={closeModal}
       >
         <CompanyForm
+          businessMode={businessMode}
+          profiles={data?.profiles ?? []}
           onCancel={closeModal}
           onSubmit={(form) => submitCompany(form)}
         />
       </Modal>
       <Modal
         open={duplicates.length > 0}
-        title="Encontramos possíveis empresas semelhantes"
+        title={`Encontramos possÃ­veis ${terms.companies.toLowerCase()} semelhantes`}
         onClose={() => {
           setDuplicates([]);
           setPendingCompany(undefined);
@@ -671,7 +765,7 @@ export function CrmPage() {
         <OpportunityForm
           companies={companies}
           pipelines={data.pipelines}
-          stages={data.stages}
+          stages={crmStages}
           onCancel={closeModal}
           onSubmit={async (form) => {
             await actions.createOpportunity.mutateAsync(form);
@@ -690,7 +784,7 @@ export function CrmPage() {
             value={quickCompanyId}
             onChange={(event) => setQuickCompanyId(event.target.value)}
           >
-            <option value="">Selecione a empresa</option>
+            <option value="">Selecione {b2c ? "o lead" : "a empresa"}</option>
             {companies.map((item) => (
               <option key={item.id} value={item.id}>
                 {item.fantasyName}
@@ -702,27 +796,80 @@ export function CrmPage() {
               onSubmit={async (form) => {
                 await actions.createFollowUp.mutateAsync({
                   companyId: quickCompanyId,
+                  opportunityId: quickOpportunityId || undefined,
                   data: form,
                 });
                 setModal(null);
                 setQuickCompanyId("");
+                setQuickOpportunityId("");
                 notify({ title: "Follow-up criado" });
               }}
             />
           )}
         </div>
       </Modal>
+      <LeadImportDialog
+        open={modal === "import"}
+        profiles={data.profiles}
+        onClose={closeModal}
+        onImport={async (rows) => {
+          const result = await actions.importLeads.mutateAsync(rows);
+
+          notify({
+            title: "Importação concluída",
+            description: `${result.imported} importado(s), ${result.duplicates} duplicado(s) e ${result.errors} com erro.`,
+          });
+        }}
+      />
+
+      <PipelineStageManager
+        open={modal === "pipeline"}
+        pipeline={defaultPipeline}
+        stages={crmStages}
+        opportunities={opportunities}
+        onClose={closeModal}
+        onCreate={async ({ name, probability }) => {
+          if (!defaultPipeline) return;
+          await actions.createPipelineStage.mutateAsync({
+            pipelineId: defaultPipeline.id,
+            name,
+            probability,
+          });
+          notify({ title: "Etapa criada" });
+        }}
+        onUpdate={async ({ id, name, probability }) => {
+          await actions.updatePipelineStage.mutateAsync({
+            id,
+            name,
+            probability,
+          });
+          notify({ title: "Etapa atualizada" });
+        }}
+        onReorder={async (stageIds) => {
+          if (!defaultPipeline) return;
+          await actions.reorderPipelineStages.mutateAsync({
+            pipelineId: defaultPipeline.id,
+            stageIds,
+          });
+        }}
+        onArchive={async (stageId) => {
+          await actions.archivePipelineStage.mutateAsync(stageId);
+          notify({ title: "Etapa arquivada" });
+        }}
+      />
       <OpportunityDetails
+        businessMode={businessMode}
         opportunity={selected}
         company={companyById.get(selected?.companyId ?? "")}
+        contact={contacts.find(item=>item.companyId===selected?.companyId&&item.isPrimary&&!item.deletedAt)??contacts.find(item=>item.companyId===selected?.companyId&&!item.deletedAt)}
         pipeline={data.pipelines.find(
           (item) => item.id === selected?.pipelineId,
         )}
-        stages={data.stages}
+        stages={crmStages}
         activities={data.events.filter(
           (event) => event.opportunityId === selected?.id,
         )}
-        nextTask={selected ? nextTask(selected.companyId) : undefined}
+        nextTask={selected ? nextAction(selected) : undefined}
         open={Boolean(selected)}
         onClose={() => setSelected(undefined)}
         onMove={(stageId) =>
@@ -750,12 +897,25 @@ export function CrmPage() {
             onSuccess: () => setSelected(undefined),
           })
         }
-        onAddNote={() =>
-          notify({ title: "Abra a empresa para adicionar uma nota" })
-        }
-        onAddFollowUp={() =>
-          notify({ title: "Abra a empresa para criar um follow-up" })
-        }
+        onEditContact={()=>{if(selected)navigate(`/crm/companies/${selected.companyId}`)}}
+        onSaveValue={async(value)=>{if(!selected)return;const updated=await actions.updateOpportunity.mutateAsync({id:selected.id,data:{value}});setSelected(updated);notify({title:"Valor da oportunidade atualizado"})}}
+        onSaveNote={async(text)=>{if(!selected)return;await actions.addNote.mutateAsync({companyId:selected.companyId,opportunityId:selected.id,text});notify({title:"Observação adicionada"})}}
+        onAddFollowUp={() => {
+          if (!selected) return;
+          setQuickCompanyId(selected.companyId);
+          setQuickOpportunityId(selected.id);
+          setModal("followup");
+        }}
+        onCompleteNextTask={()=>{
+          if(!selected) return;
+          const task=nextAction(selected);
+          if(task) actions.completeTask.mutate(task.id);
+        }}
+        onRescheduleNextTask={(dueAt)=>{
+          if(!selected) return;
+          const task=nextAction(selected);
+          if(task) actions.rescheduleTask.mutate({id:task.id,dueAt});
+        }}
         onLost={(form) =>
           selected &&
           actions.markOpportunityLost.mutate(
@@ -766,6 +926,21 @@ export function CrmPage() {
       />
     </PageContainer>
   );
+}
+
+function NextActionsOverview({tasks,opportunities,stages,companies,onOpen}:{tasks:Task[];opportunities:Opportunity[];stages:PipelineStage[];companies:Company[];onOpen:(opportunity:Opportunity)=>void}) {
+  const now=new Date();
+  const nextTasks = opportunities
+    .filter((opportunity) => isOpenStage(opportunity, stages))
+    .map((opportunity) => nextActionForOpportunity(opportunity, tasks))
+    .filter((task): task is Task => Boolean(task));
+  const pending=prioritizedPendingActions([...new Map(nextTasks.map((task) => [task.id, task])).values()],now);
+  const groups=[
+    {label:"Atrasados",items:pending.filter(task=>new Date(task.dueAt)<now)},
+    {label:"Hoje",items:pending.filter(task=>{const due=new Date(task.dueAt),end=new Date(now);end.setHours(24,0,0,0);return due>=now&&due<end})},
+    {label:"Próximos",items:pending.filter(task=>{const end=new Date(now);end.setHours(24,0,0,0);return new Date(task.dueAt)>=end})},
+  ];
+  return <section aria-label="PrÃ³ximas ações" className="grid gap-3 rounded-2xl border bg-card p-4 lg:grid-cols-3">{groups.map(group=><div key={group.label}><h2 className="text-sm font-semibold">{group.label} <span className="text-muted-foreground">({group.items.length})</span></h2><div className="mt-2 space-y-2">{group.items.slice(0,3).map(task=>{const opportunity=opportunities.find(item=>item.id===task.opportunityId);const company=companies.find(item=>item.id===opportunity?.companyId);return opportunity?<button key={task.id} onClick={()=>onOpen(opportunity)} className="block min-h-12 w-full rounded-xl bg-muted/60 px-3 py-2 text-left text-sm premium-focus"><b>{company?.fantasyName??opportunity.title}</b><span className="block text-muted-foreground">{task.title} · {formatDateTime(task.dueAt)}</span></button>:null})}{!group.items.length&&<p className="py-2 text-sm text-muted-foreground">Nenhuma ação.</p>}</div></div>)}</section>;
 }
 function FilterSelect({
   value,
@@ -795,24 +970,78 @@ function MobileFilterField({label,children}:{label:string;children:React.ReactNo
   return <label className="grid gap-2"><span className="text-base font-semibold">{label}</span>{children}</label>;
 }
 function OpportunityKanban({
+  businessMode,
   opportunities,
   stages,
   companyById,
+  contacts,
   nextTask,
+  lastContact,
   onMove,
   onOpen,
+  onWhatsApp,
 }: {
+  businessMode: import("./business-mode").BusinessMode;
   opportunities: Opportunity[];
   stages: PipelineStage[];
   companyById: Map<string, Company>;
-  nextTask: (companyId: string) => Task | undefined;
+  contacts: CompanyContact[];
+  nextTask: (opportunity: Opportunity) => Task | undefined;
+  lastContact: (opportunity: Opportunity) => TimelineEvent | undefined;
   onMove: (opportunity: Opportunity, stageId: string) => void;
   onOpen: (opportunity: Opportunity) => void;
+  onWhatsApp: (
+    opportunity: Opportunity,
+    contactId?: string,
+    phone?: string,
+  ) => void;
 }) {
   const [dragging, setDragging] = useState<Opportunity>();
+  const kanbanScrollRef = useRef<HTMLDivElement>(null);
+  const stickyScrollRef = useRef<HTMLDivElement>(null);
+  const [kanbanScrollSize, setKanbanScrollSize] = useState({
+    content: 0,
+    viewport: 0,
+  });
+
+  useEffect(() => {
+    const kanban = kanbanScrollRef.current;
+    if (!kanban) return;
+
+    const updateScrollWidth = () =>
+      setKanbanScrollSize({
+        content: kanban.scrollWidth,
+        viewport: kanban.clientWidth,
+      });
+    updateScrollWidth();
+
+    const observer = new ResizeObserver(updateScrollWidth);
+    observer.observe(kanban);
+    for (const column of kanban.children) observer.observe(column);
+
+    return () => observer.disconnect();
+  }, [stages]);
+
+  const syncHorizontalScroll = (
+    source: HTMLDivElement,
+    target: HTMLDivElement | null,
+  ) => {
+    if (target && Math.abs(target.scrollLeft - source.scrollLeft) > 1) {
+      target.scrollLeft = source.scrollLeft;
+    }
+  };
+
   return (
-    <div aria-label="Pipeline por etapas" className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-5 md:mx-0 md:snap-none md:px-0">
-      {[...stages]
+    <div className="relative">
+      <div
+        ref={kanbanScrollRef}
+        aria-label="Pipeline por etapas"
+        className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-5 md:mx-0 md:snap-none md:px-0 md:pb-6 md:[scrollbar-width:none] md:[&::-webkit-scrollbar]:hidden"
+        onScroll={(event) =>
+          syncHorizontalScroll(event.currentTarget, stickyScrollRef.current)
+        }
+      >
+        {[...stages]
         .sort((a, b) => a.position - b.position)
         .map((stage) => {
           const rows = opportunities.filter(
@@ -841,7 +1070,10 @@ function OpportunityKanban({
                 ) : (
                   rows.map((item) => {
                     const company = companyById.get(item.companyId);
-                    const task = nextTask(item.companyId);
+                    const contact = contacts.find(value=>value.companyId===item.companyId&&value.isPrimary&&!value.deletedAt)??contacts.find(value=>value.companyId===item.companyId&&!value.deletedAt);
+                    const leadName = contact?.name ?? company?.responsibleName ?? item.title;
+                    const task = nextTask(item);
+                    const phone=contact?.whatsapp??contact?.phone??company?.whatsapp??company?.phone;
                     return (
                       <Card
                         key={item.id}
@@ -855,25 +1087,17 @@ function OpportunityKanban({
                             className="w-full text-left"
                             onClick={() => onOpen(item)}
                           >
-                            <p className="text-base font-medium text-muted-foreground md:text-xs">
-                              {company?.fantasyName}
-                            </p>
-                            <h3 className="mt-2 text-xl font-semibold leading-snug tracking-[-.02em] md:mt-1 md:text-sm">{item.title}</h3>
-                            <div className="mt-3 flex items-center justify-between gap-2">
-                              <p className="text-lg font-semibold md:text-sm">
-                                {currency.format(item.value)}
-                              </p>
-                              {company && <div className="flex flex-wrap justify-end gap-2"><TemperatureBadge temperature={company.temperature}/><PriorityBadge priority={company.priority}/></div>}
-                            </div>
-                            <p className="mt-3 text-base text-muted-foreground md:mt-2 md:text-xs">
-                              {item.owner ?? "Sem responsável"}
-                            </p>
-                            {task && (
-                              <p className="mt-3 text-base md:mt-2 md:text-xs">
-                                Próximo: {formatDateTime(task.dueAt)}
-                              </p>
-                            )}
+                            <h3 className="text-xl font-semibold leading-snug tracking-[-.02em] md:text-sm">{leadName}</h3>
+                            {businessMode==="b2b"&&company?.fantasyName&&<p className="mt-1 text-sm text-muted-foreground md:text-xs">{company.fantasyName}</p>}
+                            {item.title!==leadName&&<p className="mt-2 text-sm text-muted-foreground md:text-xs"><span className="font-medium text-foreground">Interesse:</span> {item.title}</p>}
+                            {phone&&<p className="mt-2 text-sm font-medium md:text-xs">{phone}</p>}
+                            {item.owner&&<p className="mt-2 text-sm text-muted-foreground md:text-xs">Responsável: {item.owner}</p>}
+                            <span className="mt-2 inline-flex w-fit items-center rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+  Origem: {item.source ?? company?.leadSource ?? "Não informada"}
+</span>
+                            <NextActionStatus opportunity={item} stages={stages} task={task} compact/>
                           </button>
+                          {phone&&<button type="button" aria-label="Abrir conversa do WhatsApp" className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#e8f7ee] text-sm font-semibold text-[#176b3a]" onClick={()=>onWhatsApp(item,contact?.id,phone)}>WhatsApp</button>}
                         </CardContent>
                       </Card>
                     );
@@ -883,6 +1107,19 @@ function OpportunityKanban({
             </section>
           );
         })}
+      </div>
+      {kanbanScrollSize.content > kanbanScrollSize.viewport && (
+        <div
+          ref={stickyScrollRef}
+          aria-label="Rolagem horizontal do Kanban"
+          className="sticky bottom-0 z-20 hidden h-4 overflow-x-auto border-y border-border/50 bg-background/95 backdrop-blur md:block"
+          onScroll={(event) =>
+            syncHorizontalScroll(event.currentTarget, kanbanScrollRef.current)
+          }
+        >
+          <div style={{ width: kanbanScrollSize.content, height: 1 }} />
+        </div>
+      )}
     </div>
   );
 }
