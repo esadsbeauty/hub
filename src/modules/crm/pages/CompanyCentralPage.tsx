@@ -457,15 +457,17 @@ export function CompanyCentralPage() {
             },
           })
         }
-        onWon={() =>
-          selected &&
-          actions.markOpportunityWon.mutate(selected.id, {
-            onSuccess: () => {
-              setSelected(undefined);
-              success("Negócio marcado como ganho");
-            },
-          })
-        }
+        onWon={async (sale) => {
+          if (!selected) return;
+
+          await actions.markOpportunityWon.mutateAsync({
+            id: selected.id,
+            data: sale,
+          });
+
+          setSelected(undefined);
+          success("Venda registrada no CRM e no financeiro");
+        }}
         onAddFollowUp={() => setModal("followup")}
         onEditContact={() => {
           const contact =

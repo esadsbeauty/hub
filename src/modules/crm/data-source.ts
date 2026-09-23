@@ -44,7 +44,18 @@ export const crmDataSource = {
   ) => source.updateOpportunity(id, input),
   moveOpportunity: (id: string, stageId: string) =>
     source.moveOpportunity(id, stageId),
-  markOpportunityWon: (id: string) => source.markOpportunityWon(id),
+  markOpportunityWon: (
+    id: string,
+    input: Parameters<typeof supabaseCrmRepository.markOpportunityWon>[1],
+  ) => {
+    if (isLocalMode) {
+      throw new Error(
+        "O fechamento de venda com serviço e financeiro está disponível apenas com o Supabase.",
+      );
+    }
+
+    return supabaseCrmRepository.markOpportunityWon(id, input);
+  },
   markOpportunityLost: (
     id: string,
     input: Parameters<typeof source.markOpportunityLost>[1],

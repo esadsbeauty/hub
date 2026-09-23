@@ -891,12 +891,21 @@ export function CrmPage() {
             onSuccess: () => setSelected(undefined),
           })
         }
-        onWon={() =>
-          selected &&
-          actions.markOpportunityWon.mutate(selected.id, {
-            onSuccess: () => setSelected(undefined),
-          })
-        }
+        onWon={async (sale) => {
+          if (!selected) return;
+
+          await actions.markOpportunityWon.mutateAsync({
+            id: selected.id,
+            data: sale,
+          });
+
+          notify({
+            title: "Venda registrada",
+            description: "Oportunidade ganha e recebimento lançado no financeiro.",
+          });
+
+          setSelected(undefined);
+        }}
         onEditContact={()=>{if(selected)navigate(`/crm/companies/${selected.companyId}`)}}
         onSaveValue={async(value)=>{if(!selected)return;const updated=await actions.updateOpportunity.mutateAsync({id:selected.id,data:{value}});setSelected(updated);notify({title:"Valor da oportunidade atualizado"})}}
         onSaveNote={async(text)=>{if(!selected)return;await actions.addNote.mutateAsync({companyId:selected.companyId,opportunityId:selected.id,text});notify({title:"Observação adicionada"})}}

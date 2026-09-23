@@ -32,7 +32,28 @@ export type Database = {
           is_active: boolean;
           position: number;
         }
-      >;      organizations: Table<
+      >;
+      crm_sales: Table<{
+        id: string;
+        organization_id: string;
+        opportunity_id: string;
+        company_id: string;
+        total_amount: number;
+        sold_at: string;
+        payment_method: string | null;
+        notes: string | null;
+        created_by: string;
+        created_at: string;
+      }>;
+      crm_sale_items: Table<{
+        id: string;
+        organization_id: string;
+        sale_id: string;
+        service_id: string;
+        service_name: string;
+        amount: number;
+        created_at: string;
+      }>;      organizations: Table<
         Omit<Base, "organization_id"> & {
           name: string;
           slug: string;
@@ -209,9 +230,9 @@ export type Database = {
       financial_categories: Table<Base & { name:string; type:"income"|"expense"; parent_id:string|null; dre_group:"gross_revenue"|"deduction"|"direct_cost"|"operating_expense"|"other_income"|"other_expense"; is_active:boolean }>;
       cost_centers: Table<Base & { name:string; description:string|null; is_active:boolean }>;
       recurrence_rules: Table<Base & { type:"receivable"|"payable"; customer_account_id:string|null; contract_id:string|null; customer_service_id:string|null; supplier_name:string|null; description:string; amount:number; category_id:string|null; cost_center_id:string|null; financial_account_id:string|null; frequency:"monthly"|"quarterly"|"semiannual"|"yearly"; interval_count:number; start_date:string; end_date:string|null; due_day:number; is_active:boolean; next_generation_date:string; cancelled_at:string|null }>;
-      receivables: Table<Base & { customer_account_id:string|null; company_id:string|null; contract_id:string|null; customer_service_id:string|null; source_opportunity_id:string|null; description:string; category_id:string|null; cost_center_id:string|null; financial_account_id:string|null; competence_date:string; due_date:string; original_amount:number; discount_amount:number; interest_amount:number; penalty_amount:number; net_amount:number; status:"pending"|"partially_paid"|"paid"|"cancelled"|"refunded"; payment_method:string|null; notes:string|null; recurrence_rule_id:string|null; recurrence_key:string|null; installment_number:number|null;installment_total:number|null;installment_group_id:string|null;created_by:string; cancelled_at:string|null; deleted_at:string|null }>;
+      receivables: Table<Base & { customer_account_id:string|null; company_id:string|null; contract_id:string|null; customer_service_id:string|null; source_opportunity_id:string|null; source_sale_id:string|null; description:string; category_id:string|null; cost_center_id:string|null; financial_account_id:string|null; competence_date:string; due_date:string; original_amount:number; discount_amount:number; interest_amount:number; penalty_amount:number; net_amount:number; status:"pending"|"partially_paid"|"paid"|"cancelled"|"refunded"; payment_method:string|null; notes:string|null; recurrence_rule_id:string|null; recurrence_key:string|null; installment_number:number|null;installment_total:number|null;installment_group_id:string|null;created_by:string; cancelled_at:string|null; deleted_at:string|null }>;
       payables: Table<Base & { supplier_name:string; description:string; category_id:string|null; cost_center_id:string|null; competence_date:string; due_date:string; original_amount:number; discount_amount:number; interest_amount:number; penalty_amount:number; net_amount:number; status:"pending"|"partially_paid"|"paid"|"cancelled"|"refunded"; financial_account_id:string|null; notes:string|null; recurrence_rule_id:string|null; recurrence_key:string|null; installment_number:number|null;installment_total:number|null;installment_group_id:string|null;created_by:string; cancelled_at:string|null; deleted_at:string|null }>;
-      financial_transactions: Table<{ id:string; organization_id:string; financial_account_id:string; type:"income"|"expense"|"transfer"|"adjustment"; transfer_direction:"in"|"out"|null; amount:number; occurred_at:string; description:string; payment_method:string|null; reference:string|null; created_by:string; reversed_at:string|null; reversed_by:string|null; reversal_of_id:string|null; transfer_id:string|null; created_at:string }>;
+      financial_transactions: Table<{ id:string; organization_id:string; financial_account_id:string|null; type:"income"|"expense"|"transfer"|"adjustment"; transfer_direction:"in"|"out"|null; amount:number; occurred_at:string; description:string; payment_method:string|null; reference:string|null; created_by:string; reversed_at:string|null; reversed_by:string|null; reversal_of_id:string|null; transfer_id:string|null; created_at:string }>;
       payment_allocations: Table<{ id:string; organization_id:string; transaction_id:string; receivable_id:string|null; payable_id:string|null; amount:number; created_at:string }>;
       marketing_sources: Table<Base&{name:string;slug:string;channel:"paid_social"|"paid_search"|"organic_social"|"organic_search"|"referral"|"outbound"|"direct"|"partner"|"other";platform:string;type:string;is_paid:boolean;is_active:boolean}>;
       marketing_campaigns: Table<Base&{source_id:string;provider:string;external_id:string|null;name:string;objective:string|null;status:"active"|"paused"|"completed"|"archived";start_date:string|null;end_date:string|null;budget:number|null;external_account_id:string|null;metadata:Json}>;
@@ -277,6 +298,17 @@ export type Database = {
         Returns: Database["public"]["Tables"]["tasks"]["Row"];
       };
       activate_customer_from_won_opportunity: { Args: { target_opportunity_id: string }; Returns: Database["public"]["Tables"]["customer_accounts"]["Row"] };
+      close_opportunity_with_sale: {
+        Args: {
+          target_opportunity_id: string;
+          target_service_id: string;
+          sale_amount: number;
+          sale_date: string;
+          sale_payment_method?: string | null;
+          sale_notes?: string | null;
+        };
+        Returns: string;
+      };
       complete_onboarding_step: { Args: { target_step_id: string }; Returns: Database["public"]["Tables"]["onboarding_steps"]["Row"] };
       register_financial_payment: { Args:{ entry_kind:string; target_entry_id:string; target_account_id:string; payment_amount:number; payment_occurred_at:string; payment_method_value:string; payment_reference:string; payment_notes?:string }; Returns:string };
       reverse_financial_transaction: { Args:{target_transaction_id:string}; Returns:undefined };

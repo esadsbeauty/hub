@@ -797,17 +797,33 @@ export const supabaseCrmRepository = defineCrmRepository({
       .single();
     return opportunity(ensure(result.data, result.error), new Map());
   },
-  async markOpportunityWon(id: string) {
-    const activation = await client().rpc(
-      "activate_customer_from_won_opportunity",
-      { target_opportunity_id: id },
-    );
-    if (activation.error) throw friendlyError(activation.error);
+  async markOpportunityWon(
+    id: string,
+    input: {
+      serviceId: string;
+      amount: number;
+      date: string;
+      paymentMethod?: string;
+      notes?: string;
+    },
+  ) {
+    const result = await client().rpc("close_opportunity_with_sale", {
+      target_opportunity_id: id,
+      target_service_id: input.serviceId,
+      sale_amount: input.amount,
+      sale_date: input.date,
+      sale_payment_method: input.paymentMethod ?? null,
+      sale_notes: input.notes ?? null,
+    });
+
+    if (result.error) throw friendlyError(result.error);
+
     const updated = await client()
       .from("opportunities")
       .select("*")
       .eq("id", id)
       .single();
+
     return opportunity(ensure(updated.data, updated.error), new Map());
   },
   async markOpportunityLost(id: string, input: LostOpportunityFormData) {

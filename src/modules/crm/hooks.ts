@@ -193,9 +193,22 @@ export function useCrmActions() {
       onError,
     }),
     markOpportunityWon: useMutation({
-      mutationFn: crmDataSource.markOpportunityWon,
+      mutationFn: ({
+        id,
+        data,
+      }: {
+        id: string;
+        data: {
+          serviceId: string;
+          amount: number;
+          date: string;
+          paymentMethod?: string;
+          notes?: string;
+        };
+      }) => crmDataSource.markOpportunityWon(id, data),
       onSuccess: async () => {
         await client.invalidateQueries({ queryKey: ["customers"] });
+        await client.invalidateQueries({ queryKey: ["finance"] });
         await refresh();
       },
       onError,

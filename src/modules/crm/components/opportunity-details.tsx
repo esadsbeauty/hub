@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Drawer } from "@/shared/components/overlays/drawer";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { supabase } from "@/lib/supabase";
 import { lostOpportunitySchema, type LostOpportunityFormData } from "../schema";
 import type { Company, CompanyContact, Opportunity, Pipeline, PipelineStage, Task, TimelineEvent } from "../types";
 import { currency, daysSince, formatDateTime } from "../utils/formatters";
@@ -30,7 +31,14 @@ type Props = {
   opportunity?: Opportunity; company?: Company; contact?: CompanyContact; pipeline?: Pipeline;
   stages: PipelineStage[]; nextTask?: Task; activities: TimelineEvent[]; open: boolean;
   onClose: () => void; onMove: (stageId: string) => void; onEdit: () => void;
-  onDuplicate: () => void; onArchive: () => void; onWon: () => void;
+  onDuplicate: () => void; onArchive: () => void;
+  onWon: (data: {
+    serviceId: string;
+    amount: number;
+    date: string;
+    paymentMethod?: string;
+    notes?: string;
+  }) => Promise<void> | void;
   onLost: (data: LostOpportunityFormData) => void; onAddFollowUp: () => void;
   onSaveNote: (text: string) => Promise<void> | void; onCompleteNextTask: () => void;
   onRescheduleNextTask: (dueAt: string) => void;
@@ -41,10 +49,69 @@ type Props = {
 export function OpportunityDetails(props: Props) {
   const { opportunity, company, contact, pipeline, stages, nextTask, activities } = props;
   const businessMode=props.businessMode??"b2b",b2c=(businessMode==="b2c"||businessMode==="b2c_beauty"),terms=crmTerminology(businessMode);
-  const [confirmWon,setConfirmWon]=useState(false),[confirmArchive,setConfirmArchive]=useState(false),[lossOpen,setLossOpen]=useState(false);
+  const [wonOpen,setWonOpen]=useState(false),[confirmArchive,setConfirmArchive]=useState(false),[lossOpen,setLossOpen]=useState(false);
+  const [services,setServices]=useState<Array<{id:string;name:string;defaultPrice:number|null}>>([]);
+  const [serviceId,setServiceId]=useState("");
+  const [saleAmount,setSaleAmount]=useState("");
+  const [saleDate,setSaleDate]=useState(()=>new Date().toISOString().slice(0,10));
+  const [paymentMethod,setPaymentMethod]=useState("");
+  const [saleNotes,setSaleNotes]=useState("");
+  const [savingSale,setSavingSale]=useState(false);
+  const [servicesLoading,setServicesLoading]=useState(false);
   const [note,setNote]=useState(""),[savingNote,setSavingNote]=useState(false),[rescheduling,setRescheduling]=useState(false),[newDueAt,setNewDueAt]=useState("");
   const [proposalValue,setProposalValue]=useState(opportunity?.value??0),[savingValue,setSavingValue]=useState(false);
   useEffect(()=>setProposalValue(opportunity?.value??0),[opportunity?.id,opportunity?.value]);
+  useEffect(()=>{
+    if(!wonOpen||!supabase)return;
+    let active=true;
+    setServicesLoading(true);
+    void supabase
+      .from("organization_services")
+      .select("id,name,default_price")
+      .eq("is_active",true)
+      .order("position",{ascending:true})
+      .order("name",{ascending:true})
+      .then(({data,error})=>{
+        if(!active)return;
+        setServicesLoading(false);
+        if(error){setServices([]);return}
+        setServices((data??[]).map(item=>({id:item.id,name:item.name,defaultPrice:item.default_price})));
+      });
+    return()=>{active=false};
+  },[wonOpen]);
+
+  const openWon=()=>{
+    setWonOpen(true);
+    setServiceId("");
+    setSaleAmount(opportunity?.value ? String(opportunity.value) : "");
+    setSaleDate(new Date().toISOString().slice(0,10));
+    setPaymentMethod("");
+    setSaleNotes("");
+  };
+
+  const chooseService=(id:string)=>{
+    setServiceId(id);
+    const selected=services.find(item=>item.id===id);
+    if(selected?.defaultPrice!==null&&selected?.defaultPrice!==undefined)
+      setSaleAmount(String(selected.defaultPrice));
+  };
+
+  const submitWon=async()=>{
+    if(!serviceId||Number(saleAmount)<=0||!saleDate)return;
+    setSavingSale(true);
+    try{
+      await props.onWon({
+        serviceId,
+        amount:Number(saleAmount),
+        date:new Date(`${saleDate}T12:00:00`).toISOString(),
+        paymentMethod:paymentMethod||undefined,
+        notes:saleNotes.trim()||undefined,
+      });
+      setWonOpen(false);
+    }finally{
+      setSavingSale(false);
+    }
+  };
   const {register,handleSubmit,formState:{errors}}=useForm<LostOpportunityFormData>({resolver:zodResolver(lostOpportunitySchema),defaultValues:{reason:"no_response",notes:""}});
   if (!opportunity) return null;
   const stage=stages.find(item=>item.id===opportunity.stageId),leadName=contact?.name??company?.responsibleName??opportunity.title;
@@ -77,7 +144,60 @@ export function OpportunityDetails(props: Props) {
     <section><h3 className="text-xs font-bold uppercase tracking-[.14em] text-muted-foreground">Observação rápida</h3><Textarea className="mt-3" value={note} onChange={event=>setNote(event.target.value)} placeholder="Adicionar observação..."/><Button className="mt-2" disabled={!note.trim()||savingNote} onClick={async()=>{setSavingNote(true);try{await props.onSaveNote(note.trim());setNote("")}finally{setSavingNote(false)}}}>{savingNote?"Salvando...":"Salvar observação"}</Button></section>
     <section><h3 className="text-xs font-bold uppercase tracking-[.14em] text-muted-foreground">Comercial</h3><dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">{commercial.map(([label,value])=><div key={label} className="border-b pb-2"><dt className="text-muted-foreground">{label}</dt><dd className="font-semibold">{value||"—"}</dd></div>)}</dl>{opportunity.description&&<p className="mt-3 rounded-xl bg-muted p-3 text-sm">{opportunity.description}</p>}{!b2c&&<p className="mt-3 text-xs text-muted-foreground">{terms.company} vinculada: <b className="text-foreground">{company?.fantasyName??"—"}</b></p>}</section>
     <section className="border-t pt-5"><h3 className="text-xs font-bold uppercase tracking-[.14em] text-muted-foreground">Histórico</h3><div className="mt-3"><ActivityTimeline events={activities} compact/></div></section>
-    <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={props.onEdit}>Editar negociação</Button><Button variant="outline" onClick={props.onDuplicate}>Duplicar</Button>{opportunity.status==="open"&&<><Button onClick={()=>setConfirmWon(true)}>Marcar como ganha</Button><Button variant="outline" onClick={()=>setLossOpen(true)}>Marcar como perdida</Button></>}<Button variant="ghost" onClick={()=>setConfirmArchive(true)}>Arquivar</Button></div>
+    <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={props.onEdit}>Editar negociação</Button><Button variant="outline" onClick={props.onDuplicate}>Duplicar</Button>{opportunity.status==="open"&&<><Button onClick={openWon}>Marcar como ganha</Button><Button variant="outline" onClick={()=>setLossOpen(true)}>Marcar como perdida</Button></>}<Button variant="ghost" onClick={()=>setConfirmArchive(true)}>Arquivar</Button></div>
+    {wonOpen&&<section className="space-y-4 rounded-2xl border p-4">
+      <div>
+        <h3 className="font-bold">Fechar venda</h3>
+        <p className="mt-1 text-sm text-muted-foreground">Informe o serviço e o valor para concluir a oportunidade como ganha.</p>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Serviço *</label>
+        <Select value={serviceId} disabled={servicesLoading||savingSale} onChange={event=>chooseService(event.target.value)}>
+          <option value="">{servicesLoading?"Carregando serviços...":"Selecione o serviço"}</option>
+          {services.map(service=><option key={service.id} value={service.id}>{service.name}</option>)}
+        </Select>
+        {!servicesLoading&&services.length===0&&<p className="text-xs text-red-600">Nenhum serviço ativo cadastrado em Configurações → Serviços.</p>}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Valor *</label>
+          <Input type="number" min="0.01" step="0.01" inputMode="decimal" value={saleAmount} disabled={savingSale} onChange={event=>setSaleAmount(event.target.value)} />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Data *</label>
+          <Input type="date" value={saleDate} disabled={savingSale} onChange={event=>setSaleDate(event.target.value)} />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Forma de pagamento</label>
+        <Select value={paymentMethod} disabled={savingSale} onChange={event=>setPaymentMethod(event.target.value)}>
+          <option value="">Não informar</option>
+          <option value="pix">PIX</option>
+          <option value="bank_transfer">Transferência</option>
+          <option value="boleto">Boleto</option>
+          <option value="credit_card">Cartão de crédito</option>
+          <option value="debit_card">Cartão de débito</option>
+          <option value="cash">Dinheiro</option>
+          <option value="other">Outro</option>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Observação</label>
+        <Textarea value={saleNotes} disabled={savingSale} onChange={event=>setSaleNotes(event.target.value)} placeholder="Observação opcional da venda" />
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" disabled={savingSale} onClick={()=>setWonOpen(false)}>Cancelar</Button>
+        <Button type="button" disabled={savingSale||!serviceId||Number(saleAmount)<=0||!saleDate} onClick={()=>void submitWon()}>
+          {savingSale?"Confirmando...":"Confirmar venda"}
+        </Button>
+      </div>
+    </section>}
     {lossOpen&&<form className="space-y-3 rounded-2xl border p-4" onSubmit={handleSubmit(data=>{props.onLost(data);setLossOpen(false)})}><h3 className="font-bold">Motivo da perda</h3><Select {...register("reason")}>{lossReasons.map(item=><option key={item.value} value={item.value}>{item.label}</option>)}</Select><Textarea placeholder="Observação opcional" {...register("notes")}/>{errors.notes&&<p className="text-sm text-red-600">{errors.notes.message}</p>}<div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={()=>setLossOpen(false)}>Cancelar</Button><Button>Confirmar perda</Button></div></form>}
-  </div></Drawer><ConfirmDialog open={confirmArchive} title={`Arquivar “${opportunity.title}”?`} onCancel={()=>setConfirmArchive(false)} onConfirm={()=>{props.onArchive();setConfirmArchive(false)}}/><ConfirmDialog open={confirmWon} title={`Marcar “${opportunity.title}” como ganha por ${currency.format(opportunity.value)}?`} onCancel={()=>setConfirmWon(false)} onConfirm={()=>{props.onWon();setConfirmWon(false)}}/></>;
+  </div></Drawer><ConfirmDialog open={confirmArchive} title={`Arquivar “${opportunity.title}”?`} onCancel={()=>setConfirmArchive(false)} onConfirm={()=>{props.onArchive();setConfirmArchive(false)}}/></>;
 }
