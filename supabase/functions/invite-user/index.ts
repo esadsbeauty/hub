@@ -104,15 +104,10 @@ Deno.serve(async (request) => {
     });
   }
 
-  const { data: actorMembership } = await admin
-    .from("organization_members")
-    .select("organization_id")
-    .eq("user_id", auth.user.id)
-    .eq("status", "active")
-    .limit(1)
-    .maybeSingle();
+  const { data: organizationId, error: organizationError } =
+    await userClient.rpc("current_organization_id");
 
-  if (!actorMembership) {
+  if (organizationError || !organizationId) {
     return reply(403, {
       code: "permission_denied",
       message: "Você não possui permissão para gerenciar usuários.",
@@ -146,7 +141,7 @@ Deno.serve(async (request) => {
       !role ||
       role.slug === "owner" ||
       (role.organization_id &&
-        role.organization_id !== actorMembership.organization_id)
+        role.organization_id !== organizationId)
     ) {
       return reply(400, {
         code: "invalid_role",
@@ -164,7 +159,7 @@ Deno.serve(async (request) => {
       const { data: membership } = await admin
         .from("organization_members")
         .select("id,status")
-        .eq("organization_id", actorMembership.organization_id)
+        .eq("organization_id", organizationId)
         .eq("user_id", existingProfile.id)
         .maybeSingle();
 
@@ -219,6 +214,7 @@ Deno.serve(async (request) => {
       "manage_member_invitation",
       {
         actor_user_id: auth.user.id,
+        actor_organization_id: organizationId,
         target_user_id: targetUserId,
         target_role_id: payload.roleId,
         target_action: "invite",
@@ -259,7 +255,7 @@ Deno.serve(async (request) => {
     const { data: member } = await admin
       .from("organization_members")
       .select("user_id,status,profiles!inner(email)")
-      .eq("organization_id", actorMembership.organization_id)
+      .eq("organization_id", organizationId)
       .eq("id", payload.memberId)
       .maybeSingle();
 
@@ -341,7 +337,7 @@ Deno.serve(async (request) => {
     const { data: member } = await admin
       .from("organization_members")
       .select("user_id,role_id,status,profiles!inner(email)")
-      .eq("organization_id", actorMembership.organization_id)
+      .eq("organization_id", organizationId)
       .eq("id", payload.memberId)
       .maybeSingle();
 
@@ -376,6 +372,7 @@ Deno.serve(async (request) => {
       "manage_member_invitation",
       {
         actor_user_id: auth.user.id,
+        actor_organization_id: organizationId,
         target_user_id: member.user_id,
         target_role_id: member.role_id,
         target_action: action,
