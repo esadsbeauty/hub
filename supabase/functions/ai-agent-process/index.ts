@@ -406,6 +406,25 @@ Responda à nova mensagem considerando todo o contexto acima.
       throw new Error(`conversation_update_failed:${conversationUpdateError.message}`);
     }
 
+    const { data: crmSyncResult, error: crmSyncError } = await admin.rpc(
+      "sync_ai_agent_crm",
+      {
+        p_ai_conversation_id: conversation.id,
+      },
+    );
+
+    if (crmSyncError) {
+      console.error(
+        "ai_agent_crm_sync_failed",
+        crmSyncError.message,
+      );
+    } else {
+      console.log(
+        "ai_agent_crm_sync_completed",
+        crmSyncResult,
+      );
+    }
+
     if (
       Array.isArray(result.qualification_updates) &&
       result.qualification_updates.length > 0
@@ -475,6 +494,8 @@ Responda à nova mensagem considerando todo o contexto acima.
       handoff: result.handoff,
       handoff_reason: result.handoff_reason,
       summary: result.summary,
+      summary: result.summary,
+      crm_sync: crmSyncResult ?? null,
     });
   } catch (error) {
     const errorMessage =
