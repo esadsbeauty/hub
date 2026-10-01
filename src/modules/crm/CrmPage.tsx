@@ -1,4 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { supabase } from "@/lib/supabase";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Building2,
@@ -112,6 +113,61 @@ export function CrmPage() {
   const [mobileSortOpen, setMobileSortOpen] = useState(false);
   useEffect(() => { const requested = searchParams.get("new"); if (requested === "company" || requested === "opportunity") setModal(requested); }, [searchParams]);
   useEffect(() => { const requestedQuery = searchParams.get("q"); if (requestedQuery !== null) { setQuery(requestedQuery); sessionStorage.setItem("crm-query", requestedQuery); } }, [searchParams]);
+
+  useEffect(() => {
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") {
+        void refetch();
+      }
+    };
+
+    const intervalId = window.setInterval(refreshIfVisible, 3000);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
+    };
+  }, [refetch]);
+
+  useEffect(() => {
+    if (!supabase) return;
+
+    let refetchTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const scheduleRefetch = () => {
+      if (refetchTimer) clearTimeout(refetchTimer);
+
+      // Pequeno debounce para agrupar updates consecutivos da mesma automação.
+      refetchTimer = setTimeout(() => {
+        void refetch();
+      }, 150);
+    };
+
+    const channel = supabase
+      .channel(`crm-opportunities-realtime-${crypto.randomUUID()}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "opportunities",
+        },
+        scheduleRefetch,
+      )
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.error("[CRM] Falha na atualização em tempo real das oportunidades", {
+            status,
+          });
+        }
+      });
+
+    return () => {
+      if (refetchTimer) clearTimeout(refetchTimer);
+      void supabase.removeChannel(channel);
+    };
+  }, [refetch]);
   const closeModal = () => { setModal(null); setQuickCompanyId(""); setQuickOpportunityId(""); if (searchParams.has("new")) { const next = new URLSearchParams(searchParams); next.delete("new"); next.delete("quick"); setSearchParams(next, { replace: true }); } };
   const updateFilters = (next: CrmFilters) => {
     setFilters(next);
