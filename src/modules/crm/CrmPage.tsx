@@ -131,7 +131,8 @@ export function CrmPage() {
   }, [refetch]);
 
   useEffect(() => {
-    if (!supabase) return;
+    const api = supabase;
+    if (!api) return;
 
     let refetchTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -144,7 +145,7 @@ export function CrmPage() {
       }, 150);
     };
 
-    const channel = supabase
+    const channel = api
       .channel(`crm-opportunities-realtime-${crypto.randomUUID()}`)
       .on(
         "postgres_changes",
@@ -165,7 +166,7 @@ export function CrmPage() {
 
     return () => {
       if (refetchTimer) clearTimeout(refetchTimer);
-      void supabase.removeChannel(channel);
+      void api.removeChannel(channel);
     };
   }, [refetch]);
   const closeModal = () => { setModal(null); setQuickCompanyId(""); setQuickOpportunityId(""); if (searchParams.has("new")) { const next = new URLSearchParams(searchParams); next.delete("new"); next.delete("quick"); setSearchParams(next, { replace: true }); } };
