@@ -21,6 +21,25 @@ export type AiAgentCapabilities = {
   reactivate_leads: boolean;
 };
 
+export type AiAgentQualificationQuestion = {
+  key: string;
+  question: string;
+  required: boolean;
+  enabled: boolean;
+};
+
+export type AiAgentBusinessContext = Record<string, unknown> & {
+  company_about?: string;
+  main_services?: string;
+  differentiators?: string;
+  target_audience?: string;
+  service_region?: string;
+  business_hours?: string;
+  commercial_information?: string;
+  allowed_prices?: string;
+  restricted_information?: string;
+};
+
 export type AiAgentConfig = {
   id: string;
   organization_id: string;
@@ -30,9 +49,9 @@ export type AiAgentConfig = {
   objective: string;
   tone: string;
   welcome_message: string | null;
-  qualification_questions: unknown[];
+  qualification_questions: AiAgentQualificationQuestion[];
   handoff_rules: Record<string, unknown>;
-  business_context: Record<string, unknown>;
+  business_context: AiAgentBusinessContext;
   crm_config: Record<string, unknown>;
   behavior_config: AiAgentBehaviorConfig;
   capabilities: AiAgentCapabilities;
