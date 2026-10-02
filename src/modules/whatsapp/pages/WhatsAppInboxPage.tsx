@@ -143,7 +143,7 @@ export function WhatsAppInboxPage(){
     <div className="grid h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] min-h-0 min-w-0 overflow-hidden border-y bg-card md:grid-cols-[20rem_minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)_19rem]">
       <div className={`min-h-0 min-w-0 overflow-hidden ${selected?"hidden md:flex":"flex"}`}>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="min-h-0 flex-1 overflow-hidden">
+          <div className="flex min-h-0 flex-1 overflow-hidden">
             <ConversationList items={filtered} selectedId={selectedId} query={query} status={status} onQuery={setQuery} onStatus={setStatus} onSelect={select}/>
           </div>
 
