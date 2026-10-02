@@ -1,0 +1,3 @@
+export const statusLabels={new:"Novo",contacted:"Contatado",conversation:"Em conversa",meeting:"Reunião agendada",customer:"Cliente",lost:"Perdido"}as const;
+export function productLeadOrigin(lead:{utmSource?:string;utmMedium?:string;referrer?:string;landingUrl?:string}){if(lead.utmSource)return lead.utmMedium?`${lead.utmSource} · ${lead.utmMedium}`:lead.utmSource;try{if(lead.referrer)return new URL(lead.referrer).hostname.replace(/^www\./,"");if(lead.landingUrl&&new URL(lead.landingUrl).pathname!=="/sistema")return new URL(lead.landingUrl).pathname}catch{return"Direto / Não identificado"}return"Direto / Não identificado"}
+export function contactEmailUrl(value?:string){return value&&/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)?`mailto:${value}`:undefined}
