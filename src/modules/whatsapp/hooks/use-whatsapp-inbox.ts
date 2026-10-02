@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import {
+  useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
@@ -7,6 +8,8 @@ import {
 import { supabase } from "@/lib/supabase";
 import { useAppState } from "@/shared/state/app-state-context";
 import { whatsappRepository } from "../repository";
+
+const INBOX_PAGE_SIZE = 25;
 
 export const whatsappKeys = {
   inbox: (organizationId: string) =>
@@ -27,14 +30,22 @@ export const whatsappKeys = {
 export function useWhatsAppInbox() {
   const { organizationId } = useAppState();
 
-  return useQuery({
-    queryKey:
-      whatsappKeys.inbox(organizationId),
+  const query = useInfiniteQuery({
+    queryKey: whatsappKeys.inbox(organizationId),
 
-    queryFn: () =>
+    queryFn: ({ pageParam }) =>
       whatsappRepository.inbox(
         organizationId,
+        INBOX_PAGE_SIZE,
+        pageParam,
       ),
+
+    initialPageParam: 0,
+
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore
+        ? lastPage.offset + lastPage.limit
+        : undefined,
 
     enabled: Boolean(organizationId),
 
@@ -45,7 +56,35 @@ export function useWhatsAppInbox() {
     refetchOnReconnect: true,
 
     retry: 1,
+
+    select: (data) => {
+      const firstPage = data.pages[0];
+      const lastPage = data.pages[data.pages.length - 1];
+
+      const seen = new Set<string>();
+      const conversations = data.pages
+        .flatMap((page) => page.conversations)
+        .filter((conversation) => {
+          if (seen.has(conversation.id)) {
+            return false;
+          }
+
+          seen.add(conversation.id);
+          return true;
+        });
+
+      return {
+        pages: data.pages,
+        pageParams: data.pageParams,
+        connection: firstPage?.connection,
+        conversations,
+        total: lastPage?.total ?? firstPage?.total ?? conversations.length,
+        hasMore: lastPage?.hasMore ?? false,
+      };
+    },
   });
+
+  return query;
 }
 
 export function useWhatsAppMessages(
@@ -54,11 +93,10 @@ export function useWhatsAppMessages(
   const { organizationId } = useAppState();
 
   return useQuery({
-    queryKey:
-      whatsappKeys.messages(
-        organizationId,
-        conversationId ?? "none",
-      ),
+    queryKey: whatsappKeys.messages(
+      organizationId,
+      conversationId ?? "none",
+    ),
 
     queryFn: () =>
       whatsappRepository.messages(
@@ -86,10 +124,7 @@ export function useWhatsAppRealtime() {
   const cache = useQueryClient();
 
   useEffect(() => {
-    if (
-      !supabase ||
-      !organizationId
-    ) {
+    if (!supabase || !organizationId) {
       return;
     }
 
@@ -97,10 +132,9 @@ export function useWhatsAppRealtime() {
 
     const refreshInbox = () => {
       void cache.invalidateQueries({
-        queryKey:
-          whatsappKeys.inbox(
-            organizationId,
-          ),
+        queryKey: whatsappKeys.inbox(
+          organizationId,
+        ),
       });
     };
 
@@ -113,10 +147,8 @@ export function useWhatsAppRealtime() {
         {
           event: "*",
           schema: "public",
-          table:
-            "whatsapp_conversations",
-          filter:
-            `organization_id=eq.${organizationId}`,
+          table: "whatsapp_conversations",
+          filter: `organization_id=eq.${organizationId}`,
         },
         refreshInbox,
       )
@@ -125,10 +157,8 @@ export function useWhatsAppRealtime() {
         {
           event: "INSERT",
           schema: "public",
-          table:
-            "whatsapp_messages",
-          filter:
-            `organization_id=eq.${organizationId}`,
+          table: "whatsapp_messages",
+          filter: `organization_id=eq.${organizationId}`,
         },
         (payload) => {
           refreshInbox();
@@ -140,8 +170,7 @@ export function useWhatsAppRealtime() {
                   string,
                   unknown
                 >
-              ).conversation_id ??
-                "",
+              ).conversation_id ?? "",
             );
 
           if (!conversationId) {
@@ -149,20 +178,17 @@ export function useWhatsAppRealtime() {
           }
 
           void cache.invalidateQueries({
-            queryKey:
-              whatsappKeys.messages(
-                organizationId,
-                conversationId,
-              ),
+            queryKey: whatsappKeys.messages(
+              organizationId,
+              conversationId,
+            ),
           });
         },
       )
       .subscribe();
 
     return () => {
-      void client.removeChannel(
-        channel,
-      );
+      void client.removeChannel(channel);
     };
   }, [cache, organizationId]);
 }
@@ -170,11 +196,8 @@ export function useWhatsAppRealtime() {
 export function useSendWhatsAppMessage(
   conversationId?: string,
 ) {
-  const { organizationId } =
-    useAppState();
-
-  const cache =
-    useQueryClient();
+  const { organizationId } = useAppState();
+  const cache = useQueryClient();
 
   return useMutation({
     mutationFn: (text: string) => {
@@ -194,10 +217,9 @@ export function useSendWhatsAppMessage(
     onSuccess: async () => {
       await Promise.all([
         cache.invalidateQueries({
-          queryKey:
-            whatsappKeys.inbox(
-              organizationId,
-            ),
+          queryKey: whatsappKeys.inbox(
+            organizationId,
+          ),
         }),
 
         conversationId

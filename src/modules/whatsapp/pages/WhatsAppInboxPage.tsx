@@ -1,6 +1,6 @@
 import{useEffect,useMemo,useRef,useState}from"react";
 import{useSearchParams}from"react-router-dom";
-import{MessageCircle,RefreshCw}from"lucide-react";
+import{Loader2,MessageCircle,RefreshCw}from"lucide-react";
 import{Button}from"@/components/ui/button";
 import{useAppState}from"@/shared/state/app-state-context";
 import{ChatPanel}from"../components/chat-panel";
@@ -61,8 +61,8 @@ export function WhatsAppInboxPage(){
   deepLinkHandled=useRef("");
 
   const selected=inbox.data?.conversations.find(item=>item.id===selectedId);
-  const messages=useWhatsAppMessages(selectedId);
-  const send=useSendWhatsAppMessage(selectedId);
+  const messages=useWhatsAppMessages(selected?.id);
+  const send=useSendWhatsAppMessage(selected?.id);
   const canReply=isPlatformAdmin||["owner","admin","manager","sales","operations","marketing"].includes(role);
 
   useWhatsAppRealtime();
@@ -71,7 +71,7 @@ export function WhatsAppInboxPage(){
     setSelectedId(undefined);
     setDetails(false);
     deepLinkHandled.current="";
-  },[organizationId]);
+  },[organizationId,inbox.data?.connection?.id]);
 
   useEffect(()=>{
     if(inbox.isLoading||!inbox.data)return;
@@ -92,19 +92,33 @@ export function WhatsAppInboxPage(){
       (phone&&phoneMatches(item.waId,phone))
     );
 
-    deepLinkHandled.current=key;
-
     if(match){
+      deepLinkHandled.current=key;
       setSelectedId(match.id);
       setDetails(false);
       return;
     }
 
+    if(inbox.hasNextPage&&!inbox.isFetchingNextPage){
+      void inbox.fetchNextPage();
+      return;
+    }
+
+    deepLinkHandled.current=key;
+
     if(phone){
       const url=externalWhatsAppUrl(phone);
       if(url)window.open(url,"_blank","noopener,noreferrer");
     }
-  },[inbox.data,inbox.isLoading,organizationId,searchParams]);
+  },[
+    inbox.data,
+    inbox.isLoading,
+    inbox.hasNextPage,
+    inbox.isFetchingNextPage,
+    inbox.fetchNextPage,
+    organizationId,
+    searchParams
+  ]);
 
   const filtered=useMemo(()=>{
     const normalized=query.trim().toLocaleLowerCase("pt-BR");
@@ -128,12 +142,37 @@ export function WhatsAppInboxPage(){
   return<div className="-mx-4 -my-6 min-[430px]:-mx-5 md:-mx-6 md:-my-8 lg:-mx-8">
     <div className="grid h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] min-h-0 min-w-0 overflow-hidden border-y bg-card md:grid-cols-[20rem_minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)_19rem]">
       <div className={`min-h-0 min-w-0 overflow-hidden ${selected?"hidden md:flex":"flex"}`}>
-        <ConversationList items={filtered} selectedId={selectedId} query={query} status={status} onQuery={setQuery} onStatus={setStatus} onSelect={select}/>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <ConversationList items={filtered} selectedId={selectedId} query={query} status={status} onQuery={setQuery} onStatus={setStatus} onSelect={select}/>
+          </div>
+
+          {inbox.hasNextPage&&
+            <div className="shrink-0 border-r border-t bg-card p-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                disabled={inbox.isFetchingNextPage}
+                onClick={()=>void inbox.fetchNextPage()}
+              >
+                {inbox.isFetchingNextPage
+                  ?<><Loader2 className="animate-spin" size={16}/>Carregando…</>
+                  :"Carregar mais"}
+              </Button>
+              <p className="mt-2 text-center text-[11px] text-muted-foreground">
+                {inbox.data.conversations.length} de {inbox.data.total} conversas carregadas
+              </p>
+            </div>}
+        </div>
       </div>
+
       <div className={!selected?"hidden min-h-0 min-w-0 overflow-hidden md:block":"min-h-0 min-w-0 overflow-hidden"}>
         <ChatPanel conversation={selected} messages={messages.data??[]} loading={messages.isLoading} sending={send.isPending} canReply={canReply} onSend={text=>send.mutateAsync(text)} onBack={()=>setSelectedId(undefined)} onDetails={()=>setDetails(true)}/>
       </div>
+
       <CrmPanel conversation={selected}/>
+
       {details&&<><button className="fixed inset-0 z-40 bg-black/40 xl:hidden" aria-label="Fechar informações" onClick={()=>setDetails(false)}/><CrmPanel conversation={selected} drawer onClose={()=>setDetails(false)}/></>}
     </div>
   </div>;
