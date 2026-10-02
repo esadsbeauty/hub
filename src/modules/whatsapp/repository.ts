@@ -94,7 +94,7 @@ export const whatsappRepository = {
 
     const client = configured();
 
-    const rpc = client.rpc as unknown as (
+    const rpc = client.rpc.bind(client) as unknown as (
       functionName: string,
       args: Record<string, unknown>,
     ) => Promise<{
