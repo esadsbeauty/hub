@@ -556,6 +556,10 @@ export const supabaseCrmRepository = defineCrmRepository({
       ownerId: row.owner
         ? ownerByName.get(row.owner.trim().toLowerCase()) ?? null
         : profile.id,
+      pipelineId: row.pipelineId || null,
+      stageId: row.stageId || null,
+      temperature: row.temperature || "morno",
+      priority: row.priority || "media",
     }));
 
     const result = await (client() as any).rpc("import_crm_leads", {

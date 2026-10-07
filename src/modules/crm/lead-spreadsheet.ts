@@ -8,6 +8,10 @@ export type LeadSpreadsheetRow = {
   note: string;
   source: string;
   owner: string;
+  pipelineId?: string;
+  stageId?: string;
+  temperature?: "frio" | "morno" | "quente";
+  priority?: "baixa" | "media" | "alta";
   error?: string;
 };
 

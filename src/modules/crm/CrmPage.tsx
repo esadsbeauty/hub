@@ -868,6 +868,8 @@ export function CrmPage() {
       <LeadImportDialog
         open={modal === "import"}
         profiles={data.profiles}
+        pipelines={data.pipelines}
+        stages={data.stages}
         onClose={closeModal}
         onImport={async (rows) => {
           const result = await actions.importLeads.mutateAsync(rows);
