@@ -3,8 +3,12 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "@/layouts/app-layout";
 import { ProtectedRoute } from "@/routes/protected-route";
 import { PermissionRoute } from "@/routes/permission-route";
+import { TenantSubscriptionRoute } from "@/routes/tenant-subscription-route";
+import { PlatformAdminRoute } from "@/routes/platform-admin-route";
+import { FeatureRoute } from "@/routes/feature-route";
 import { useAuth } from "@/providers/auth-context";
 import { UnderDevelopment } from "@/modules/placeholder/UnderDevelopment";
+import { SpaAnalytics } from "@/shared/analytics/spa-analytics";
 
 const page=<T extends Record<string,unknown>,K extends keyof T>(loader:()=>Promise<T>,name:K)=>lazy(()=>loader().then(module=>({default:module[name]as React.ComponentType})));
 const AuthPage=page(()=>import("@/modules/auth/AuthPage"),"AuthPage");
@@ -13,6 +17,7 @@ const InviteAcceptancePage=page(()=>import("@/modules/auth/InviteAcceptancePage"
 const InitialOwnerPage=page(()=>import("@/modules/settings/InitialOwnerPage"),"InitialOwnerPage");
 const RestrictedAccessPage=page(()=>import("@/modules/settings/RestrictedAccessPage"),"RestrictedAccessPage");
 const DashboardPage=page(()=>import("@/modules/dashboard/DashboardPage"),"DashboardPage");
+const WhatsAppInboxPage=page(()=>import("@/modules/whatsapp/pages/WhatsAppInboxPage"),"WhatsAppInboxPage");
 const CrmPage=page(()=>import("@/modules/crm/CrmPage"),"CrmPage");
 const CompanyCentralPage=page(()=>import("@/modules/crm/pages/CompanyCentralPage"),"CompanyCentralPage");
 const AgendaPage=page(()=>import("@/modules/agenda/AgendaPage"),"AgendaPage");
@@ -23,6 +28,15 @@ const MarketingPage=page(()=>import("@/modules/marketing/MarketingPage"),"Market
 const BlogCmsPage=page(()=>import("@/modules/blog/pages/BlogCmsPage"),"BlogCmsPage");
 const DiagnosticAdminPage=page(()=>import("@/modules/diagnostic/pages/DiagnosticAdminPage"),"DiagnosticAdminPage");
 const SettingsPage=page(()=>import("@/modules/settings/SettingsPage"),"SettingsPage");
+const PlatformPage=page(()=>import("@/modules/platform/PlatformPage"),"PlatformPage");
+const ProductLeadsPage=page(()=>import("@/modules/platform/leads/ProductLeadsPage"),"ProductLeadsPage");
+const OrganizationsPage=page(()=>import("@/modules/platform/organizations/OrganizationsPage"),"OrganizationsPage");
+const ReferralPage=page(()=>import("@/modules/referrals/ReferralPage"),"ReferralPage");
+const PlatformReferralsPage=page(()=>import("@/modules/referrals/PlatformReferralsPage"),"PlatformReferralsPage");
+const OnboardingPage=page(()=>import("@/modules/onboarding/OnboardingPage"),"OnboardingPage");
+const ProspectingPage=page(()=>import("@/modules/prospecting/ProspectingPage"),"ProspectingPage");
+const SubscriptionBlockedPage=page(()=>import("@/modules/subscription/SubscriptionBlockedPage"),"SubscriptionBlockedPage");
+const SubscriptionContactPage=page(()=>import("@/modules/subscription/SubscriptionContactPage"),"SubscriptionContactPage");
 
 function LoginRoute() {
   const { user, passwordRecovery } = useAuth();
@@ -31,7 +45,7 @@ function LoginRoute() {
 export function App() {
   const { appMode } = useAuth();
   return (
-    <BrowserRouter><Suspense fallback={<div className="grid min-h-[40vh] place-items-center text-sm text-muted-foreground">Carregando módulo…</div>}>
+    <BrowserRouter><SpaAnalytics /><Suspense fallback={<div className="grid min-h-[40vh] place-items-center text-sm text-muted-foreground">Carregando módulo…</div>}>
       <Routes>
         <Route path="/login" element={<LoginRoute />} />
         <Route path="/register" element={<RegisterPage />} />
@@ -46,8 +60,12 @@ export function App() {
         >
           <Route path="acesso-restrito" element={<RestrictedAccessPage />} />
           <Route path="acesso-pendente" element={<RestrictedAccessPage />} />
+          <Route path="assinatura-suspensa" element={<SubscriptionBlockedPage />} />
+          <Route element={<TenantSubscriptionRoute />}>
           <Route index element={<PermissionRoute permission="dashboard.view"><DashboardPage /></PermissionRoute>} />
+          <Route path="whatsapp" element={<PermissionRoute permission="crm.view"><WhatsAppInboxPage /></PermissionRoute>} />
           <Route path="crm" element={<PermissionRoute permission="crm.view"><CrmPage /></PermissionRoute>} />
+          <Route path="prospeccao" element={<FeatureRoute featureKey="prospecting_agent"><ProspectingPage /></FeatureRoute>} />
           <Route path="crm/empresas/:id" element={<PermissionRoute permission="crm.view"><CompanyCentralPage /></PermissionRoute>} />
           <Route path="crm/companies/:id" element={<PermissionRoute permission="crm.view"><CompanyCentralPage /></PermissionRoute>} />
           <Route path="agenda" element={<PermissionRoute permission="agenda.view"><AgendaPage /></PermissionRoute>} />
@@ -58,6 +76,9 @@ export function App() {
           <Route path="marketing/diagnosticos" element={<PermissionRoute permission="marketing.view"><DiagnosticAdminPage /></PermissionRoute>} />
           <Route path="marketing/blog" element={<PermissionRoute permission="blog.view"><BlogCmsPage /></PermissionRoute>} />
           <Route path="configuracoes" element={<PermissionRoute permission="settings.view"><SettingsPage /></PermissionRoute>} />
+          <Route path="onboarding" element={<PermissionRoute permission="settings.manage"><OnboardingPage /></PermissionRoute>} />
+          <Route path="assinatura" element={<SubscriptionContactPage />} />
+          <Route path="indique-e-ganhe" element={<PermissionRoute permission="settings.view"><ReferralPage /></PermissionRoute>} />
           {["ia"].map(
             (path) => (
               <Route
@@ -71,6 +92,11 @@ export function App() {
               />
             ),
           )}
+          </Route>
+          <Route path="plataforma" element={<PlatformAdminRoute><PlatformPage /></PlatformAdminRoute>} />
+          <Route path="plataforma/leads" element={<PlatformAdminRoute><ProductLeadsPage /></PlatformAdminRoute>} />
+          <Route path="plataforma/organizacoes" element={<PlatformAdminRoute><OrganizationsPage /></PlatformAdminRoute>} />
+          <Route path="plataforma/indicacoes" element={<PlatformAdminRoute><PlatformReferralsPage /></PlatformAdminRoute>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

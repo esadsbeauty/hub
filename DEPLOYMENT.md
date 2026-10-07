@@ -15,7 +15,7 @@ O modo local existe apenas no computador de desenvolvimento. Deployments Vercel 
 
 A sessão fica em `sessionStorage`. Os dados de domínio ficam no namespace `esads-hub-local-v1:*` do `localStorage`; dados legados são lidos sem serem apagados. Nada é sincronizado automaticamente com o Supabase. O badge **Modo local** identifica essa condição no Hub.
 
-Production falha fechado: `VITE_APP_MODE=local` bloqueia o prebuild quando `VERCEL_ENV` não é `preview`. Use `VITE_APP_MODE=supabase` em Production. A decisão não utiliza hostname; se `esadsbeauty.vercel.app` estiver associado a Preview, é o escopo da variável e `VERCEL_ENV` que controlam o modo.
+Production falha fechado: `VITE_APP_MODE=local` bloqueia o prebuild quando `VERCEL_ENV` não é `preview`. Use `VITE_APP_MODE=supabase` em Production. A decisão não utiliza hostname; se um domínio de preview da Vercel estiver associado a Preview, é o escopo da variável e `VERCEL_ENV` que controlam o modo.
 
 ### Bifurcação de inicialização
 
@@ -38,7 +38,7 @@ VITE_SUPABASE_URL
 VITE_SUPABASE_ANON_KEY
 ```
 
-Em Production, configure `VITE_SITE_URL=https://esadsbeauty.vercel.app`. Essa URL central é usada por cadastro e recuperação de senha; em desenvolvimento, quando ela estiver vazia, a aplicação usa a origem atual do navegador. Use a **Project URL** e a chave pública **anon/publishable** do projeto Supabase. Nunca configure `SUPABASE_SERVICE_ROLE_KEY`, access tokens ou refresh tokens no frontend.
+Em Production, configure `VITE_SITE_URL=https://beauty.esads.com.br`. Essa URL central é usada por cadastro e recuperação de senha; em desenvolvimento, quando ela estiver vazia, a aplicação usa a origem atual do navegador. Use a **Project URL** e a chave pública **anon/publishable** do projeto Supabase. Nunca configure `SUPABASE_SERVICE_ROLE_KEY`, access tokens ou refresh tokens no frontend.
 
 ## Configuração
 
@@ -46,7 +46,7 @@ Em Production, configure `VITE_SITE_URL=https://esadsbeauty.vercel.app`. Essa UR
 2. Cadastre as três variáveis sem aspas, espaços ou quebras de linha.
 3. Marque **Production**, **Preview** e **Development** conforme o ambiente que deverá autenticar.
 4. Salve e execute um novo deployment. Variáveis Vite são resolvidas durante o build; alterar o painel não modifica um bundle já publicado.
-5. No Supabase, em **Authentication → URL Configuration**, configure **Site URL** como `https://esadsbeauty.vercel.app` e autorize `https://esadsbeauty.vercel.app`, `https://esadsbeauty.vercel.app/login` e `https://esadsbeauty.vercel.app/aceitar-convite` em **Redirect URLs**. Adicione URLs de Preview somente quando o ambiente realmente precisar autenticar.
+5. No Supabase, em **Authentication → URL Configuration**, configure **Site URL** como `https://beauty.esads.com.br` e autorize `https://beauty.esads.com.br`, `https://beauty.esads.com.br/login` e `https://beauty.esads.com.br/aceitar-convite` em **Redirect URLs**. Adicione URLs de Preview somente quando o ambiente realmente precisar autenticar.
 
 Se o Supabase receber um redirect não autorizado, ele pode recorrer à **Site URL** configurada no painel. Portanto, um `redirect_to=http://localhost:3000` pode vir tanto do bundle antigo quanto de uma Site URL antiga no Supabase: atualize os dois locais e gere um novo deployment Vercel.
 
@@ -137,7 +137,7 @@ Em desenvolvimento, a aplicação registra apenas se a configuração está ause
 A função `invite-user` executa convites, reenvios e cancelamentos. Configure no ambiente seguro das Edge Functions:
 
 ```text
-APP_ORIGIN=https://esadsbeauty.vercel.app
+APP_ORIGIN=https://beauty.esads.com.br
 ```
 
 `APP_ORIGIN` define a única origem aceita e o redirect de criação de senha. Em Production, mantenha seu valor igual à origem de `VITE_SITE_URL`. Use sempre o domínio principal de produção, nunca um Preview temporário.
@@ -151,5 +151,5 @@ Enquanto não existir Owner ativo, o bootstrap é reservado de forma determinís
 Após aplicar migrations, publique a função novamente e autorize no Supabase Auth:
 
 - **Site URL:** domínio principal do Hub;
-- **Redirect URL:** `https://esadsbeauty.vercel.app/aceitar-convite`;
+- **Redirect URL:** `https://beauty.esads.com.br/aceitar-convite`;
 - redirects de recuperação de senha realmente utilizados.

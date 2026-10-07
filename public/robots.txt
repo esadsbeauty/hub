@@ -3,4 +3,4 @@ Allow: /blog
 Allow: /diagnostico
 Disallow: /login
 Disallow: /marketing/blog
-Sitemap: https://esadsbeauty.vercel.app/sitemap.xml
+Sitemap: https://beauty.esads.com.br/sitemap.xml

@@ -24,6 +24,7 @@ import type {
 } from "./types";
 import { localDateTimeToUtc } from "./utils/formatters";
 import { defineCrmRepository } from "./repository-contract";
+import { normalizeBrazilianWhatsapp, type LeadImportInput, type LeadImportResult } from "./lead-spreadsheet";
 
 const STORAGE = "esads-hub-local-v1:crm";
 const LEGACY_STORAGE = "esads_crm_data_v3";
@@ -72,14 +73,11 @@ function seed(): CrmData {
   const pipelineId = id();
   const names = [
     "Novo Lead",
-    "Pesquisado",
-    "Primeiro Contato",
-    "Aguardando Resposta",
-    "Em Conversa",
-    "Reunião Agendada",
-    "Proposta Enviada",
-    "Negociação",
-    "Cliente Fechado",
+    "Em atendimento",
+    "Agendado",
+    "Compareceu",
+    "Follow-up",
+    "Fechou",
     "Perdido",
   ];
   const stages = names.map(
@@ -89,20 +87,17 @@ function seed(): CrmData {
       name,
       slug: [
         "novo_lead",
-        "pesquisado",
-        "primeiro_contato",
-        "aguardando_resposta",
-        "em_conversa",
-        "reuniao_agendada",
-        "proposta_enviada",
-        "negociacao",
-        "cliente_fechado",
+        "em_atendimento",
+        "agendado",
+        "compareceu",
+        "follow_up",
+        "fechou",
         "perdido",
       ][position],
       position,
-      probability: [10, 15, 20, 25, 35, 50, 65, 80, 100, 0][position],
-      isWon: position === 8,
-      isLost: position === 9,
+      probability: [10, 30, 50, 65, 75, 100, 0][position],
+      isWon: position === 5,
+      isLost: position === 6,
       createdAt,
       updatedAt: createdAt,
     }),
@@ -808,6 +803,14 @@ export const crmRepository = defineCrmRepository({
     );
     write(data);
     return note;
+  },
+  async importLeads(rows:LeadImportInput[]):Promise<LeadImportResult>{
+    let imported=0,duplicates=0,errors=0;const results:LeadImportResult["results"]=[];
+    for(const row of rows){const data=read(),phone=normalizeBrazilianWhatsapp(row.whatsapp),exists=data.contacts.some(contact=>!contact.deletedAt&&normalizeBrazilianWhatsapp(contact.whatsapp??contact.phone??"")===phone);
+      if(!phone||exists){duplicates+=exists?1:0;errors+=exists?0:1;results.push({row:row.row,status:exists?"duplicate":"error"});continue;}
+      try{const owner=data.profiles.find(profile=>profile.id===row.ownerId);const company=await this.createCompany({fantasyName:row.name,responsibleName:row.name,whatsapp:phone,instagram:row.instagram||undefined,leadSource:row.source||undefined,ownerId:owner?.id,owner:owner?.name,temperature:"morno",priority:"media",notes:undefined,tags:""});const opportunity=read().opportunities.find(item=>item.companyId===company.id);if(row.note)await this.addNote(company.id,row.note,opportunity?.id);imported+=1;results.push({row:row.row,status:"imported",companyId:company.id});}catch{errors+=1;results.push({row:row.row,status:"error"});}
+    }
+    return{imported,duplicates,errors,results};
   },
   async addFile(
     companyId: string,

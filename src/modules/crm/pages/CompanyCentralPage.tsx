@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Edit, NotebookPen, Plus, UserPlus } from "lucide-react";
+import { ArrowLeft, Edit, NotebookPen, Plus, Trash2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,6 +31,7 @@ import type { CompanyContact, Opportunity } from "../types";
 import { formatDateTime } from "../utils/formatters";
 import { CustomerWorkspace } from "@/modules/customers/components/customer-workspace";
 import { CustomerFinancePanel } from "@/modules/finance/CustomerFinancePanel";
+import { crmTerminology, useBusinessMode } from "../business-mode";
 type Tab = "overview" | "customer" | "finance" | "opportunities" | "activities" | "contacts" | "tasks";
 const tabs: { value: Tab; label: string }[] = [
   { value: "overview", label: "Visão geral" },
@@ -43,6 +44,7 @@ const tabs: { value: Tab; label: string }[] = [
 ];
 export function CompanyCentralPage() {
   const { id = "" } = useParams();
+  const businessMode=useBusinessMode().data??"b2b",b2c=businessMode==="b2c",terms=crmTerminology(businessMode);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { data, isLoading } = useCrmData();
@@ -63,6 +65,7 @@ export function CompanyCentralPage() {
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity>();
   const [editingContact, setEditingContact] = useState<CompanyContact>();
   const [deletingContact, setDeletingContact] = useState<CompanyContact>();
+  const [deletingCompany, setDeletingCompany] = useState(false);
   const company = data?.companies.find(
     (item) => item.id === id && !item.deletedAt,
   );
@@ -99,7 +102,7 @@ export function CompanyCentralPage() {
     return (
       <PageContainer>
         <EmptyState
-          title="Empresa não encontrada"
+          title={`${terms.company} não encontrado${b2c?"":"a"}`}
           action={
             <Button onClick={() => navigate("/crm")}>Voltar ao CRM</Button>
           }
@@ -138,7 +141,7 @@ export function CompanyCentralPage() {
           <div className="flex flex-col justify-between gap-5 lg:flex-row">
             <div>
               <p className="text-xs font-bold uppercase tracking-[.22em] text-champagne-dark">
-                Central da empresa
+                {b2c?"Central do Lead":"Central da empresa"}
               </p>
               <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">
                 {company.fantasyName}
@@ -161,7 +164,7 @@ export function CompanyCentralPage() {
             </div>
             <div className="flex flex-wrap content-start gap-2">
               <Button variant="outline" onClick={() => setModal("edit")}>
-                <Edit size={15} /> Editar empresa
+                <Edit size={15} /> {terms.editCompany}
               </Button>
               <Button onClick={() => openOpportunityModal()}>
                 <Plus size={15} /> Nova oportunidade
@@ -175,17 +178,21 @@ export function CompanyCentralPage() {
               <Button variant="outline" onClick={() => setModal("interaction")}>
                 Registrar interação
               </Button>
-              <Button variant="ghost" onClick={() => setModal("contact")}>
+              {!b2c&&<Button variant="ghost" onClick={() => setModal("contact")}>
                 <UserPlus size={15} /> Contato
+              </Button>}
+              <Button className="text-destructive hover:text-destructive" variant="ghost" onClick={() => setDeletingCompany(true)}>
+                <Trash2 size={15} /> Excluir {terms.company.toLowerCase()}
               </Button>
             </div>
           </div>
         </CardContent>
       </Card>
-      <Tabs tabs={tabs} value={tab} onChange={setTab} />
+      <Tabs tabs={b2c?tabs.filter(item=>item.value!=="contacts"):tabs} value={tab} onChange={setTab} />
       <div className="mt-5">
         {tab === "overview" && (
           <CompanyOverview
+            businessMode={businessMode}
             company={company}
             contacts={related.contacts}
             opportunities={related.opportunities}
@@ -258,16 +265,18 @@ export function CompanyCentralPage() {
       </div>
       <Modal
         open={modal === "edit"}
-        title="Editar empresa"
+        title={terms.editCompany}
         onClose={() => setModal(null)}
       >
         <CompanyForm
+          businessMode={businessMode}
           company={company}
+          profiles={data.profiles}
           onCancel={() => setModal(null)}
           onSubmit={async (form) => {
             await actions.updateCompany.mutateAsync({ id, data: form });
             setModal(null);
-            success("Empresa atualizada");
+            success(`${terms.company} atualizado${b2c?"":"a"}`);
           }}
         />
       </Modal>
@@ -391,8 +400,10 @@ export function CompanyCentralPage() {
         />
       </Modal>
       <OpportunityDetails
+        businessMode={businessMode}
         opportunity={selected}
         company={company}
+        contact={related.contacts.find(item=>item.isPrimary&&!item.deletedAt)??related.contacts.find(item=>!item.deletedAt)}
         pipeline={data.pipelines.find(
           (item) => item.id === selected?.pipelineId,
         )}
@@ -423,6 +434,15 @@ export function CompanyCentralPage() {
           openOpportunityModal(selected);
           setSelected(undefined);
         }}
+        onSaveValue={async (value) => {
+          if (!selected) return;
+          const updated = await actions.updateOpportunity.mutateAsync({
+            id: selected.id,
+            data: { value },
+          });
+          setSelected(updated);
+          success("Valor da oportunidade atualizado");
+        }}
         onDuplicate={() =>
           selected &&
           actions.duplicateOpportunity.mutate(selected.id, {
@@ -447,8 +467,11 @@ export function CompanyCentralPage() {
             },
           })
         }
-        onAddNote={() => setModal("note")}
         onAddFollowUp={() => setModal("followup")}
+        onEditContact={() => { const contact=related.contacts.find(item=>item.isPrimary&&!item.deletedAt)??related.contacts.find(item=>!item.deletedAt); if(contact){setEditingContact(contact);setModal("contact");} }}
+        onSaveNote={async(text)=>{if(!selected)return;await actions.addNote.mutateAsync({companyId:id,text,opportunityId:selected.id});success("Observação adicionada")}}
+        onCompleteNextTask={()=>{const task=related.tasks.filter(item=>item.opportunityId===selected?.id&&item.status==="pending").sort((a,b)=>a.dueAt.localeCompare(b.dueAt))[0];if(task)actions.completeTask.mutate(task.id,{onSuccess:()=>success("Próxima ação concluída")})}}
+        onRescheduleNextTask={(dueAt)=>{const task=related.tasks.filter(item=>item.opportunityId===selected?.id&&item.status==="pending").sort((a,b)=>a.dueAt.localeCompare(b.dueAt))[0];if(task)actions.rescheduleTask.mutate({id:task.id,dueAt},{onSuccess:()=>success("Próxima ação reagendada")})}}
         onLost={(form) =>
           selected &&
           actions.markOpportunityLost.mutate(
@@ -461,6 +484,22 @@ export function CompanyCentralPage() {
             },
           )
         }
+      />
+      <ConfirmDialog
+        open={deletingCompany}
+        title={`Excluir empresa “${company.fantasyName}”?`}
+        description="A empresa será arquivada junto com contatos, oportunidades e pendências. O histórico será preservado."
+        confirmLabel="Excluir empresa"
+        onCancel={() => setDeletingCompany(false)}
+        onConfirm={() => {
+          actions.deleteCompany.mutate(company.id, {
+            onSuccess: () => {
+              setDeletingCompany(false);
+              notify({ title: "Empresa arquivada com segurança." });
+              navigate("/crm");
+            },
+          });
+        }}
       />
       <ConfirmDialog
         open={Boolean(deletingContact)}

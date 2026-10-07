@@ -58,6 +58,8 @@ export const crmDataSource = {
   cancelTask: (id: string): Promise<Task> => source.cancelTask(id),
   addNote: (companyId: string, text: string, opportunityId?: string) =>
     source.addNote(companyId, text, opportunityId),
+  importLeads: (rows: Parameters<typeof source.importLeads>[0]) =>
+    source.importLeads(rows),
   createActivity: (
     companyId: string,
     input: Parameters<typeof source.createActivity>[1],

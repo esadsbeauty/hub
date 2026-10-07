@@ -24,6 +24,7 @@ import type {
 } from "./types";
 import { localDateTimeToUtc } from "./utils/formatters";
 import { defineCrmRepository } from "./repository-contract";
+import type { LeadImportInput, LeadImportResult } from "./lead-spreadsheet";
 
 type Tables = Database["public"]["Tables"];
 type OrganizationRow = Tables["organizations"]["Row"];
@@ -64,14 +65,9 @@ async function context() {
   const api = client();
   const { data: auth } = await api.auth.getUser();
   if (!auth.user) throw new Error("Sessão expirada. Entre novamente.");
-  const [result, activeOrganization] = await Promise.all([api
-    .from("profiles")
-    .select("*")
-    .eq("id", auth.user.id)
-    .single(), api.rpc("current_organization_id")]);
-  const profile = ensure(result.data, result.error);
-  if (activeOrganization.error || !activeOrganization.data) throw new Error("Selecione uma organização ativa.");
-  return { ...profile, organization_id: activeOrganization.data };
+  const result = await api.rpc("active_tenant_actor");
+  if (result.error || !result.data) throw new Error("Selecione uma organização ativa.");
+  return result.data as unknown as ProfileRow;
 }
 
 function activityType(value: string): ActivityType {
@@ -312,6 +308,18 @@ async function list(): Promise<CrmData> {
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
   ]);
+  if (import.meta.env.DEV) {
+    const sources = ["organization","profiles","companies","contacts","pipelines","pipeline_stages","opportunities","stage_history","activities","tasks","notes"];
+    results.forEach((result,index) => {
+      if (result.error) console.error(`[CRM tenant query:${sources[index]}]`, {
+        code: result.error.code,
+        message: result.error.message,
+        details: result.error.details,
+        hint: result.error.hint,
+        organizationId: profile.organization_id,
+      });
+    });
+  }
   const [
     organizationResult,
     profilesResult,
@@ -404,7 +412,7 @@ async function list(): Promise<CrmData> {
       createdAt: item.created_at,
       updatedAt: item.updated_at,
     })),
-    stages: stageRows.map(
+    stages: stageRows.filter(item=>item.is_active!==false).map(
       (item): PipelineStage => ({
         id: item.id,
         pipelineId: item.pipeline_id,
@@ -414,6 +422,7 @@ async function list(): Promise<CrmData> {
         probability: Number(item.probability),
         isWon: item.is_won,
         isLost: item.is_lost,
+        isActive: item.is_active,
         createdAt: item.created_at,
         updatedAt: item.updated_at,
       }),
@@ -491,6 +500,7 @@ function companyPayload(input: Partial<CompanyFormData>) {
     temperature: input.temperature,
     priority: input.priority,
     notes: input.notes,
+    owner_id: input.ownerId,
     tags: input.tags
       ?.split(",")
       .map((item) => item.trim())
@@ -559,10 +569,9 @@ export const supabaseCrmRepository = defineCrmRepository({
     return company(row, new Map([[profile.id, profile.name]]));
   },
   async deleteCompany(id: string) {
-    const result = await client()
-      .from("companies")
-      .update({ deleted_at: new Date().toISOString() })
-      .eq("id", id);
+    const result = await client().rpc("archive_crm_company", {
+      target_company_id: id,
+    });
     if (result.error) throw friendlyError(result.error);
   },
   async duplicateCompany(id: string) {
@@ -949,6 +958,10 @@ export const supabaseCrmRepository = defineCrmRepository({
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
+  },
+  async importLeads(rows:LeadImportInput[]):Promise<LeadImportResult>{
+    const result=await client().rpc("import_crm_leads",{import_rows:rows as unknown as Json});
+    return ensure(result.data,result.error) as unknown as LeadImportResult;
   },
   async createActivity(companyId: string, input: ActivityFormData) {
     const profile = await context();

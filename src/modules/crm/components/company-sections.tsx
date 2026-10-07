@@ -20,6 +20,7 @@ import { currency, formatDateTime } from "../utils/formatters";
 import { ActivityTimeline } from "./activity-timeline";
 import { TaskCard } from "./task-card";
 export function CompanyOverview({
+  businessMode = "b2b",
   company,
   contacts,
   opportunities,
@@ -27,6 +28,7 @@ export function CompanyOverview({
   events,
   notes,
 }: {
+  businessMode?: "b2c" | "b2b";
   company: Company;
   contacts: CompanyContact[];
   opportunities: Opportunity[];
@@ -43,7 +45,7 @@ export function CompanyOverview({
     <div className="grid gap-4 lg:grid-cols-2">
       <Card>
         <CardHeader>
-          <CardTitle>Informações da empresa</CardTitle>
+          <CardTitle>{businessMode==="b2c"?"Dados do Lead":"Informações da empresa"}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
           {company.whatsapp && (
@@ -74,9 +76,10 @@ export function CompanyOverview({
               <ExternalLink size={15} /> {company.instagram}
             </a>
           )}
-          <span>
+          {businessMode==="b2b"&&<span>
             {company.city ?? "—"} / {company.state ?? "—"}
-          </span>
+          </span>}
+          {businessMode==="b2c"&&<span>Interesse: <b>{company.businessArea??"—"}</b></span>}
           <span>
             Origem: <b>{company.leadSource ?? "—"}</b>
           </span>

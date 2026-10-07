@@ -1,0 +1,142 @@
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const allowedOrigin = Deno.env.get("APP_ORIGIN") ?? "";
+const headers = {
+  "Access-Control-Allow-Origin": allowedOrigin,
+  "Access-Control-Allow-Headers": "authorization, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Content-Type": "application/json",
+};
+const reply = (status: number, code: string, message: string, extra: Record<string, unknown> = {}) =>
+  new Response(JSON.stringify({ code, message, ...extra }), { status, headers });
+const allowedRoles = new Set(["owner", "admin", "manager", "sales", "operations", "marketing"]);
+const maxTextLength = 4096;
+
+type Input = { organizationId?: string; conversationId?: string; text?: string };
+type Authorization = {
+  organization_id?: string;
+  role?: string;
+  status?: string;
+  is_platform_admin?: boolean;
+};
+type MetaResponse = {
+  messages?: Array<{ id?: string }>;
+  error?: { code?: number; error_subcode?: number; message?: string };
+};
+
+Deno.serve(async (request) => {
+  if (request.method === "OPTIONS") return new Response("ok", { headers });
+  if (request.method !== "POST") return reply(405, "method_not_allowed", "Método não permitido.");
+  if (!allowedOrigin || request.headers.get("origin") !== allowedOrigin) return reply(403, "origin_denied", "Origem não autorizada.");
+
+  const authorizationHeader = request.headers.get("authorization");
+  if (!authorizationHeader) return reply(401, "not_authenticated", "Não autenticado.");
+
+  const url = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const accessToken = Deno.env.get("WHATSAPP_ACCESS_TOKEN");
+  if (!url || !anonKey || !serviceRoleKey || !accessToken) {
+    return reply(503, "not_configured", "O envio pelo WhatsApp ainda não está configurado.");
+  }
+
+  const userClient = createClient(url, anonKey, { global: { headers: { Authorization: authorizationHeader } } });
+  const authenticated = await userClient.auth.getUser();
+  if (authenticated.error || !authenticated.data.user) return reply(401, "not_authenticated", "Não autenticado.");
+
+  const body = await request.json().catch(() => ({})) as Input;
+  const organizationId = body.organizationId?.trim();
+  const conversationId = body.conversationId?.trim();
+  const text = body.text?.trim() ?? "";
+  if (!organizationId || !conversationId || !text || text.length > maxTextLength) {
+    return reply(422, "invalid_message", `Mensagem inválida. Informe um texto de até ${maxTextLength} caracteres.`);
+  }
+
+  const authorization = await userClient.rpc("current_authorization");
+  const context = authorization.data as Authorization | null;
+  const isActiveTenant = !authorization.error && context?.status === "active" && context.organization_id === organizationId;
+  const canReply = context?.is_platform_admin === true || allowedRoles.has(context?.role ?? "");
+  if (!isActiveTenant || !canReply) {
+    return reply(403, "reply_forbidden", "Você não tem permissão para responder nesta organização.");
+  }
+
+  // Service role is created only after JWT, active-tenant and role validation.
+  const admin = createClient(url, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  const conversationResult = await admin.from("whatsapp_conversations")
+    .select("id,organization_id,connection_id,wa_id")
+    .eq("id", conversationId)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+  const conversation = conversationResult.data;
+  if (conversationResult.error || !conversation) return reply(404, "conversation_not_found", "Conversa não encontrada.");
+
+  const connectionResult = await admin.from("whatsapp_connections")
+    .select("id,organization_id,phone_number_id,status")
+    .eq("id", conversation.connection_id)
+    .eq("organization_id", organizationId)
+    .eq("status", "active")
+    .maybeSingle();
+  const connection = connectionResult.data;
+  if (connectionResult.error || !connection) {
+    return reply(409, "active_connection_not_found", "Não há uma conexão ativa do WhatsApp para esta organização.");
+  }
+
+  let metaResponse: Response;
+  try {
+    metaResponse = await fetch(`https://graph.facebook.com/v26.0/${encodeURIComponent(String(connection.phone_number_id))}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: conversation.wa_id,
+        type: "text",
+        text: { preview_url: false, body: text },
+      }),
+    });
+  } catch (error) {
+    console.error("WhatsApp Cloud API request failed", { conversationId, organizationId, error: error instanceof Error ? error.message : "network_error" });
+    return reply(502, "provider_unavailable", "Não foi possível enviar a mensagem pelo WhatsApp.");
+  }
+
+  const providerPayload = await metaResponse.json().catch(() => ({})) as MetaResponse;
+  if (!metaResponse.ok) {
+    console.error("WhatsApp Cloud API rejected message", { conversationId, organizationId, status: metaResponse.status, providerCode: providerPayload.error?.code, providerSubcode: providerPayload.error?.error_subcode });
+    if (providerPayload.error?.code === 131047 || providerPayload.error?.code === 131026) {
+      return reply(409, "customer_care_window_expired", "Não é possível enviar uma mensagem livre porque a janela de atendimento expirou. Será necessário usar um template aprovado.");
+    }
+    return reply(502, "provider_rejected", "Não foi possível enviar a mensagem pelo WhatsApp.");
+  }
+
+  const externalMessageId = providerPayload.messages?.[0]?.id;
+  if (!externalMessageId) {
+    console.error("WhatsApp Cloud API response did not contain a message id", { conversationId, organizationId });
+    return reply(502, "invalid_provider_response", "Não foi possível confirmar o envio da mensagem pelo WhatsApp.");
+  }
+
+  const sentAt = new Date().toISOString();
+  const saved = await admin.from("whatsapp_messages").insert({
+    organization_id: organizationId,
+    conversation_id: conversationId,
+    external_message_id: externalMessageId,
+    direction: "outbound",
+    message_type: "text",
+    text_body: text,
+    message_timestamp: sentAt,
+    raw_payload: { messages: [{ id: externalMessageId }] },
+  }).select("id").single();
+  if (saved.error) {
+    // A retry/status callback with the same Meta id must not create a duplicate row.
+    if (saved.error.code !== "23505") console.error("Failed to persist outbound WhatsApp message", { conversationId, organizationId, code: saved.error.code });
+    if (saved.error.code !== "23505") return reply(500, "message_persistence_failed", "A mensagem foi enviada, mas não foi possível atualizar a Inbox.");
+  }
+
+  const updated = await admin.from("whatsapp_conversations")
+    .update({ last_message_at: sentAt, updated_at: sentAt })
+    .eq("id", conversationId)
+    .eq("organization_id", organizationId)
+    .eq("connection_id", connection.id);
+  if (updated.error) console.error("Failed to update WhatsApp conversation timestamp", { conversationId, organizationId, code: updated.error.code });
+
+  return reply(200, "message_sent", "Mensagem enviada.", { messageId: saved.data?.id ?? null, externalMessageId });
+});
