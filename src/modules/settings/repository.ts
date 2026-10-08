@@ -7,7 +7,24 @@ const client = () => { if (!supabase) throw new Error("Não foi possível conect
 const fail = (error: { message: string } | null, message = "Você não possui permissão para realizar esta ação.") => { if (error) { if (import.meta.env.DEV) console.error("[Governance]", error.message); throw new Error(message); } };
 async function invoke<T>(body: Record<string, unknown>, fallback: string): Promise<T> {
   const result = await client().functions.invoke("invite-user", { body });
-  if (result.error) throw new Error(fallback);
+
+  if (result.error) {
+    const context = (result.error as { context?: Response }).context;
+
+    if (context) {
+      const payload = await context
+        .clone()
+        .json()
+        .catch(() => null) as { message?: string } | null;
+
+      if (payload?.message) {
+        throw new Error(payload.message);
+      }
+    }
+
+    throw new Error(fallback);
+  }
+
   return result.data as T;
 }
 const supabaseGovernanceRepository = {
