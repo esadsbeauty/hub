@@ -93,15 +93,12 @@ export function CrmPage() {
   const businessModeQuery=useBusinessMode();const businessMode=businessModeQuery.data??"b2b";const terms=crmTerminology(businessMode);const b2c=isB2CMode(businessMode);
   const { notify } = useToast();
   const [query, setQuery] = useState(
-    () => searchParams.get("q") ?? sessionStorage.getItem("crm-query") ?? "",
+    () => searchParams.get("q") ?? "",
   );
   const deferredQuery = useDeferredValue(query);
   const [view, setView] = useState<View>("kanban");
   const [sort, setSort] = useState<CrmSort>("newest");
-  const [filters, setFilters] = useState<CrmFilters>(() => {
-    const saved = sessionStorage.getItem("crm-filters");
-    return saved ? { ...emptyFilters, ...JSON.parse(saved) } : emptyFilters;
-  });
+  const [filters, setFilters] = useState<CrmFilters>(emptyFilters);
   const [modal, setModal] = useState<
     "company" | "opportunity" | "followup" | "pipeline" | "import" | null
   >(null);
@@ -113,7 +110,10 @@ export function CrmPage() {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [mobileSortOpen, setMobileSortOpen] = useState(false);
   useEffect(() => { const requested = searchParams.get("new"); if (requested === "company" || requested === "opportunity") setModal(requested); }, [searchParams]);
-  useEffect(() => { const requestedQuery = searchParams.get("q"); if (requestedQuery !== null) { setQuery(requestedQuery); sessionStorage.setItem("crm-query", requestedQuery); } }, [searchParams]);
+  useEffect(() => {
+    const requestedQuery = searchParams.get("q");
+    setQuery(requestedQuery ?? "");
+  }, [searchParams]);
 
   useEffect(() => {
     const refreshIfVisible = () => {
@@ -173,7 +173,6 @@ export function CrmPage() {
   const closeModal = () => { setModal(null); setQuickCompanyId(""); setQuickOpportunityId(""); if (searchParams.has("new")) { const next = new URLSearchParams(searchParams); next.delete("new"); next.delete("quick"); setSearchParams(next, { replace: true }); } };
   const updateFilters = (next: CrmFilters) => {
     setFilters(next);
-    sessionStorage.setItem("crm-filters", JSON.stringify(next));
   };
   const companies: Company[] = (data?.companies ?? []).filter(
     (item) => !item.deletedAt,
@@ -432,7 +431,7 @@ export function CrmPage() {
         filters={filters}
         sort={sort}
         activeFilters={activeFilters}
-        onQueryChange={(value)=>{setQuery(value);sessionStorage.setItem("crm-query",value)}}
+        onQueryChange={setQuery}
         onFiltersChange={updateFilters}
         onSortChange={setSort}
         onOpenCompany={(company)=>navigate(`/crm/companies/${company.id}`)}
@@ -667,12 +666,7 @@ export function CrmPage() {
       <Modal open={mobileSortOpen} title="Ordenar CRM" onClose={()=>setMobileSortOpen(false)}>
         <div className="space-y-4"><Label htmlFor="crm-mobile-sort">Ordenar empresas por</Label><Select id="crm-mobile-sort" value={sort} onChange={(event)=>setSort(event.target.value as CrmSort)}><option value="newest">Mais recentes</option><option value="oldest">Mais antigos</option><option value="name">Nome</option><option value="activity">Última atividade</option><option value="followup">Próximo follow-up</option><option value="priority">Prioridade</option></Select><Button className="w-full" onClick={()=>setMobileSortOpen(false)}>Aplicar ordenação</Button></div>
       </Modal>
-      {filtered.length === 0 ? (
-        <EmptyState
-          title={`Nenhum${b2c?" lead":"a empresa"} encontrado${b2c?"":"a"}`}
-          description="Ajuste a busca ou os filtros para continuar."
-        />
-      ) : view === "kanban" ? (
+      {view === "kanban" ? (
         <OpportunityKanban
           businessMode={businessMode}
           opportunities={opportunities.filter((item) =>
@@ -704,6 +698,11 @@ export function CrmPage() {
             params.set("phone", phone);
             navigate(`/whatsapp?${params.toString()}`);
           }}
+        />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          title={`Nenhum${b2c ? " lead" : "a empresa"} encontrado${b2c ? "" : "a"}`}
+          description="Ajuste a busca ou os filtros para continuar."
         />
       ) : (
         <><div className="grid gap-4 md:hidden">{filtered.map(company=><button key={company.id} onClick={()=>navigate(`/crm/companies/${company.id}`)} className="rounded-[1.5rem] bg-card p-5 text-left shadow-soft premium-focus"><div className="flex items-start justify-between gap-3"><div><h2 className="text-xl font-semibold tracking-[-.025em]">{company.fantasyName}</h2><p className="mt-1 text-base text-muted-foreground">{contacts.find(item=>item.companyId===company.id&&item.isPrimary)?.name??"Sem contato principal"}</p></div><span className="rounded-full bg-muted px-3 py-1.5 text-sm font-semibold">{openCount(company.id)} abertas</span></div><div className="mt-5 flex flex-wrap gap-2"><TemperatureBadge temperature={company.temperature}/><PriorityBadge priority={company.priority}/></div><div className="mt-5 border-t pt-4 text-base"><p>{company.whatsapp??company.phone??"Contato nÃ£o informado"}</p><p className="mt-2 text-muted-foreground">Próximo passo: {nextTask(company.id)?formatDateTime(nextTask(company.id)?.dueAt):"Nenhum"}</p></div></button>)}</div><div className="hidden md:block"><DataTable<Company>
