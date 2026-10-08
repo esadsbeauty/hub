@@ -1345,6 +1345,7 @@ async function processAiAgentMessage(
         summary: null,
         handoff_reason: null,
         last_ai_message_at: null,
+        round_started_at: now,
         updated_at: now,
       })
       .eq("organization_id", connection.organization_id)

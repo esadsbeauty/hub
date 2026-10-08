@@ -345,6 +345,7 @@ Deno.serve(async (request) => {
         company_id: payload.company_id ?? null,
         opportunity_id: payload.opportunity_id ?? null,
         status: "active",
+        round_started_at: new Date().toISOString(),
         last_lead_message_at: new Date().toISOString(),
       })
       .select("*")
@@ -368,7 +369,8 @@ Deno.serve(async (request) => {
    * de oportunidades antigas do mesmo WhatsApp sejam usadas para qualificar
    * automaticamente a nova oportunidade.
    */
-  let crmHistoryCutoff: string | null = null;
+  let crmHistoryCutoff: string | null =
+    conversation.round_started_at ?? null;
 
   if (
     mode === "crm" &&
@@ -383,11 +385,22 @@ Deno.serve(async (request) => {
       .limit(1)
       .maybeSingle();
 
-    crmHistoryCutoff =
+    const prospectingCutoff =
       convertedProspectingLead?.message_opened_at ??
       convertedProspectingLead?.created_at ??
       convertedProspectingLead?.converted_at ??
       null;
+
+    if (
+      prospectingCutoff &&
+      (
+        !crmHistoryCutoff ||
+        new Date(prospectingCutoff).getTime() >
+          new Date(crmHistoryCutoff).getTime()
+      )
+    ) {
+      crmHistoryCutoff = prospectingCutoff;
+    }
   }
 
   let recentRunsQuery = admin
@@ -789,9 +802,9 @@ REGRAS OPERACIONAIS IMPORTANTES:
 20. Evite começar repetidamente com "Entendi", "Perfeito", "Ótimo", "Certo" ou equivalentes.
 21. Emojis são opcionais e devem aparecer apenas ocasionalmente.
 22. Evite repetir o que o lead acabou de dizer. Use a informação e avance.
-23. O HISTÓRICO RECENTE pode conter mensagens enviadas manualmente pela equipe antes de você assumir. Considere essas mensagens como parte real da conversa.
-24. Não refaça perguntas já respondidas no histórico, mesmo que tenham sido feitas pela equipe e não por você.
-25. Se já houver conversa anterior relevante, não reinicie o atendimento nem faça uma nova apresentação desnecessária.
+23. O HISTÓRICO RECENTE contém apenas mensagens da rodada atual de atendimento. Use esse histórico para manter continuidade.
+24. Não use conversas de rodadas anteriores como motivo para qualificar, aumentar score ou fazer handoff na rodada atual.
+25. Se esta rodada atual ainda não tiver contexto suficiente, conduza novamente a qualificação de forma natural, sem assumir intenção de agendamento, compra ou atendimento humano com base em conversas antigas.
 26. Se for realmente a primeira interação, apresente-se brevemente. ${welcomeMessage ? `Use como referência esta apresentação configurada: "${welcomeMessage}"` : `Apresente-se como ${assistantName}, ${assistantRole}.`}
 27. NUNCA envie ao lead nomes de campos internos, chaves JSON, scores, metadados ou termos técnicos do sistema. São exclusivamente internos: qualification_updates, qualification_score, summary, handoff, handoff_reason, crm_sync, conversation_id, agent e reply.
 28. O conteúdo de messages deve conter SOMENTE texto que pode ser enviado diretamente ao lead pelo WhatsApp.
