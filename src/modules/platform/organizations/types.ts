@@ -3,3 +3,12 @@ export type OrganizationListItem={id:string;name:string;slug:string;organization
 export type OrganizationDetails={id:string;name:string;slug:string;organizationType:OrganizationType;timezone:string;locale:string;currency:string;createdAt:string;updatedAt:string;owner?:{id:string;name:string;email:string;membershipStatus:string};plan?:{id:string;name:string;priceCents:number;entitlements:string[]};subscription?:{id:string;status:string;nextDueAt?:string;startedAt?:string;suspendedAt?:string;cancelledAt?:string};users:{total:number;owners:number;admins:number;others:number};impact:{members:number;companies:number;contacts:number;opportunities:number;pipelines:number;pipelineStages:number;tasks:number;calendarEvents:number;activities:number;customers:number}};
 export type OrganizationFilters={query:string;type:string;status:string;planId:string;subscriptionStatus:string;created:string;sort:"newest"|"oldest"|"name"|"updated";page:number;pageSize:number};
 export type OrganizationPage={items:OrganizationListItem[];total:number;page:number;pageSize:number;plans:{id:string;name:string}[];metrics:{total:number;production:number;test:number;demo:number;active:number;suspended:number;last30Days:number}};
+
+export type CommercialAssistantStage={id:string;name:string;slug:string;position:number;isWon:boolean;isLost:boolean};
+export type CommercialAssistantPipeline={id:string;name:string;isDefault:boolean;stages:CommercialAssistantStage[]};
+export type CommercialAssistantDetails={
+  enabled:boolean;
+  source?:string;
+  agent?:{id:string;name:string;isEnabled:boolean;crmConfig:Record<string,unknown>};
+  pipelines:CommercialAssistantPipeline[];
+};
