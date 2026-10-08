@@ -63,7 +63,7 @@ Deno.serve(async (request) => {
         message: "Origem não autorizada.",
       },
       requestOrigin,
-    );
+    , requestOrigin);
   }
 
   const authorization = request.headers.get("authorization");
@@ -158,7 +158,7 @@ Deno.serve(async (request) => {
       return reply(400, {
         code: "invalid_input",
         message: "Preencha nome, email e função.",
-      });
+      }, requestOrigin);
     }
 
     const { data: role } = await admin
@@ -176,7 +176,7 @@ Deno.serve(async (request) => {
       return reply(400, {
         code: "invalid_role",
         message: "Função inválida para convite.",
-      });
+      }, requestOrigin);
     }
 
     const { data: existingProfile } = await admin
@@ -197,14 +197,14 @@ Deno.serve(async (request) => {
         return reply(409, {
           code: "member_exists",
           message: "Este usuário já faz parte da equipe.",
-        });
+        }, requestOrigin);
       }
 
       if (membership?.status === "invited") {
         return reply(409, {
           code: "invite_pending",
           message: "Este email já possui um convite pendente.",
-        });
+        }, requestOrigin);
       }
     }
 
@@ -212,14 +212,34 @@ Deno.serve(async (request) => {
       data: {
         name,
       },
-      redirectTo: `${allowedOrigin}/aceitar-convite`,
-    }, requestOrigin);
+      redirectTo: `${configuredOrigin}/aceitar-convite`,
+    });
 
     if (invited.error) {
-      return reply(400, {
-        code: "invite_failed",
-        message: "Não foi possível enviar o convite.",
+      console.error("invite_user_failed", {
+        organizationId,
+        email,
+        status: invited.error.status,
+        name: invited.error.name,
+        message: invited.error.message,
       });
+
+      const normalized = invited.error.message.toLowerCase();
+      const message =
+        normalized.includes("already") || normalized.includes("registered")
+          ? "Este e-mail já possui uma conta. Use outro e-mail ou vincule o usuário existente."
+          : normalized.includes("rate")
+            ? "O limite temporário de envio de convites foi atingido. Tente novamente em alguns minutos."
+            : "Não foi possível enviar o convite pelo serviço de autenticação.";
+
+      return reply(
+        400,
+        {
+          code: "invite_failed",
+          message,
+        },
+        requestOrigin,
+      , requestOrigin);
     }
 
     const targetUserId =
@@ -230,7 +250,7 @@ Deno.serve(async (request) => {
         code: "invite_reconciliation_required",
         message:
           "Convite enviado, mas a vinculação precisa ser reconciliada.",
-      });
+      }, requestOrigin);
     }
 
     await admin
@@ -256,7 +276,7 @@ Deno.serve(async (request) => {
         code: "invite_reconciliation_required",
         message:
           "Convite enviado. Tente reenviar para concluir a vinculação.",
-      });
+      }, requestOrigin);
     }
 
     return reply(200, {
@@ -270,7 +290,7 @@ Deno.serve(async (request) => {
       return reply(400, {
         code: "invalid_member",
         message: "Usuário inválido.",
-      });
+      }, requestOrigin);
     }
 
     const email = payload.email?.trim().toLowerCase();
@@ -279,7 +299,7 @@ Deno.serve(async (request) => {
       return reply(400, {
         code: "invalid_email",
         message: "Informe um e-mail válido.",
-      });
+      }, requestOrigin);
     }
 
     const { data: member } = await admin
@@ -293,7 +313,7 @@ Deno.serve(async (request) => {
       return reply(404, {
         code: "member_not_found",
         message: "Usuário não encontrado.",
-      });
+      }, requestOrigin);
     }
 
     const currentEmail = (
@@ -303,7 +323,7 @@ Deno.serve(async (request) => {
     if (currentEmail === email) {
       return reply(200, {
         message: "O e-mail informado já está cadastrado.",
-      });
+      }, requestOrigin);
     }
 
     const { data: existingProfile } = await admin
@@ -317,7 +337,7 @@ Deno.serve(async (request) => {
       return reply(409, {
         code: "email_in_use",
         message: "Este e-mail já está sendo utilizado por outro usuário.",
-      });
+      }, requestOrigin);
     }
 
     const authUpdate = await admin.auth.admin.updateUserById(
@@ -332,7 +352,7 @@ Deno.serve(async (request) => {
       return reply(400, {
         code: "auth_email_update_failed",
         message: "Não foi possível alterar o e-mail de acesso.",
-      });
+      }, requestOrigin);
     }
 
     const { error: profileError } = await admin
@@ -347,7 +367,7 @@ Deno.serve(async (request) => {
         code: "profile_email_update_failed",
         message:
           "O e-mail de acesso foi alterado, mas o perfil precisa ser sincronizado.",
-      });
+      }, requestOrigin);
     }
 
     return reply(200, {
@@ -361,7 +381,7 @@ Deno.serve(async (request) => {
       return reply(400, {
         code: "invalid_member",
         message: "Usuário inválido.",
-      });
+      }, requestOrigin);
     }
 
     const { data: member } = await admin
@@ -375,7 +395,7 @@ Deno.serve(async (request) => {
       return reply(409, {
         code: "invite_not_pending",
         message: "Este convite não está mais pendente.",
-      });
+      }, requestOrigin);
     }
 
     const email = (
@@ -386,7 +406,7 @@ Deno.serve(async (request) => {
       const resent = await admin.auth.admin.inviteUserByEmail(
         email,
         {
-          redirectTo: `${allowedOrigin}/aceitar-convite`,
+          redirectTo: `${configuredOrigin}/aceitar-convite`,
         },
       );
 
@@ -394,7 +414,7 @@ Deno.serve(async (request) => {
         return reply(400, {
           code: "resend_failed",
           message: "Não foi possível reenviar o convite.",
-        });
+        }, requestOrigin);
       }
     }
 
@@ -414,7 +434,7 @@ Deno.serve(async (request) => {
         code: "operation_denied",
         message:
           "Você não possui permissão para realizar esta ação.",
-      });
+      }, requestOrigin);
     }
 
     return reply(200, {
@@ -428,5 +448,5 @@ Deno.serve(async (request) => {
   return reply(400, {
     code: "invalid_action",
     message: "Ação inválida.",
-  });
+  }, requestOrigin);
 });
