@@ -120,8 +120,8 @@ export function OpportunityStatusBadge({
   return (
     <span
       className={[
-        "mt-2 inline-flex w-fit items-center rounded-full border font-semibold",
-        compact ? "px-2.5 py-1 text-[11px]" : "px-3 py-1.5 text-xs",
+        "inline-flex w-fit items-center rounded-full border font-semibold",
+        compact ? "px-2 py-0.5 text-[10px] leading-4" : "px-2.5 py-1 text-[11px] leading-4",
         status.className,
       ].join(" ")}
     >
