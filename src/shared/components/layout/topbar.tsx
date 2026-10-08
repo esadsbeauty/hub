@@ -336,11 +336,8 @@ function NotificationsBell({
                     type="button"
                     onClick={() => {
                       setOpen(false);
-                      navigate(
-                        `/crm?q=${encodeURIComponent(
-                          alert.title,
-                        )}`,
-                      );
+                      sessionStorage.removeItem("crm-query");
+                      navigate("/crm");
                     }}
                     className={`w-full rounded-xl border p-3 text-left transition hover:brightness-[.98] ${alertTone(
                       alert.waitingMinutes,
