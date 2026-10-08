@@ -486,3 +486,20 @@ export async function markProspectingMessageOpened(
     throw updateError;
   }
 }
+
+export async function deleteProspectingList(
+  organizationId: string,
+  listId: string,
+): Promise<void> {
+  const api = client();
+
+  const { error } = await api
+    .from("prospecting_lists")
+    .delete()
+    .eq("id", listId)
+    .eq("organization_id", organizationId);
+
+  if (error) {
+    throw error;
+  }
+}
