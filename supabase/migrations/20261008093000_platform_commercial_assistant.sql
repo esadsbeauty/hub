@@ -90,6 +90,7 @@ set search_path=public
 as $$
 declare
   v_agent public.ai_agents%rowtype;
+  v_pipeline_id uuid;
   v_new_lead uuid;
   v_in_service uuid;
   v_human uuid;
@@ -127,74 +128,97 @@ begin
     return public.platform_commercial_assistant_details(target_organization_id);
   end if;
 
-  if target_pipeline_id is null or not exists(
+  v_pipeline_id:=target_pipeline_id;
+
+  if v_pipeline_id is not null and not exists(
     select 1 from public.pipelines p
-    where p.id=target_pipeline_id
+    where p.id=v_pipeline_id
       and p.organization_id=target_organization_id
   ) then
     raise exception 'pipeline_not_found' using errcode='P0002';
   end if;
 
+  if v_pipeline_id is null then
+    select p.id into v_pipeline_id
+    from public.pipelines p
+    where p.organization_id=target_organization_id
+    order by p.is_default desc,p.created_at asc
+    limit 1;
+  end if;
+
+  if v_pipeline_id is null then
+    insert into public.pipelines(
+      organization_id,name,description,is_default
+    )
+    values(
+      target_organization_id,
+      'Pipeline Beauty',
+      'Pipeline comercial padrão para atendimento e vendas',
+      true
+    )
+    returning id into v_pipeline_id;
+  end if;
+
   -- Reuse canonical stages by slug or name.
   select ps.id into v_new_lead
   from public.pipeline_stages ps
-  where ps.pipeline_id=target_pipeline_id and ps.is_active=true
+  where ps.pipeline_id=v_pipeline_id and ps.is_active=true
     and (ps.slug='novo_lead' or lower(trim(ps.name))='novo lead')
   order by (ps.slug='novo_lead') desc,ps.position limit 1;
 
   select ps.id into v_in_service
   from public.pipeline_stages ps
-  where ps.pipeline_id=target_pipeline_id and ps.is_active=true
+  where ps.pipeline_id=v_pipeline_id and ps.is_active=true
     and (ps.slug='em_atendimento' or lower(trim(ps.name))='em atendimento')
   order by (ps.slug='em_atendimento') desc,ps.position limit 1;
 
   select ps.id into v_human
   from public.pipeline_stages ps
-  where ps.pipeline_id=target_pipeline_id and ps.is_active=true
+  where ps.pipeline_id=v_pipeline_id and ps.is_active=true
     and (ps.slug='atendimento_humano' or lower(trim(ps.name))='atendimento humano')
   order by (ps.slug='atendimento_humano') desc,ps.position limit 1;
 
   select ps.id into v_scheduled
   from public.pipeline_stages ps
-  where ps.pipeline_id=target_pipeline_id and ps.is_active=true
+  where ps.pipeline_id=v_pipeline_id and ps.is_active=true
     and (ps.slug='agendado' or lower(trim(ps.name))='agendado')
   order by (ps.slug='agendado') desc,ps.position limit 1;
 
   select coalesce(max(position),-1) into v_max_position
-  from public.pipeline_stages where pipeline_id=target_pipeline_id;
+  from public.pipeline_stages where pipeline_id=v_pipeline_id;
 
   if v_new_lead is null then
     v_max_position:=v_max_position+1;
     insert into public.pipeline_stages(pipeline_id,name,slug,position,probability,is_won,is_lost,is_active)
-    values(target_pipeline_id,'Novo Lead','novo_lead',v_max_position,10,false,false,true)
+    values(v_pipeline_id,'Novo Lead','novo_lead',v_max_position,10,false,false,true)
     returning id into v_new_lead;
   end if;
 
   if v_in_service is null then
     v_max_position:=v_max_position+1;
     insert into public.pipeline_stages(pipeline_id,name,slug,position,probability,is_won,is_lost,is_active)
-    values(target_pipeline_id,'Em atendimento','em_atendimento',v_max_position,30,false,false,true)
+    values(v_pipeline_id,'Em atendimento','em_atendimento',v_max_position,30,false,false,true)
     returning id into v_in_service;
   end if;
 
   if v_human is null then
     v_max_position:=v_max_position+1;
     insert into public.pipeline_stages(pipeline_id,name,slug,position,probability,is_won,is_lost,is_active)
-    values(target_pipeline_id,'Atendimento humano','atendimento_humano',v_max_position,45,false,false,true)
+    values(v_pipeline_id,'Atendimento humano','atendimento_humano',v_max_position,45,false,false,true)
     returning id into v_human;
   end if;
 
   if v_scheduled is null then
     v_max_position:=v_max_position+1;
     insert into public.pipeline_stages(pipeline_id,name,slug,position,probability,is_won,is_lost,is_active)
-    values(target_pipeline_id,'Agendado','agendado',v_max_position,60,false,false,true)
+    values(v_pipeline_id,'Agendado','agendado',v_max_position,60,false,false,true)
     returning id into v_scheduled;
   end if;
 
   -- Canonical stages first; all existing stages keep their relative order.
   update public.pipeline_stages
   set position=position+100000,updated_at=now()
-  where pipeline_id=target_pipeline_id;
+  where pipeline_id=v_pipeline_id;
 
   foreach v_stage_id in array array[v_new_lead,v_in_service,v_human,v_scheduled] loop
     update public.pipeline_stages set position=v_idx,updated_at=now()
@@ -205,7 +229,7 @@ begin
   for v_stage_id in
     select ps.id
     from public.pipeline_stages ps
-    where ps.pipeline_id=target_pipeline_id
+    where ps.pipeline_id=v_pipeline_id
       and ps.is_active=true
       and ps.id<>all(array[v_new_lead,v_in_service,v_human,v_scheduled])
     order by ps.position,ps.created_at,ps.id
@@ -219,14 +243,14 @@ begin
   with archived as (
     select ps.id,row_number() over(order by ps.position,ps.created_at,ps.id)-1 rn
     from public.pipeline_stages ps
-    where ps.pipeline_id=target_pipeline_id and ps.is_active=false
+    where ps.pipeline_id=v_pipeline_id and ps.is_active=false
   )
   update public.pipeline_stages ps
   set position=10000+archived.rn,updated_at=now()
   from archived where ps.id=archived.id;
 
   v_crm_config:=jsonb_build_object(
-    'pipeline_id',target_pipeline_id,
+    'pipeline_id',v_pipeline_id,
     'awaiting_qualification_stage_id',v_new_lead,
     'qualification_stage_id',v_in_service,
     'qualified_stage_id',v_human,
