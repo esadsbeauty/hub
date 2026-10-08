@@ -226,14 +226,14 @@ function MobileOpportunityCard({
             </p>
           )}
 
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <span className="inline-flex w-fit items-center rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
               Origem: {item.source ?? company?.leadSource ?? "Não informada"}
             </span>
             <OpportunityStatusBadge opportunity={item} stages={stages} />
           </div>
 
-          <NextActionStatus opportunity={item} stages={stages} task={task}/>
+          {task && <NextActionStatus opportunity={item} stages={stages} task={task}/>} 
         </button>
 
         <div className="mt-3 grid grid-cols-3 gap-2 border-t pt-3">
