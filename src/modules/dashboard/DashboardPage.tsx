@@ -37,6 +37,7 @@ import { useAnalyticsFilters } from "@/modules/analytics/use-analytics-filters";
 import { OnboardingDashboardCard } from "@/modules/onboarding/OnboardingDashboardCard";
 import { useOnboarding } from "@/modules/onboarding/hooks";
 import { useAppState } from "@/shared/state/app-state-context";
+import { useProspectingDashboardSummary } from "./use-prospecting-dashboard-summary";
 
 function normalize(value: string) {
   return value
@@ -66,6 +67,7 @@ export function DashboardPage() {
     crm.data?.organization.timezone ?? "America/Sao_Paulo",
   );
   const report = useAnalytics(filters);
+  const prospecting = useProspectingDashboardSummary();
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const actions = useCrmActions();
 
@@ -519,6 +521,63 @@ export function DashboardPage() {
         </Card>
       </div>
 
+      {prospecting.data && (
+        <Card>
+          <CardHeader className="flex-row items-center justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[.14em] text-muted-foreground">
+                Prospecção
+              </p>
+              <CardTitle className="mt-1">
+                Sua prospecção em andamento
+              </CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Acompanhe rapidamente o trabalho das listas e os leads que avançaram.
+              </p>
+            </div>
+
+            <Link
+              className="text-sm font-semibold"
+              to="/prospeccao"
+            >
+              Abrir prospecção
+            </Link>
+          </CardHeader>
+
+          <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <ProspectingMetric
+              label="Listas"
+              value={prospecting.data.lists}
+              detail="listas criadas"
+            />
+
+            <ProspectingMetric
+              label="Leads"
+              value={prospecting.data.leads}
+              detail="contatos importados"
+            />
+
+            <ProspectingMetric
+              label="Abordados"
+              value={prospecting.data.contacted}
+              detail="já receberam abordagem"
+            />
+
+            <ProspectingMetric
+              label="Engajaram"
+              value={prospecting.data.engaged}
+              detail="responderam ou avançaram"
+            />
+
+            <ProspectingMetric
+              label="Oportunidades"
+              value={prospecting.data.opportunities}
+              detail="viraram oportunidade"
+            />
+          </CardContent>
+        </Card>
+      )}
+
       <section className="grid gap-3 md:grid-cols-3">
         <QuickLink
           to="/whatsapp"
@@ -640,5 +699,32 @@ function QuickLink({
         className="text-muted-foreground"
       />
     </Link>
+  );
+}
+
+
+function ProspectingMetric({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: number;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border/60 bg-background p-4">
+      <p className="text-sm font-medium text-muted-foreground">
+        {label}
+      </p>
+
+      <p className="mt-2 text-2xl font-semibold tracking-[-.04em]">
+        {value}
+      </p>
+
+      <p className="mt-1 text-xs text-muted-foreground">
+        {detail}
+      </p>
+    </div>
   );
 }
