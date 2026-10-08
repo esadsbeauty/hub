@@ -1,39 +1,69 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const allowedOrigin = Deno.env.get("APP_ORIGIN") ?? "";
+const configuredOrigin = Deno.env.get("APP_ORIGIN") ?? "";
 
-const headers = {
-  "Access-Control-Allow-Origin": allowedOrigin,
+const isAllowedOrigin = (origin: string) => {
+  if (!origin) return false;
+  if (configuredOrigin && origin === configuredOrigin) return true;
+
+  try {
+    const url = new URL(origin);
+    return (
+      (url.hostname === "localhost" || url.hostname === "127.0.0.1") &&
+      (url.protocol === "http:" || url.protocol === "https:")
+    );
+  } catch {
+    return false;
+  }
+};
+
+const responseHeaders = (origin: string) => ({
+  "Access-Control-Allow-Origin": isAllowedOrigin(origin)
+    ? origin
+    : configuredOrigin,
   "Access-Control-Allow-Headers": "authorization, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Content-Type": "application/json",
-};
+  "Vary": "Origin",
+});
 
-const reply = (status: number, body: Record<string, unknown>) =>
+const reply = (
+  status: number,
+  body: Record<string, unknown>,
+  origin: string,
+) =>
   new Response(JSON.stringify(body), {
     status,
-    headers,
+    headers: responseHeaders(origin),
   });
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 Deno.serve(async (request) => {
+  const requestOrigin = request.headers.get("origin") ?? "";
+
   if (request.method === "OPTIONS") {
-    return new Response("ok", { headers });
+    return new Response("ok", {
+      headers: responseHeaders(requestOrigin),
+    });
   }
 
   if (request.method !== "POST") {
     return reply(405, {
       code: "method_not_allowed",
       message: "Método não permitido.",
-    });
+    }, requestOrigin);
   }
 
-  if (!allowedOrigin || request.headers.get("origin") !== allowedOrigin) {
-    return reply(403, {
-      code: "origin_denied",
-      message: "Origem não autorizada.",
-    });
+  if (!isAllowedOrigin(requestOrigin)) {
+    return reply(
+      403,
+      {
+        code: "origin_denied",
+        message: "Origem não autorizada.",
+      },
+      requestOrigin,
+    );
   }
 
   const authorization = request.headers.get("authorization");
@@ -42,7 +72,7 @@ Deno.serve(async (request) => {
     return reply(401, {
       code: "invalid_session",
       message: "Sessão inválida.",
-    });
+    }, requestOrigin);
   }
 
   const url = Deno.env.get("SUPABASE_URL");
@@ -53,7 +83,7 @@ Deno.serve(async (request) => {
     return reply(503, {
       code: "not_configured",
       message: "Gestão de usuários ainda não está configurada.",
-    });
+    }, requestOrigin);
   }
 
   const userClient = createClient(url, anon, {
@@ -71,7 +101,7 @@ Deno.serve(async (request) => {
     return reply(401, {
       code: "invalid_session",
       message: "Sessão inválida.",
-    });
+    }, requestOrigin);
   }
 
   const admin = createClient(url, serviceRole, {
@@ -101,7 +131,7 @@ Deno.serve(async (request) => {
     return reply(403, {
       code: "permission_denied",
       message: "Você não possui permissão para gerenciar usuários.",
-    });
+    }, requestOrigin);
   }
 
   const { data: organizationId, error: organizationError } =
@@ -111,7 +141,7 @@ Deno.serve(async (request) => {
     return reply(403, {
       code: "permission_denied",
       message: "Você não possui permissão para gerenciar usuários.",
-    });
+    }, requestOrigin);
   }
 
   // CONVITE
@@ -183,7 +213,7 @@ Deno.serve(async (request) => {
         name,
       },
       redirectTo: `${allowedOrigin}/aceitar-convite`,
-    });
+    }, requestOrigin);
 
     if (invited.error) {
       return reply(400, {
@@ -231,7 +261,7 @@ Deno.serve(async (request) => {
 
     return reply(200, {
       message: "Convite enviado.",
-    });
+    }, requestOrigin);
   }
 
   // ALTERAÇÃO DE E-MAIL
@@ -322,7 +352,7 @@ Deno.serve(async (request) => {
 
     return reply(200, {
       message: "E-mail atualizado com sucesso.",
-    });
+    }, requestOrigin);
   }
 
   // REENVIAR OU CANCELAR CONVITE
@@ -392,7 +422,7 @@ Deno.serve(async (request) => {
         action === "resend"
           ? "Convite reenviado."
           : "Convite cancelado.",
-    });
+    }, requestOrigin);
   }
 
   return reply(400, {
