@@ -70,7 +70,6 @@ function MobileHeader({
   setSearch: (value: string) => void;
   submit: (event: FormEvent) => void;
   local: boolean;
-  alerts: HumanHandoffAlert[];
 }) {
   return (
     <header className="sticky top-0 z-20 border-b border-border/60 bg-background/95 px-4 pb-4 pt-[max(.75rem,env(safe-area-inset-top))] backdrop-blur-xl min-[430px]:px-5 md:hidden">
