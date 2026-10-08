@@ -10,9 +10,11 @@ import {
   RefreshCw,
   Save,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Card,
   CardContent,
@@ -21,6 +23,7 @@ import { PageContainer } from "@/shared/components/layout/page-container";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { ProspectingListDialog } from "./ProspectingListDialog";
 import {
+  useDeleteProspectingList,
   useGenerateProspectingMessage,
   useMarkProspectingMessageOpened,
   useProspectingLeads,
@@ -394,6 +397,17 @@ export function ProspectingPage() {
     useState<ProspectingList | null>(
       null,
     );
+
+  const [
+    deleteTarget,
+    setDeleteTarget,
+  ] =
+    useState<ProspectingList | null>(
+      null,
+    );
+
+  const deleteList =
+    useDeleteProspectingList();
 
   const listsQuery =
     useProspectingLists();
@@ -772,17 +786,32 @@ export function ProspectingPage() {
                     </div>
                   </div>
 
-                  <Button
-                    className="mt-4 w-full"
-                    variant="outline"
-                    onClick={() =>
-                      setSelectedList(
-                        list,
-                      )
-                    }
-                  >
-                    Abrir lista
-                  </Button>
+                  <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        setSelectedList(
+                          list,
+                        )
+                      }
+                    >
+                      Abrir lista
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      className="text-destructive hover:text-destructive"
+                      aria-label={`Excluir lista ${list.name}`}
+                      onClick={() =>
+                        setDeleteTarget(
+                          list,
+                        )
+                      }
+                    >
+                      <Trash2 size={16} />
+                      Excluir
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ),
@@ -800,6 +829,43 @@ export function ProspectingPage() {
           )
         }
       />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Excluir esta lista?"
+        description={
+          deleteTarget
+            ? `A lista "${deleteTarget.name}" e os leads importados nela serão removidos. Oportunidades já criadas no CRM não serão excluídas.`
+            : ""
+        }
+        confirmLabel={
+          deleteList.isPending
+            ? "Excluindo..."
+            : "Excluir lista"
+        }
+        onCancel={() => {
+          if (!deleteList.isPending) {
+            setDeleteTarget(null);
+          }
+        }}
+        onConfirm={() => {
+          if (!deleteTarget) return;
+
+          void deleteList
+            .mutateAsync(
+              deleteTarget.id,
+            )
+            .then(() => {
+              setDeleteTarget(null);
+            });
+        }}
+      />
+
+      {deleteList.isError && (
+        <p className="mt-3 text-sm text-destructive">
+          Não foi possível excluir a lista.
+        </p>
+      )}
     </PageContainer>
   );
 }
