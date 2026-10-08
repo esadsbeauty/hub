@@ -63,7 +63,7 @@ Deno.serve(async (request) => {
         message: "Origem não autorizada.",
       },
       requestOrigin,
-    , requestOrigin);
+    );
   }
 
   const authorization = request.headers.get("authorization");
@@ -239,7 +239,7 @@ Deno.serve(async (request) => {
           message,
         },
         requestOrigin,
-      , requestOrigin);
+      );
     }
 
     const targetUserId =
