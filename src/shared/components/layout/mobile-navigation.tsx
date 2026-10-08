@@ -8,6 +8,7 @@ import {
   Gift,
   Handshake,
   Home,
+  ListPlus,
   Menu,
   MessageCircle,
   Megaphone,
@@ -20,8 +21,10 @@ import {
   Wallet,
 } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
+
 import { useAppState } from "@/shared/state/app-state-context";
 import { BrandLogo } from "@/shared/components/brand/brand-logo";
+import { useOrganizationFeature } from "@/shared/features/use-organization-feature";
 
 const navigation = [
   {
@@ -130,9 +133,16 @@ const actions = [
 
 export function MobileNavigation() {
   const { can, isPlatformAdmin } = useAppState();
-  const [sheet, setSheet] = useState<"new" | "more" | null>(null);
+  const prospectingFeature =
+    useOrganizationFeature("prospecting_agent");
 
-  const navItem = (item: (typeof navigation)[number]) => {
+  const [sheet, setSheet] = useState<
+    "new" | "more" | null
+  >(null);
+
+  const navItem = (
+    item: (typeof navigation)[number],
+  ) => {
     const Icon = item.icon;
 
     return (
@@ -198,7 +208,9 @@ export function MobileNavigation() {
                 : "Mais opções"
             }
             className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-auto rounded-t-[1.75rem] bg-card px-4 pt-3 shadow-overlay pb-[max(1.5rem,env(safe-area-inset-bottom))]"
-            onClick={(event) => event.stopPropagation()}
+            onClick={(event) =>
+              event.stopPropagation()
+            }
           >
             <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-border" />
 
@@ -211,49 +223,65 @@ export function MobileNavigation() {
             </h2>
 
             <div className="mt-4 grid gap-1.5">
-              {sheet === "more" && isPlatformAdmin && (
-                <Link
-                  onClick={() => setSheet(null)}
-                  className="premium-focus flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold active:bg-muted"
-                  to="/plataforma"
-                >
-                  <ShieldCheck size={24} />
-                  Plataforma
-                </Link>
-              )}
+              {sheet === "more" &&
+                prospectingFeature.data === true && (
+                  <Link
+                    onClick={() => setSheet(null)}
+                    className="premium-focus flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold active:bg-muted"
+                    to="/prospeccao"
+                  >
+                    <ListPlus size={21} />
+                    Prospecção
+                  </Link>
+                )}
 
-              {sheet === "more" && isPlatformAdmin && (
-                <Link
-                  onClick={() => setSheet(null)}
-                  className="premium-focus flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold active:bg-muted"
-                  to="/plataforma/leads"
-                >
-                  <UserRoundSearch size={24} />
-                  Leads do Produto
-                </Link>
-              )}
+              {sheet === "more" &&
+                isPlatformAdmin && (
+                  <Link
+                    onClick={() => setSheet(null)}
+                    className="premium-focus flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold active:bg-muted"
+                    to="/plataforma"
+                  >
+                    <ShieldCheck size={24} />
+                    Plataforma
+                  </Link>
+                )}
 
-              {sheet === "more" && isPlatformAdmin && (
-                <Link
-                  onClick={() => setSheet(null)}
-                  className="premium-focus flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold active:bg-muted"
-                  to="/plataforma/indicacoes"
-                >
-                  <Gift size={24} />
-                  Indicações
-                </Link>
-              )}
+              {sheet === "more" &&
+                isPlatformAdmin && (
+                  <Link
+                    onClick={() => setSheet(null)}
+                    className="premium-focus flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold active:bg-muted"
+                    to="/plataforma/leads"
+                  >
+                    <UserRoundSearch size={24} />
+                    Leads do Produto
+                  </Link>
+                )}
 
-              {sheet === "more" && isPlatformAdmin && (
-                <Link
-                  onClick={() => setSheet(null)}
-                  className="premium-focus flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold active:bg-muted"
-                  to="/plataforma/organizacoes"
-                >
-                  <Building2 size={24} />
-                  Organizações
-                </Link>
-              )}
+              {sheet === "more" &&
+                isPlatformAdmin && (
+                  <Link
+                    onClick={() => setSheet(null)}
+                    className="premium-focus flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold active:bg-muted"
+                    to="/plataforma/indicacoes"
+                  >
+                    <Gift size={24} />
+                    Indicações
+                  </Link>
+                )}
+
+              {sheet === "more" &&
+                isPlatformAdmin && (
+                  <Link
+                    onClick={() => setSheet(null)}
+                    className="premium-focus flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold active:bg-muted"
+                    to="/plataforma/organizacoes"
+                  >
+                    <Building2 size={24} />
+                    Organizações
+                  </Link>
+                )}
 
               {sheet === "new"
                 ? actions.map(
@@ -264,7 +292,9 @@ export function MobileNavigation() {
                       icon: Icon,
                     }) => (
                       <Link
-                        onClick={() => setSheet(null)}
+                        onClick={() =>
+                          setSheet(null)
+                        }
                         className="premium-focus flex min-h-16 items-center gap-3 rounded-2xl border border-border/60 px-4 py-3 active:bg-muted"
                         key={to}
                         to={to}
@@ -296,7 +326,9 @@ export function MobileNavigation() {
                         icon: Icon,
                       }) => (
                         <Link
-                          onClick={() => setSheet(null)}
+                          onClick={() =>
+                            setSheet(null)
+                          }
                           className="premium-focus flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold active:bg-muted"
                           key={to}
                           to={to}

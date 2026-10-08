@@ -22,6 +22,53 @@ type Temperature = "frio" | "morno" | "quente";
 export type Database = {
   public: {
     Tables: {
+      organization_features: Table<{
+        organization_id: string;
+        feature_key: string;
+        enabled: boolean;
+        source: string;
+        created_at: string;
+        updated_at: string;
+      }>;
+      prospecting_lists: Table<{
+        id: string;
+        organization_id: string;
+        name: string;
+        description: string | null;
+        source_type: "csv" | "paste";
+        total_leads: number;
+        created_by: string;
+        created_at: string;
+        updated_at: string;
+      }>;
+      prospecting_leads: Table<{
+        id: string;
+        organization_id: string;
+        list_id: string;
+        name: string | null;
+        whatsapp: string | null;
+        instagram: string | null;
+        city: string | null;
+        business_type: string | null;
+        notes: string | null;
+        generated_message: string | null;
+        message_edited: boolean;
+        message_generated_at: string | null;
+        message_opened_at: string | null;
+        status:
+          | "new"
+          | "message_sent"
+          | "replied"
+          | "in_conversation"
+          | "opportunity"
+          | "not_interested";
+        crm_company_id: string | null;
+        crm_opportunity_id: string | null;
+        converted_at: string | null;
+        created_by: string;
+        created_at: string;
+        updated_at: string;
+      }>;
       whatsapp_connections: Table<Base & { phone_number_id:string;waba_id:string;display_phone_number:string;status:string }>;
       whatsapp_conversations: Table<Base & { connection_id:string;company_id:string|null;contact_id:string|null;opportunity_id:string|null;wa_id:string;contact_name:string|null;status:string;assigned_user_id:string|null;last_message_at:string|null }>;
       whatsapp_messages: Table<Omit<Base,"updated_at"> & { conversation_id:string;external_message_id:string;direction:"inbound"|"outbound";message_type:string;text_body:string|null;message_timestamp:string|null;raw_payload:Json }>;

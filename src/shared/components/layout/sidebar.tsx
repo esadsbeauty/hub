@@ -10,6 +10,7 @@ import {
   Gift,
   Handshake,
   LayoutDashboard,
+  ListPlus,
   LogOut,
   Megaphone,
   MessageCircle,
@@ -28,6 +29,7 @@ import { useAuth } from "@/providers/auth-context";
 import { BrandLogo } from "@/shared/components/brand/brand-logo";
 import { UserAvatar } from "@/shared/components/data-display/user-avatar";
 import { useCurrentUserProfile } from "@/modules/profile/hooks";
+import { useOrganizationFeature } from "@/shared/features/use-organization-feature";
 
 export const navigationItems = [
   {
@@ -121,6 +123,7 @@ export function SidebarNavigation({
   collapsed?: boolean;
 }) {
   const { can, isPlatformAdmin } = useAppState();
+  const prospectingFeature = useOrganizationFeature("prospecting_agent");
   const { pathname } = useLocation();
 
   const [marketingOpen, setMarketingOpen] = useState(
@@ -163,6 +166,23 @@ export function SidebarNavigation({
   return (
     <nav className="space-y-1" aria-label="Navegação lateral">
       {mainBeforeMarketing.map(renderLink)}
+
+      {prospectingFeature.data === true && (
+        <NavLink
+          onClick={onNavigate}
+          to="/prospeccao"
+          title={collapsed ? "Prospecção" : undefined}
+          aria-label={collapsed ? "Prospecção" : undefined}
+          className={({ isActive }) =>
+            `${linkClass({ isActive })} ${
+              collapsed ? "justify-center px-0" : ""
+            }`
+          }
+        >
+          <ListPlus size={17} strokeWidth={1.7} />
+          {!collapsed && <span>Prospecção</span>}
+        </NavLink>
+      )}
 
       {can("marketing.view") && (
         <NavGroup

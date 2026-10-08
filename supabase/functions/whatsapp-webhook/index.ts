@@ -176,6 +176,55 @@ function normalizePhone(value: unknown) {
   return String(value ?? "").replace(/\D/g, "");
 }
 
+function prospectingPhoneCandidates(value: unknown) {
+  const raw = normalizePhone(value);
+  const candidates = new Set<string>();
+
+  if (!raw) {
+    return [];
+  }
+
+  candidates.add(raw);
+
+  let national = raw;
+
+  if (
+    raw.startsWith("55") &&
+    (raw.length === 12 || raw.length === 13)
+  ) {
+    national = raw.slice(2);
+    candidates.add(national);
+  }
+
+  if (
+    national.startsWith("0") &&
+    (national.length === 11 || national.length === 12)
+  ) {
+    national = national.slice(1);
+    candidates.add(national);
+  }
+
+  if (
+    national.length === 10 &&
+    ["6", "7", "8", "9"].includes(national.charAt(2))
+  ) {
+    candidates.add(
+      `${national.slice(0, 2)}9${national.slice(2)}`,
+    );
+  }
+
+  if (
+    national.length === 11 &&
+    national.charAt(2) === "9"
+  ) {
+    candidates.add(
+      `${national.slice(0, 2)}${national.slice(3)}`,
+    );
+  }
+
+  return [...candidates];
+}
+
 function timestampToIso(value: unknown) {
   const unixTimestamp = Number(value);
 
@@ -448,6 +497,379 @@ async function shouldSkipAiAutomation(
   );
 }
 
+async function getAiCrmRouting(
+  organizationId: string,
+  whatsappConversationId: string,
+) {
+  const { data: agent, error: agentError } = await supabase
+    .from("ai_agents")
+    .select("id,is_enabled,crm_config")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  if (agentError || !agent || !agent.is_enabled) {
+    if (agentError) {
+      console.error("Error loading AI CRM routing config:", {
+        organizationId,
+        code: agentError.code,
+        message: agentError.message,
+      });
+    }
+
+    return {
+      allowed: false,
+      stage: "blocked",
+      opportunityId: null as string | null,
+    };
+  }
+
+  const crmConfig = agent.crm_config ?? {};
+
+  const awaitingStageId =
+    crmConfig.awaiting_qualification_stage_id;
+
+  const qualificationStageId =
+    crmConfig.qualification_stage_id;
+
+  const qualifiedStageId =
+    crmConfig.qualified_stage_id;
+
+  if (
+    !awaitingStageId ||
+    !qualificationStageId ||
+    !qualifiedStageId
+  ) {
+    console.warn("AI CRM routing config incomplete", {
+      organizationId,
+      agentId: agent.id,
+    });
+
+    return {
+      allowed: false,
+      stage: "blocked",
+      opportunityId: null as string | null,
+    };
+  }
+
+  const {
+    data: whatsappConversation,
+    error: whatsappConversationError,
+  } = await supabase
+    .from("whatsapp_conversations")
+    .select("opportunity_id")
+    .eq("id", whatsappConversationId)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  if (
+    whatsappConversationError ||
+    !whatsappConversation?.opportunity_id
+  ) {
+    if (whatsappConversationError) {
+      console.error(
+        "Error loading WhatsApp conversation for AI CRM routing:",
+        {
+          organizationId,
+          whatsappConversationId,
+          code: whatsappConversationError.code,
+          message: whatsappConversationError.message,
+        },
+      );
+    } else {
+      console.log(
+        "AI CRM routing skipped: conversation has no opportunity",
+        {
+          organizationId,
+          whatsappConversationId,
+        },
+      );
+    }
+
+    return {
+      allowed: false,
+      stage: "blocked",
+      opportunityId: null as string | null,
+    };
+  }
+
+  const { data: opportunity, error: opportunityError } =
+    await supabase
+      .from("opportunities")
+      .select("id,stage_id,status")
+      .eq("id", whatsappConversation.opportunity_id)
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+
+  if (
+    opportunityError ||
+    !opportunity ||
+    opportunity.status !== "open"
+  ) {
+    if (opportunityError) {
+      console.error("Error loading opportunity for AI CRM routing:", {
+        organizationId,
+        opportunityId: whatsappConversation.opportunity_id,
+        code: opportunityError.code,
+        message: opportunityError.message,
+      });
+    }
+
+    return {
+      allowed: false,
+      stage: "blocked",
+      opportunityId:
+        whatsappConversation.opportunity_id as string,
+    };
+  }
+
+  if (opportunity.stage_id === awaitingStageId) {
+    return {
+      allowed: true,
+      stage: "awaiting",
+      opportunityId: opportunity.id as string,
+    };
+  }
+
+  if (opportunity.stage_id === qualificationStageId) {
+    return {
+      allowed: true,
+      stage: "qualifying",
+      opportunityId: opportunity.id as string,
+    };
+  }
+
+  if (opportunity.stage_id === qualifiedStageId) {
+    return {
+      allowed: false,
+      stage: "qualified",
+      opportunityId: opportunity.id as string,
+    };
+  }
+
+  return {
+    allowed: false,
+    stage: "blocked",
+    opportunityId: opportunity.id as string,
+  };
+}
+
+
+async function getLinkedOpportunityId(
+  organizationId: string,
+  whatsappConversationId: string,
+) {
+  const {
+    data,
+    error,
+  } = await supabase
+    .from("whatsapp_conversations")
+    .select("opportunity_id")
+    .eq("id", whatsappConversationId)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  if (error) {
+    console.error(
+      "Error checking linked opportunity before prospecting fallback:",
+      {
+        organizationId,
+        whatsappConversationId,
+        code: error.code,
+        message: error.message,
+      },
+    );
+
+    return null;
+  }
+
+  return data?.opportunity_id
+    ? String(data.opportunity_id)
+    : null;
+}
+
+async function getAiProspectingRouting(
+  organizationId: string,
+  waId: string,
+) {
+  const {
+    data: feature,
+    error: featureError,
+  } = await supabase
+    .from("organization_features")
+    .select("enabled")
+    .eq("organization_id", organizationId)
+    .eq("feature_key", "prospecting_agent")
+    .eq("enabled", true)
+    .maybeSingle();
+
+  if (featureError) {
+    console.error(
+      "Error checking prospecting feature for AI routing:",
+      {
+        organizationId,
+        code: featureError.code,
+        message: featureError.message,
+      },
+    );
+
+    return {
+      allowed: false,
+      stage: "blocked",
+      leadId: null as string | null,
+      previousStatus: null as string | null,
+    };
+  }
+
+  if (feature?.enabled !== true) {
+    return {
+      allowed: false,
+      stage: "blocked",
+      leadId: null as string | null,
+      previousStatus: null as string | null,
+    };
+  }
+
+  const {
+    data: agent,
+    error: agentError,
+  } = await supabase
+    .from("ai_agents")
+    .select("id,is_enabled")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  if (
+    agentError ||
+    !agent ||
+    agent.is_enabled !== true
+  ) {
+    if (agentError) {
+      console.error(
+        "Error checking AI agent for prospecting routing:",
+        {
+          organizationId,
+          code: agentError.code,
+          message: agentError.message,
+        },
+      );
+    }
+
+    return {
+      allowed: false,
+      stage: "blocked",
+      leadId: null as string | null,
+      previousStatus: null as string | null,
+    };
+  }
+
+  const candidates =
+    prospectingPhoneCandidates(waId);
+
+  if (candidates.length === 0) {
+    return {
+      allowed: false,
+      stage: "blocked",
+      leadId: null as string | null,
+      previousStatus: null as string | null,
+    };
+  }
+
+  const {
+    data: lead,
+    error: leadError,
+  } = await supabase
+    .from("prospecting_leads")
+    .select("id,status")
+    .eq("organization_id", organizationId)
+    .in("whatsapp", candidates)
+    .in("status", [
+      "message_sent",
+      "replied",
+      "in_conversation",
+    ])
+    .order("updated_at", {
+      ascending: false,
+    })
+    .limit(1)
+    .maybeSingle();
+
+  if (leadError) {
+    console.error(
+      "Error finding prospecting lead for AI routing:",
+      {
+        organizationId,
+        waId,
+        candidates,
+        code: leadError.code,
+        message: leadError.message,
+      },
+    );
+
+    return {
+      allowed: false,
+      stage: "blocked",
+      leadId: null as string | null,
+      previousStatus: null as string | null,
+    };
+  }
+
+  if (!lead) {
+    return {
+      allowed: false,
+      stage: "blocked",
+      leadId: null as string | null,
+      previousStatus: null as string | null,
+    };
+  }
+
+  const previousStatus =
+    String(lead.status ?? "");
+
+  if (previousStatus === "message_sent") {
+    const now = new Date().toISOString();
+
+    const { error: statusError } =
+      await supabase
+        .from("prospecting_leads")
+        .update({
+          status: "replied",
+          updated_at: now,
+        })
+        .eq("id", lead.id)
+        .eq("organization_id", organizationId)
+        .eq("status", "message_sent");
+
+    if (statusError) {
+      console.error(
+        "Failed to mark prospecting lead as replied:",
+        {
+          organizationId,
+          leadId: lead.id,
+          code: statusError.code,
+          message: statusError.message,
+        },
+      );
+
+      return {
+        allowed: false,
+        stage: "blocked",
+        leadId: null as string | null,
+        previousStatus,
+      };
+    }
+  }
+
+  return {
+    allowed: true,
+    stage:
+      previousStatus === "message_sent"
+        ? "replied"
+        : previousStatus,
+    leadId: lead.id as string,
+    previousStatus,
+  };
+}
+
 async function sendAiWhatsAppMessage(
   connection: Connection,
   conversationId: string,
@@ -660,6 +1082,62 @@ async function sendAiWhatsAppMessage(
   return true;
 }
 
+async function convertProspectingReplyToCrm(
+  connection: Connection,
+  conversation: Conversation,
+  waId: string,
+) {
+  const normalizedWaId = normalizePhone(waId);
+
+  if (!normalizedWaId) {
+    return;
+  }
+
+  const { data, error } = await supabase.rpc(
+    "convert_prospecting_reply_to_crm",
+    {
+      p_organization_id: connection.organization_id,
+      p_whatsapp_conversation_id: conversation.id,
+      p_wa_id: normalizedWaId,
+    },
+  );
+
+  if (error) {
+    console.error(
+      "Failed to convert prospecting reply to CRM opportunity",
+      {
+        organizationId: connection.organization_id,
+        conversationId: conversation.id,
+        waId: normalizedWaId,
+        code: error.code,
+        message: error.message,
+      },
+    );
+
+    return;
+  }
+
+  const result = data as Record<string, any> | null;
+
+  if (!result?.converted) {
+    return;
+  }
+
+  console.log(
+    "Prospecting reply converted to CRM opportunity",
+    {
+      organizationId: connection.organization_id,
+      conversationId: conversation.id,
+      prospectingLeadId: result.prospecting_lead_id ?? null,
+      companyId: result.company_id ?? null,
+      opportunityId: result.opportunity_id ?? null,
+      companyCreated: result.company_created ?? false,
+      opportunityCreated: result.opportunity_created ?? false,
+      stageChanged: result.stage_changed ?? false,
+    },
+  );
+}
+
 async function processAiAgentMessage(
   connection: Connection,
   conversation: Conversation,
@@ -680,15 +1158,19 @@ async function processAiAgentMessage(
     return;
   }
 
-  const skipAutomation =
-    await shouldSkipAiAutomation(
-      connection.organization_id,
-      conversation.id,
-    );
+  /*
+   * Delay natural da Assistente Comercial.
+   *
+   * Aguarda entre 7 e 14 segundos antes de responder.
+   * Se uma nova mensagem inbound chegar nesse período,
+   * esta execução é abandonada e a mensagem mais recente assume.
+   */
+  const currentExternalMessageId =
+    String(message?.id ?? "").trim();
 
-  if (skipAutomation) {
-    console.log(
-      "AI automation skipped for handed-off/paused conversation",
+  if (!currentExternalMessageId) {
+    console.warn(
+      "AI agent skipped: inbound message id missing",
       {
         organizationId: connection.organization_id,
         conversationId: conversation.id,
@@ -696,6 +1178,214 @@ async function processAiAgentMessage(
     );
 
     return;
+  }
+
+  const responseDelayMs =
+    7000 + Math.floor(Math.random() * 7001);
+
+  console.log(
+    "AI natural response delay started",
+    {
+      organizationId: connection.organization_id,
+      conversationId: conversation.id,
+      externalMessageId: currentExternalMessageId,
+      delayMs: responseDelayMs,
+    },
+  );
+
+  await new Promise((resolve) =>
+    setTimeout(resolve, responseDelayMs)
+  );
+
+  const {
+    data: latestInboundMessage,
+    error: latestInboundMessageError,
+  } = await supabase
+    .from("whatsapp_messages")
+    .select("external_message_id,message_timestamp")
+    .eq(
+      "organization_id",
+      connection.organization_id,
+    )
+    .eq(
+      "conversation_id",
+      conversation.id,
+    )
+    .eq("direction", "inbound")
+    .order("message_timestamp", {
+      ascending: false,
+    })
+    .limit(1)
+    .maybeSingle();
+
+  if (latestInboundMessageError) {
+    console.error(
+      "Failed to verify latest inbound message before AI response",
+      {
+        organizationId: connection.organization_id,
+        conversationId: conversation.id,
+        code: latestInboundMessageError.code,
+        message: latestInboundMessageError.message,
+      },
+    );
+
+    return;
+  }
+
+  if (
+    latestInboundMessage?.external_message_id !==
+    currentExternalMessageId
+  ) {
+    console.log(
+      "AI response skipped because a newer inbound message arrived",
+      {
+        organizationId: connection.organization_id,
+        conversationId: conversation.id,
+        currentExternalMessageId,
+        latestExternalMessageId:
+          latestInboundMessage?.external_message_id ??
+          null,
+      },
+    );
+
+    return;
+  }
+
+  const crmRouting = await getAiCrmRouting(
+    connection.organization_id,
+    conversation.id,
+  );
+
+  let routingMode: "crm" | "prospecting" =
+    "crm";
+
+  let prospectingLeadId:
+    string | null = null;
+
+  let prospectingPreviousStatus:
+    string | null = null;
+
+  if (!crmRouting.allowed) {
+    /*
+     * Se já existe oportunidade vinculada, o CRM continua sendo
+     * a fonte de verdade. Nunca "furamos" um bloqueio do CRM usando
+     * a Prospecção como fallback.
+     */
+    const linkedOpportunityId =
+      crmRouting.opportunityId ??
+      await getLinkedOpportunityId(
+        connection.organization_id,
+        conversation.id,
+      );
+
+    if (linkedOpportunityId) {
+      console.log(
+        "AI automation skipped by CRM stage",
+        {
+          organizationId: connection.organization_id,
+          conversationId: conversation.id,
+          stage: crmRouting.stage,
+          opportunityId: linkedOpportunityId,
+        },
+      );
+
+      return;
+    }
+
+    const prospectingRouting =
+      await getAiProspectingRouting(
+        connection.organization_id,
+        waId,
+      );
+
+    if (!prospectingRouting.allowed) {
+      console.log(
+        "AI automation skipped: no eligible CRM opportunity or prospecting lead",
+        {
+          organizationId: connection.organization_id,
+          conversationId: conversation.id,
+          crmStage: crmRouting.stage,
+          waId,
+        },
+      );
+
+      return;
+    }
+
+    routingMode = "prospecting";
+    prospectingLeadId =
+      prospectingRouting.leadId;
+    prospectingPreviousStatus =
+      prospectingRouting.previousStatus;
+  }
+
+  /*
+   * No CRM, Aguardando Qualificação inicia uma nova rodada.
+   * Na Prospecção, a primeira resposta após message_sent também
+   * inicia uma nova rodada, mas sem criar oportunidade no CRM.
+   */
+  if (
+    (
+      routingMode === "crm" &&
+      crmRouting.stage === "awaiting"
+    ) ||
+    (
+      routingMode === "prospecting" &&
+      prospectingPreviousStatus === "message_sent"
+    )
+  ) {
+    const now = new Date().toISOString();
+
+    const { error: resetAiConversationError } = await supabase
+      .from("ai_agent_conversations")
+      .update({
+        status: "active",
+        qualification_data: {},
+        qualification_score: 0,
+        summary: null,
+        handoff_reason: null,
+        last_ai_message_at: null,
+        updated_at: now,
+      })
+      .eq("organization_id", connection.organization_id)
+      .eq("whatsapp_conversation_id", conversation.id);
+
+    if (resetAiConversationError) {
+      console.error(
+        "Failed to reset AI conversation for new routing round",
+        {
+          organizationId: connection.organization_id,
+          conversationId: conversation.id,
+          routingMode,
+          opportunityId: crmRouting.opportunityId ?? null,
+          prospectingLeadId,
+          code: resetAiConversationError.code,
+          message: resetAiConversationError.message,
+        },
+      );
+
+      return;
+    }
+  } else {
+    const skipAutomation =
+      await shouldSkipAiAutomation(
+        connection.organization_id,
+        conversation.id,
+      );
+
+    if (skipAutomation) {
+      console.log(
+        "AI automation skipped for handed-off/paused conversation",
+        {
+          organizationId: connection.organization_id,
+          conversationId: conversation.id,
+          routingMode,
+          prospectingLeadId,
+        },
+      );
+
+      return;
+    }
   }
 
   let agentResponse: Response;
@@ -717,6 +1407,9 @@ async function processAiAgentMessage(
           whatsapp_conversation_id:
             conversation.id,
           message: inboundText,
+          mode: routingMode,
+          prospecting_lead_id:
+            prospectingLeadId,
         }),
       },
     );
@@ -832,6 +1525,45 @@ async function processAiAgentMessage(
     }
   }
 
+  if (
+    routingMode === "prospecting" &&
+    prospectingLeadId
+  ) {
+    const { error: prospectingStatusError } =
+      await supabase
+        .from("prospecting_leads")
+        .update({
+          status: "in_conversation",
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq("id", prospectingLeadId)
+        .eq(
+          "organization_id",
+          connection.organization_id,
+        )
+        .in("status", [
+          "message_sent",
+          "replied",
+          "in_conversation",
+        ]);
+
+    if (prospectingStatusError) {
+      console.error(
+        "Failed to mark prospecting lead as in conversation",
+        {
+          organizationId:
+            connection.organization_id,
+          prospectingLeadId,
+          code:
+            prospectingStatusError.code,
+          message:
+            prospectingStatusError.message,
+        },
+      );
+    }
+  }
+
   if (agentPayload.handoff === true) {
     console.log(
       "AI handoff requested after final AI messages",
@@ -920,6 +1652,15 @@ async function processStandardMessages(
       message,
       waId,
       contactMap.get(waId) ?? waId,
+    );
+
+    // Primeiro inbound de um lead da Prospecção já o transforma em
+    // oportunidade no CRM. Se não for um lead da Prospecção, a RPC
+    // simplesmente retorna converted=false e o fluxo segue normalmente.
+    await convertProspectingReplyToCrm(
+      connection,
+      conversation,
+      waId,
     );
 
     await processAiAgentMessage(
