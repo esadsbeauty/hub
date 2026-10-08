@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   ArrowRight,
   CalendarDays,
@@ -135,15 +135,11 @@ export function DashboardPage() {
       !company.deletedAt,
   ).length;
 
-  const stageByName = useMemo(() => {
-    const map = new Map<string, string>();
+  const stageByName = new Map<string, string>();
 
-    for (const stage of crm.data.stages) {
-      map.set(normalize(stage.name), stage.id);
-    }
-
-    return map;
-  }, [crm.data.stages]);
+  for (const stage of crm.data.stages) {
+    stageByName.set(normalize(stage.name), stage.id);
+  }
 
   const countStage = (names: string[]) => {
     const ids = names
