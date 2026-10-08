@@ -169,46 +169,69 @@ export function DashboardPage() {
     "Agendado",
   ]);
 
-  const keyStages = [
-    "Novo Lead",
-    "Em atendimento",
-    "Atendimento humano",
-    "Agendado",
-    "Compareceu",
-    "Proposta",
-    "Fechou",
-  ]
-    .map((name) => {
-      const stage = crm.data.stages.find(
-        (item) =>
-          normalize(item.name) === normalize(name),
-      );
+  const defaultPipeline =
+    crm.data.pipelines.find(
+      (pipeline) => pipeline.isDefault,
+    ) ?? crm.data.pipelines[0];
 
-      if (!stage) return null;
+  const esadsPipelineStages =
+    crm.data.organization.slug === "esads-beauty" &&
+    defaultPipeline
+      ? crm.data.stages
+          .filter(
+            (stage) =>
+              stage.pipelineId === defaultPipeline.id &&
+              stage.isActive !== false,
+          )
+          .sort(
+            (a, b) =>
+              a.position - b.position,
+          )
+      : [];
 
-      const count = crm.data.opportunities.filter(
-        (opportunity) =>
-          opportunity.stageId === stage.id &&
-          !opportunity.deletedAt &&
-          opportunity.status !== "lost" &&
-          opportunity.status !== "archived",
-      ).length;
+  const dashboardStages =
+    esadsPipelineStages.length > 0
+      ? esadsPipelineStages
+      : [
+          "Novo Lead",
+          "Em atendimento",
+          "Atendimento humano",
+          "Agendado",
+          "Compareceu",
+          "Proposta",
+          "Fechou",
+        ]
+          .map((name) =>
+            crm.data.stages.find(
+              (item) =>
+                normalize(item.name) ===
+                normalize(name),
+            ),
+          )
+          .filter(
+            (
+              stage,
+            ): stage is (typeof crm.data.stages)[number] =>
+              Boolean(stage),
+          );
+
+  const keyStages = dashboardStages.map(
+    (stage) => {
+      const count =
+        crm.data.opportunities.filter(
+          (opportunity) =>
+            opportunity.stageId === stage.id &&
+            !opportunity.deletedAt &&
+            opportunity.status !== "archived",
+        ).length;
 
       return {
         id: stage.id,
         name: stage.name,
         count,
       };
-    })
-    .filter(
-      (
-        item,
-      ): item is {
-        id: string;
-        name: string;
-        count: number;
-      } => Boolean(item),
-    );
+    },
+  );
 
   return (
     <PageContainer>
