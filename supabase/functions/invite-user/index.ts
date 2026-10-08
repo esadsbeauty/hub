@@ -21,7 +21,7 @@ const responseHeaders = (origin: string) => ({
   "Access-Control-Allow-Origin": isAllowedOrigin(origin)
     ? origin
     : configuredOrigin,
-  "Access-Control-Allow-Headers": "authorization, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info, x-supabase-api-version",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Content-Type": "application/json",
   "Vary": "Origin",
