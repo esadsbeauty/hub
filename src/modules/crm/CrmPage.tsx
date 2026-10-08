@@ -43,6 +43,7 @@ import { OpportunityForm } from "./components/opportunity-form";
 import { OpportunityDetails } from "./components/opportunity-details";
 import { MobileCrmView } from "./components/mobile-crm-view";
 import { NextActionStatus } from "./components/next-action-status";
+import { OpportunityStatusBadge } from "./components/opportunity-status-badge";
 import { PipelineStageManager } from "./components/pipeline-stage-manager";
 import { LeadImportDialog } from "./components/lead-import-dialog";
 import { isOpenStage, lastContactForOpportunity, nextActionForOpportunity, prioritizedPendingActions } from "./next-action";
@@ -1160,10 +1161,13 @@ function OpportunityKanban({
                             {item.title!==leadName&&<p className="mt-2 text-sm text-muted-foreground md:text-xs"><span className="font-medium text-foreground">Interesse:</span> {item.title}</p>}
                             {phone&&<p className="mt-2 text-sm font-medium md:text-xs">{phone}</p>}
                             {item.owner&&<p className="mt-2 text-sm text-muted-foreground md:text-xs">Responsável: {item.owner}</p>}
-                            <span className="mt-2 inline-flex w-fit items-center rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-  Origem: {item.source ?? company?.leadSource ?? "Não informada"}
-</span>
-                            <NextActionStatus opportunity={item} stages={stages} task={task} compact/>
+                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                              <span className="inline-flex w-fit items-center rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                                Origem: {item.source ?? company?.leadSource ?? "Não informada"}
+                              </span>
+                              <OpportunityStatusBadge opportunity={item} stages={stages} compact />
+                            </div>
+                            {task && <NextActionStatus opportunity={item} stages={stages} task={task} compact/>}
                           </button>
                           {phone&&<button type="button" aria-label="Abrir conversa do WhatsApp" className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#e8f7ee] text-sm font-semibold text-[#176b3a]" onClick={()=>onWhatsApp(item,contact?.id,phone)}>WhatsApp</button>}
                         </CardContent>

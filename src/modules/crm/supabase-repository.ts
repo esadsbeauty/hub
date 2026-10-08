@@ -333,9 +333,15 @@ async function list(): Promise<CrmData> {
       .eq("organization_id", profile.organization_id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
+    (api as any)
+      .from("ai_agent_conversations")
+      .select("opportunity_id,status,updated_at")
+      .eq("organization_id", profile.organization_id)
+      .not("opportunity_id", "is", null)
+      .order("updated_at", { ascending: false }),
   ]);
   if (import.meta.env.DEV) {
-    const sources = ["organization","profiles","companies","contacts","pipelines","pipeline_stages","opportunities","stage_history","activities","tasks","notes"];
+    const sources = ["organization","profiles","companies","contacts","pipelines","pipeline_stages","opportunities","stage_history","activities","tasks","notes","ai_agent_conversations"];
     results.forEach((result,index) => {
       if (result.error) console.error(`[CRM tenant query:${sources[index]}]`, {
         code: result.error.code,
@@ -358,6 +364,7 @@ async function list(): Promise<CrmData> {
     activitiesResult,
     tasksResult,
     notesResult,
+    aiConversationsResult,
   ] = results;
   const organization: OrganizationRow = ensure(
     organizationResult.data,
@@ -394,6 +401,23 @@ async function list(): Promise<CrmData> {
   );
   const taskRows: TaskRow[] = ensure(tasksResult.data, tasksResult.error);
   const noteRows: NoteRow[] = ensure(notesResult.data, notesResult.error);
+  const aiConversationRows = aiConversationsResult.error
+    ? []
+    : ((aiConversationsResult.data ?? []) as Array<{
+        opportunity_id: string | null;
+        status: "active" | "qualified" | "handoff" | "paused" | "closed";
+        updated_at: string;
+      }>);
+  const assistantStatusByOpportunity = new Map<
+    string,
+    Opportunity["assistantStatus"]
+  >();
+  for (const row of aiConversationRows) {
+    if (row.opportunity_id && !assistantStatusByOpportunity.has(row.opportunity_id)) {
+      assistantStatusByOpportunity.set(row.opportunity_id, row.status);
+    }
+  }
+
   const owners = new Map<string, string>(
     profiles.map((item) => [item.id, item.name]),
   );
@@ -445,7 +469,13 @@ async function list(): Promise<CrmData> {
           pipelineRows.some((pipeline) => pipeline.id === item.pipeline_id),
       )
       .map(pipelineStage),
-    opportunities: opportunityRows.map((item) => opportunity(item, owners)),
+    opportunities: opportunityRows.map((item) => {
+      const mapped = opportunity(item, owners);
+      return {
+        ...mapped,
+        assistantStatus: assistantStatusByOpportunity.get(mapped.id),
+      };
+    }),
     stageHistory: historyRows.map(
       (item): OpportunityStageHistory => ({
         id: item.id,
