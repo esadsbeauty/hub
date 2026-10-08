@@ -1,0 +1,9 @@
+import type{BlogPost}from"./types";
+export type BlogCtaKind="system"|"diagnostic";
+const systemTerms=["crm","lead","follow-up","follow up","pipeline","agenda","gestão comercial","organizacao comercial","organização comercial"];
+const diagnosticTerms=["conversão","conversao","somem","vender","vendas","gargalo","atendimento","processo comercial","processo de vendas"];
+const searchable=(post:BlogPost)=>`${post.slug} ${post.title} ${post.excerpt} ${post.categoryName??""} ${post.categorySlug??""}`.toLowerCase();
+export function contextualBlogCta(post:BlogPost):BlogCtaKind{const value=searchable(post),system=systemTerms.filter(term=>value.includes(term)).length,diagnostic=diagnosticTerms.filter(term=>value.includes(term)).length;return system>diagnostic?"system":"diagnostic"}
+export function relatedBlogPosts(current:BlogPost,candidates:BlogPost[],limit=3){return [...new Map(candidates.filter(item=>item.id!==current.id).map(item=>[item.id,item])).values()].sort((a,b)=>Number(b.categorySlug===current.categorySlug)-Number(a.categorySlug===current.categorySlug)||(b.publishedAt??b.createdAt??"").localeCompare(a.publishedAt??a.createdAt??"")).slice(0,limit)}
+const bottleneckTerms:Record<string,string[]>={follow_up:["follow","lead","crm"],organization:["organiza","gestão","crm","processo"],service:["atendimento","venda","convers"],acquisition:["marketing","oportunidade","capta"],marketing:["marketing","conteúdo","oportunidade"],metrics:["métrica","gestão","resultado"],demand:["agenda","demanda","cliente"],financial_clarity:["gestão","resultado","organiza"]};
+export function diagnosticRecommendedPosts(bottleneck:string,posts:BlogPost[],limit=3){const terms=bottleneckTerms[bottleneck]??[];return [...posts].sort((a,b)=>terms.filter(term=>searchable(b).includes(term)).length-terms.filter(term=>searchable(a).includes(term)).length||(b.publishedAt??b.createdAt??"").localeCompare(a.publishedAt??a.createdAt??"")).slice(0,limit)}
