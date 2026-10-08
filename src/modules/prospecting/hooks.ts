@@ -7,6 +7,7 @@ import {
 import { useAppState } from "@/shared/state/app-state-context";
 import {
   createProspectingList,
+  deleteProspectingList,
   generateProspectingMessage,
   listProspectingLeads,
   listProspectingLists,
@@ -104,6 +105,31 @@ export function useCreateProspectingList() {
         organizationId,
         ...input,
       }),
+
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey:
+          prospectingKeys.lists(
+            organizationId,
+          ),
+      });
+    },
+  });
+}
+
+export function useDeleteProspectingList() {
+  const { organizationId } =
+    useAppState();
+
+  const queryClient =
+    useQueryClient();
+
+  return useMutation({
+    mutationFn: (listId: string) =>
+      deleteProspectingList(
+        organizationId,
+        listId,
+      ),
 
     onSuccess: async () => {
       await queryClient.invalidateQueries({
