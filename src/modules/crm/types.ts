@@ -168,6 +168,7 @@ export type Opportunity = {
   createdAt: string;
   updatedAt: string;
   stageEnteredAt: string;
+  assistantStatus?: "active" | "qualified" | "handoff" | "paused" | "closed";
   deletedAt?: string | null;
 };
 export type OpportunityStageHistory = {
