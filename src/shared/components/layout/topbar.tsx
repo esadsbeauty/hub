@@ -11,6 +11,10 @@ import {
   useHumanHandoffAlerts,
   type HumanHandoffAlert,
 } from "@/modules/notifications/use-human-handoff-alerts";
+import {
+  useEsadsGrowthAlerts,
+  type GrowthAlert,
+} from "@/modules/notifications/use-esads-growth-alerts";
 
 type ProfileProps = {
   name?: string;
@@ -25,6 +29,7 @@ export function Topbar() {
   const [search, setSearch] = useState("");
   const profile = useCurrentUserProfile().data;
   const humanHandoff = useHumanHandoffAlerts();
+  const growthAlerts = useEsadsGrowthAlerts();
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -44,12 +49,17 @@ export function Topbar() {
     <>
       <MobileHeader
         alerts={humanHandoff.alerts}
+        growthAlerts={growthAlerts.alerts}
         search={search}
         setSearch={setSearch}
         submit={submit}
         {...identity}
       />
-      <DesktopHeader alerts={humanHandoff.alerts} {...identity} />
+      <DesktopHeader
+        alerts={humanHandoff.alerts}
+        growthAlerts={growthAlerts.alerts}
+        {...identity}
+      />
     </>
   );
 }
@@ -64,8 +74,10 @@ function MobileHeader({
   local,
   signOut,
   alerts,
+  growthAlerts,
 }: ProfileProps & {
   alerts: HumanHandoffAlert[];
+  growthAlerts: GrowthAlert[];
   search: string;
   setSearch: (value: string) => void;
   submit: (event: FormEvent) => void;
@@ -90,7 +102,11 @@ function MobileHeader({
         )}
 
         <div className="ml-auto flex items-center gap-1.5">
-          <NotificationsBell alerts={alerts} mobile />
+          <NotificationsBell
+            alerts={alerts}
+            growthAlerts={growthAlerts}
+            mobile
+          />
 
           <Profile
             name={name}
@@ -134,7 +150,12 @@ function DesktopHeader({
   local,
   signOut,
   alerts,
-}: ProfileProps & { local: boolean; alerts: HumanHandoffAlert[] }) {
+  growthAlerts,
+}: ProfileProps & {
+  local: boolean;
+  alerts: HumanHandoffAlert[];
+  growthAlerts: GrowthAlert[];
+}) {
   return (
     <header className="sticky top-0 z-20 hidden border-b border-border/60 bg-background/95 px-5 py-3 backdrop-blur-xl md:block lg:px-8">
       <div className="mx-auto flex max-w-[90rem] min-w-0 items-center gap-3">
@@ -149,7 +170,10 @@ function DesktopHeader({
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          <NotificationsBell alerts={alerts} />
+          <NotificationsBell
+            alerts={alerts}
+            growthAlerts={growthAlerts}
+          />
 
           <Profile
             name={name}
@@ -238,9 +262,11 @@ function alertTone(minutes: number) {
 
 function NotificationsBell({
   alerts,
+  growthAlerts,
   mobile = false,
 }: {
   alerts: HumanHandoffAlert[];
+  growthAlerts: GrowthAlert[];
   mobile?: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -256,6 +282,9 @@ function NotificationsBell({
     [alerts],
   );
 
+  const totalNotifications =
+    alerts.length + growthAlerts.length;
+
   return (
     <div className="relative">
       <Button
@@ -269,7 +298,7 @@ function NotificationsBell({
           )
         }
         className={
-          alerts.length
+          totalNotifications
             ? "relative"
             : undefined
         }
@@ -283,15 +312,17 @@ function NotificationsBell({
           className={
             alerts.length
               ? "animate-pulse text-destructive"
-              : undefined
+              : growthAlerts.length
+                ? "text-amber-700"
+                : undefined
           }
         />
 
-        {alerts.length > 0 && (
+        {totalNotifications > 0 && (
           <span className="absolute -right-0.5 -top-0.5 grid min-h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground">
-            {alerts.length > 9
+            {totalNotifications > 9
               ? "9+"
-              : alerts.length}
+              : totalNotifications}
           </span>
         )}
       </Button>
@@ -373,9 +404,43 @@ function NotificationsBell({
             </div>
           )}
 
+          {growthAlerts.length > 0 && (
+            <div className="mt-3 border-t border-border/60 pt-3">
+              <div className="mb-2 flex items-center justify-between gap-2 px-1">
+                <p className="text-xs font-semibold uppercase tracking-[.12em] text-muted-foreground">
+                  Novidades da ESADS
+                </p>
+                <span className="text-xs text-muted-foreground">
+                  {growthAlerts.length}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {growthAlerts.slice(0, 8).map((alert) => (
+                  <button
+                    key={alert.id}
+                    type="button"
+                    onClick={() => {
+                      setOpen(false);
+                      navigate(alert.href);
+                    }}
+                    className="w-full rounded-xl border border-border/60 bg-background p-3 text-left transition hover:bg-muted/50"
+                  >
+                    <p className="text-sm font-semibold">
+                      {alert.title}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {alert.description}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {ordered.length > 0 && (
             <p className="mt-3 px-1 text-[11px] leading-4 text-muted-foreground">
-              O alerta só some quando o lead sair da etapa Atendimento humano.
+              O alerta de atendimento humano só some quando o lead sair dessa etapa.
             </p>
           )}
         </div>
