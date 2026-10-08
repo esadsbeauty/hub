@@ -126,7 +126,7 @@ export function OrganizationDetailsDrawer({
     try {
       const updated = await organizationsRepository.configureAssistant(
         details.id,
-        enabled ? assistantPipelineId : null,
+        enabled ? assistantPipelineId || null : null,
         enabled,
       );
       setAssistant(updated);
@@ -376,17 +376,20 @@ export function OrganizationDetailsDrawer({
                   </>
                 ) : (
                   <Button
-                    disabled={!assistantPipelineId || saving || assistantLoading}
+                    disabled={saving || assistantLoading}
                     onClick={() => void configureAssistant(true)}
                   >
-                    Ativar Assistente Comercial
+                    {assistantPipelineId
+                      ? "Ativar Assistente Comercial"
+                      : "Ativar e criar pipeline"}
                   </Button>
                 )}
               </div>
 
               {!assistantLoading && (assistant?.pipelines.length ?? 0) === 0 && (
-                <p className="text-sm text-destructive">
-                  Esta organização ainda não possui pipeline no CRM.
+                <p className="text-sm text-muted-foreground">
+                  Esta organização ainda não possui pipeline. Ao ativar, o sistema
+                  criará automaticamente o Pipeline Beauty com as etapas padrão.
                 </p>
               )}
             </div>
