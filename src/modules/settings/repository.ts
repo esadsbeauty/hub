@@ -9,16 +9,27 @@ async function invoke<T>(body: Record<string, unknown>, fallback: string): Promi
   const result = await client().functions.invoke("invite-user", { body });
 
   if (result.error) {
-    const context = (result.error as { context?: Response }).context;
+    const context = (result.error as { context?: unknown }).context;
 
-    if (context) {
-      const payload = await context
-        .clone()
-        .json()
-        .catch(() => null) as { message?: string } | null;
+    if (context && typeof context === "object") {
+      const maybeResponse = context as {
+        clone?: () => { json?: () => Promise<unknown> };
+        json?: () => Promise<unknown>;
+      };
 
-      if (payload?.message) {
-        throw new Error(payload.message);
+      const source =
+        typeof maybeResponse.clone === "function"
+          ? maybeResponse.clone()
+          : maybeResponse;
+
+      if (source && typeof source.json === "function") {
+        const payload = await source
+          .json()
+          .catch(() => null) as { message?: string } | null;
+
+        if (payload?.message) {
+          throw new Error(payload.message);
+        }
       }
     }
 
