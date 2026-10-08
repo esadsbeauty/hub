@@ -1,5 +1,5 @@
 import { Bell, Search } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,10 @@ import { useAuth } from "@/providers/auth-context";
 import { UserAvatar } from "@/shared/components/data-display/user-avatar";
 import { useCurrentUserProfile } from "@/modules/profile/hooks";
 import { TenantSwitcher } from "./tenant-switcher";
+import {
+  useHumanHandoffAlerts,
+  type HumanHandoffAlert,
+} from "@/modules/notifications/use-human-handoff-alerts";
 
 type ProfileProps = {
   name?: string;
@@ -20,6 +24,7 @@ export function Topbar() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const profile = useCurrentUserProfile().data;
+  const humanHandoff = useHumanHandoffAlerts();
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -38,12 +43,13 @@ export function Topbar() {
   return (
     <>
       <MobileHeader
+        alerts={humanHandoff.alerts}
         search={search}
         setSearch={setSearch}
         submit={submit}
         {...identity}
       />
-      <DesktopHeader {...identity} />
+      <DesktopHeader alerts={humanHandoff.alerts} {...identity} />
     </>
   );
 }
@@ -57,11 +63,14 @@ function MobileHeader({
   avatarUrl,
   local,
   signOut,
+  alerts,
 }: ProfileProps & {
+  alerts: HumanHandoffAlert[];
   search: string;
   setSearch: (value: string) => void;
   submit: (event: FormEvent) => void;
   local: boolean;
+  alerts: HumanHandoffAlert[];
 }) {
   return (
     <header className="sticky top-0 z-20 border-b border-border/60 bg-background/95 px-4 pb-4 pt-[max(.75rem,env(safe-area-inset-top))] backdrop-blur-xl min-[430px]:px-5 md:hidden">
@@ -82,9 +91,7 @@ function MobileHeader({
         )}
 
         <div className="ml-auto flex items-center gap-1.5">
-          <Button variant="ghost" size="sm" aria-label="Notificações">
-            <Bell size={21} />
-          </Button>
+          <NotificationsBell alerts={alerts} mobile />
 
           <Profile
             name={name}
@@ -127,7 +134,8 @@ function DesktopHeader({
   avatarUrl,
   local,
   signOut,
-}: ProfileProps & { local: boolean }) {
+  alerts,
+}: ProfileProps & { local: boolean; alerts: HumanHandoffAlert[] }) {
   return (
     <header className="sticky top-0 z-20 hidden border-b border-border/60 bg-background/95 px-5 py-3 backdrop-blur-xl md:block lg:px-8">
       <div className="mx-auto flex max-w-[90rem] min-w-0 items-center gap-3">
@@ -142,9 +150,7 @@ function DesktopHeader({
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          <Button variant="ghost" size="sm" aria-label="Notificações">
-            <Bell size={20} />
-          </Button>
+          <NotificationsBell alerts={alerts} />
 
           <Profile
             name={name}
@@ -201,5 +207,183 @@ function Profile({
         </button>
       </div>
     </details>
+  );
+}
+
+function waitingLabel(minutes: number) {
+  if (minutes < 1) return "agora";
+  if (minutes === 1) return "há 1 min";
+  if (minutes < 60) return `há ${minutes} min`;
+
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+
+  if (rest === 0) {
+    return hours === 1 ? "há 1 h" : `há ${hours} h`;
+  }
+
+  return `há ${hours}h ${rest}min`;
+}
+
+function alertTone(minutes: number) {
+  if (minutes >= 15) {
+    return "border-red-200 bg-red-50";
+  }
+
+  if (minutes >= 5) {
+    return "border-amber-200 bg-amber-50";
+  }
+
+  return "border-border/60 bg-background";
+}
+
+function NotificationsBell({
+  alerts,
+  mobile = false,
+}: {
+  alerts: HumanHandoffAlert[];
+  mobile?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const ordered = useMemo(
+    () =>
+      [...alerts].sort(
+        (a, b) =>
+          b.waitingMinutes -
+          a.waitingMinutes,
+      ),
+    [alerts],
+  );
+
+  return (
+    <div className="relative">
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-label="Notificações"
+        aria-expanded={open}
+        onClick={() =>
+          setOpen(
+            (current) => !current,
+          )
+        }
+        className={
+          alerts.length
+            ? "relative"
+            : undefined
+        }
+      >
+        <Bell
+          size={
+            mobile
+              ? 21
+              : 20
+          }
+          className={
+            alerts.length
+              ? "animate-pulse text-destructive"
+              : undefined
+          }
+        />
+
+        {alerts.length > 0 && (
+          <span className="absolute -right-0.5 -top-0.5 grid min-h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground">
+            {alerts.length > 9
+              ? "9+"
+              : alerts.length}
+          </span>
+        )}
+      </Button>
+
+      {open && (
+        <div
+          className={
+            mobile
+              ? "fixed left-4 right-4 top-16 z-50 max-h-[70dvh] overflow-auto rounded-2xl border bg-card p-3 shadow-overlay"
+              : "absolute right-0 top-[calc(100%+.5rem)] z-50 w-[380px] max-w-[90vw] rounded-2xl border bg-card p-3 shadow-overlay"
+          }
+        >
+          <div className="flex items-center justify-between gap-3 px-1 pb-2">
+            <div>
+              <p className="font-semibold">
+                Notificações
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Atendimento humano
+              </p>
+            </div>
+
+            {alerts.length > 0 && (
+              <span className="rounded-full bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">
+                {alerts.length} aguardando
+              </span>
+            )}
+          </div>
+
+          {ordered.length === 0 ? (
+            <div className="rounded-xl bg-muted/40 px-4 py-6 text-center text-sm text-muted-foreground">
+              Nenhum lead aguardando atendimento humano.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {ordered.map(
+                (alert) => (
+                  <button
+                    key={
+                      alert.opportunityId
+                    }
+                    type="button"
+                    onClick={() => {
+                      setOpen(false);
+                      navigate(
+                        `/crm?q=${encodeURIComponent(
+                          alert.title,
+                        )}`,
+                      );
+                    }}
+                    className={`w-full rounded-xl border p-3 text-left transition hover:brightness-[.98] ${alertTone(
+                      alert.waitingMinutes,
+                    )}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">
+                          {alert.title}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Aguardando atendimento humano
+                        </p>
+                      </div>
+
+                      <span
+                        className={
+                          alert.waitingMinutes >= 15
+                            ? "shrink-0 text-xs font-semibold text-destructive"
+                            : alert.waitingMinutes >= 5
+                              ? "shrink-0 text-xs font-semibold text-amber-700"
+                              : "shrink-0 text-xs font-medium text-muted-foreground"
+                        }
+                      >
+                        {waitingLabel(
+                          alert.waitingMinutes,
+                        )}
+                      </span>
+                    </div>
+                  </button>
+                ),
+              )}
+            </div>
+          )}
+
+          {ordered.length > 0 && (
+            <p className="mt-3 px-1 text-[11px] leading-4 text-muted-foreground">
+              O alerta só some quando o lead sair da etapa Atendimento humano.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
