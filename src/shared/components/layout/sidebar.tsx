@@ -39,15 +39,15 @@ export const navigationItems = [
     permission: "dashboard.view",
   },
   {
-    to: "/crm",
-    label: "CRM",
-    icon: Handshake,
-    permission: "crm.view",
-  },
-  {
     to: "/whatsapp",
     label: "WhatsApp",
     icon: MessageCircle,
+    permission: "crm.view",
+  },
+  {
+    to: "/crm",
+    label: "CRM",
+    icon: Handshake,
     permission: "crm.view",
   },
   {
@@ -165,7 +165,7 @@ export function SidebarNavigation({
 
   return (
     <nav className="space-y-1" aria-label="Navegação lateral">
-      {mainBeforeMarketing.map(renderLink)}
+      {mainBeforeMarketing.slice(0, 1).map(renderLink)}
 
       {prospectingFeature.data === true && (
         <NavLink
@@ -183,6 +183,8 @@ export function SidebarNavigation({
           {!collapsed && <span>Prospecção</span>}
         </NavLink>
       )}
+
+      {mainBeforeMarketing.slice(1).map(renderLink)}
 
       {can("marketing.view") && (
         <NavGroup
