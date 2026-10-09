@@ -409,7 +409,7 @@ async function saveMessage(
   const externalMessageId = message?.id;
 
   if (!externalMessageId) {
-    return;
+    return false;
   }
 
   const messageType =
@@ -422,33 +422,39 @@ async function saveMessage(
     error: messageInsertError,
   } = await supabase
     .from("whatsapp_messages")
-    .upsert(
-      {
-        organization_id:
-          connection.organization_id,
-        conversation_id:
-          conversationId,
-        external_message_id:
-          externalMessageId,
-        direction,
-        message_type:
-          messageType,
-        text_body:
-          textFromMessage(message),
-        message_timestamp:
-          messageTimestamp,
-        raw_payload:
-          message,
-      },
-      {
-        onConflict:
-          "external_message_id",
-        ignoreDuplicates:
-          true,
-      },
-    );
+    .insert({
+      organization_id:
+        connection.organization_id,
+      conversation_id:
+        conversationId,
+      external_message_id:
+        externalMessageId,
+      direction,
+      message_type:
+        messageType,
+      text_body:
+        textFromMessage(message),
+      message_timestamp:
+        messageTimestamp,
+      raw_payload:
+        message,
+    });
 
   if (messageInsertError) {
+    if (
+      messageInsertError.code === "23505"
+    ) {
+      console.log(
+        "Duplicate WhatsApp message ignored",
+        {
+          externalMessageId,
+          direction,
+        },
+      );
+
+      return false;
+    }
+
     console.error(
       "Error saving WhatsApp message:",
       {
@@ -457,7 +463,48 @@ async function saveMessage(
         code: messageInsertError.code,
       },
     );
+
+    return false;
   }
+
+  return true;
+}
+
+async function getLatestAiConversationState(
+  organizationId: string,
+  whatsappConversationId: string,
+) {
+  const { data, error } = await supabase
+    .from("ai_agent_conversations")
+    .select(
+      "id,status,last_ai_message_at,round_started_at",
+    )
+    .eq("organization_id", organizationId)
+    .eq(
+      "whatsapp_conversation_id",
+      whatsappConversationId,
+    )
+    .order("created_at", {
+      ascending: false,
+    })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error(
+      "Error loading latest AI conversation state:",
+      {
+        organizationId,
+        whatsappConversationId,
+        code: error.code,
+        message: error.message,
+      },
+    );
+
+    return null;
+  }
+
+  return data;
 }
 
 async function shouldSkipAiAutomation(
@@ -1514,19 +1561,37 @@ async function processAiAgentMessage(
   }
 
   /*
-   * No CRM, Aguardando Qualificação inicia uma nova rodada.
-   * Na Prospecção, a primeira resposta após message_sent também
-   * inicia uma nova rodada, mas sem criar oportunidade no CRM.
+   * Novo Lead/Aguardando Qualificação só deve reiniciar a rodada quando
+   * realmente estamos começando uma nova rodada. Antes, qualquer mensagem
+   * recebida enquanto a oportunidade continuava em Novo Lead zerava o
+   * histórico, fazendo a assistente se apresentar novamente.
    */
+  const latestAiConversation =
+    await getLatestAiConversationState(
+      connection.organization_id,
+      conversation.id,
+    );
+
+  const shouldResetCrmRound =
+    routingMode === "crm" &&
+    crmRouting.stage === "awaiting" &&
+    (
+      !latestAiConversation ||
+      !latestAiConversation.last_ai_message_at ||
+      ["handoff", "paused", "closed"].includes(
+        String(
+          latestAiConversation.status ?? "",
+        ),
+      )
+    );
+
+  const shouldResetProspectingRound =
+    routingMode === "prospecting" &&
+    prospectingPreviousStatus === "message_sent";
+
   if (
-    (
-      routingMode === "crm" &&
-      crmRouting.stage === "awaiting"
-    ) ||
-    (
-      routingMode === "prospecting" &&
-      prospectingPreviousStatus === "message_sent"
-    )
+    shouldResetCrmRound ||
+    shouldResetProspectingRound
   ) {
     const now = new Date().toISOString();
 
@@ -1542,20 +1607,31 @@ async function processAiAgentMessage(
         round_started_at: now,
         updated_at: now,
       })
-      .eq("organization_id", connection.organization_id)
-      .eq("whatsapp_conversation_id", conversation.id);
+      .eq(
+        "organization_id",
+        connection.organization_id,
+      )
+      .eq(
+        "whatsapp_conversation_id",
+        conversation.id,
+      );
 
     if (resetAiConversationError) {
       console.error(
         "Failed to reset AI conversation for new routing round",
         {
-          organizationId: connection.organization_id,
-          conversationId: conversation.id,
+          organizationId:
+            connection.organization_id,
+          conversationId:
+            conversation.id,
           routingMode,
-          opportunityId: crmRouting.opportunityId ?? null,
+          opportunityId:
+            crmRouting.opportunityId ?? null,
           prospectingLeadId,
-          code: resetAiConversationError.code,
-          message: resetAiConversationError.message,
+          code:
+            resetAiConversationError.code,
+          message:
+            resetAiConversationError.message,
         },
       );
 
@@ -1572,8 +1648,10 @@ async function processAiAgentMessage(
       console.log(
         "AI automation skipped for handed-off/paused conversation",
         {
-          organizationId: connection.organization_id,
-          conversationId: conversation.id,
+          organizationId:
+            connection.organization_id,
+          conversationId:
+            conversation.id,
           routingMode,
           prospectingLeadId,
         },
@@ -1855,12 +1933,17 @@ async function processStandardMessages(
       continue;
     }
 
-    await saveMessage(
-      connection,
-      conversation.id,
-      message,
-      "inbound",
-    );
+    const isNewInboundMessage =
+      await saveMessage(
+        connection,
+        conversation.id,
+        message,
+        "inbound",
+      );
+
+    if (!isNewInboundMessage) {
+      continue;
+    }
 
     await cancelPendingAiFollowups(
       connection.organization_id,
