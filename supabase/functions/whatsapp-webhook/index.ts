@@ -76,8 +76,70 @@ function safeEqual(a: string, b: string) {
   return result === 0;
 }
 
+function isUnavailableInboundStarter(message: any) {
+  return (
+    message?.type === "unsupported" &&
+    Array.isArray(message?.errors) &&
+    message.errors.some(
+      (error: any) =>
+        Number(error?.code) === 131060,
+    )
+  );
+}
+
+async function linkConversationToCrm(
+  connection: Connection,
+  conversationId: string,
+  crmResult: any,
+) {
+  const companyId =
+    crmResult?.company_id ?? null;
+  const opportunityId =
+    crmResult?.opportunity_id ?? null;
+
+  if (!companyId || !opportunityId) {
+    console.warn(
+      "CRM lead registration returned without link ids",
+      {
+        organizationId:
+          connection.organization_id,
+        conversationId,
+      },
+    );
+    return;
+  }
+
+  const { error } = await supabase
+    .from("whatsapp_conversations")
+    .update({
+      company_id: companyId,
+      opportunity_id: opportunityId,
+      updated_at:
+        new Date().toISOString(),
+    })
+    .eq("id", conversationId)
+    .eq(
+      "organization_id",
+      connection.organization_id,
+    );
+
+  if (error) {
+    console.error(
+      "Error linking WhatsApp conversation to CRM:",
+      {
+        organizationId:
+          connection.organization_id,
+        conversationId,
+        code: error.code,
+        message: error.message,
+      },
+    );
+  }
+}
+
 async function registerPaidTrafficLead(
   connection: Connection,
+  conversationId: string,
   message: any,
   waId: string,
   contactName: string,
@@ -85,7 +147,7 @@ async function registerPaidTrafficLead(
   const referral = message?.referral;
 
   if (!referral) {
-    return;
+    return false;
   }
 
   const cameFromMetaAd =
@@ -94,10 +156,10 @@ async function registerPaidTrafficLead(
     Boolean(referral?.source_id);
 
   if (!cameFromMetaAd) {
-    return;
+    return false;
   }
 
-  const { error } = await supabase.rpc(
+  const { data, error } = await supabase.rpc(
     "upsert_paid_traffic_lead",
     {
       p_organization_id:
@@ -116,8 +178,14 @@ async function registerPaidTrafficLead(
         message: error.message,
       },
     );
-    return;
+    return false;
   }
+
+  await linkConversationToCrm(
+    connection,
+    conversationId,
+    data,
+  );
 
   console.log(
     "Paid traffic lead registered",
@@ -129,6 +197,97 @@ async function registerPaidTrafficLead(
         referral?.ctwa_clid ?? null,
     },
   );
+
+  return true;
+}
+
+async function registerUnavailableWhatsappLead(
+  connection: Connection,
+  conversationId: string,
+  message: any,
+  waId: string,
+  contactName: string,
+) {
+  if (!isUnavailableInboundStarter(message)) {
+    return false;
+  }
+
+  const { data: agent, error: agentError } =
+    await supabase
+      .from("ai_agents")
+      .select(
+        "id,is_enabled,capabilities",
+      )
+      .eq(
+        "organization_id",
+        connection.organization_id,
+      )
+      .maybeSingle();
+
+  if (
+    agentError ||
+    !agent ||
+    !agent.is_enabled ||
+    agent.capabilities?.respond_new_messages ===
+      false
+  ) {
+    if (agentError) {
+      console.error(
+        "Error checking AI agent for unavailable WhatsApp starter:",
+        {
+          organizationId:
+            connection.organization_id,
+          code: agentError.code,
+          message: agentError.message,
+        },
+      );
+    }
+
+    return false;
+  }
+
+  const { data, error } = await supabase.rpc(
+    "upsert_whatsapp_inbound_lead",
+    {
+      p_organization_id:
+        connection.organization_id,
+      p_name: contactName || waId,
+      p_whatsapp: waId,
+    },
+  );
+
+  if (error) {
+    console.error(
+      "Error registering unavailable WhatsApp starter:",
+      {
+        organizationId:
+          connection.organization_id,
+        conversationId,
+        waId,
+        code: error.code,
+        message: error.message,
+      },
+    );
+    return false;
+  }
+
+  await linkConversationToCrm(
+    connection,
+    conversationId,
+    data,
+  );
+
+  console.log(
+    "Unavailable WhatsApp starter registered in CRM",
+    {
+      organizationId:
+        connection.organization_id,
+      conversationId,
+      waId,
+    },
+  );
+
+  return true;
 }
 
 async function verifyMetaSignature(
@@ -1385,8 +1544,16 @@ async function processAiAgentMessage(
   message: any,
   waId: string,
 ) {
-  const inboundText =
+  const directInboundText =
     textFromMessage(message)?.trim();
+
+  const inboundText =
+    directInboundText ||
+    (
+      isUnavailableInboundStarter(message)
+        ? "Olá, vim pelo WhatsApp."
+        : ""
+    );
 
   if (!inboundText) {
     return;
@@ -1951,12 +2118,27 @@ async function processStandardMessages(
       "lead_replied",
     );
 
-    await registerPaidTrafficLead(
-      connection,
-      message,
-      waId,
-      contactMap.get(waId) ?? waId,
-    );
+    const paidTrafficLeadRegistered =
+      await registerPaidTrafficLead(
+        connection,
+        conversation.id,
+        message,
+        waId,
+        contactMap.get(waId) ?? waId,
+      );
+
+    if (
+      !paidTrafficLeadRegistered &&
+      isUnavailableInboundStarter(message)
+    ) {
+      await registerUnavailableWhatsappLead(
+        connection,
+        conversation.id,
+        message,
+        waId,
+        contactMap.get(waId) ?? waId,
+      );
+    }
 
     // Primeiro inbound de um lead da Prospecção já o transforma em
     // oportunidade no CRM. Se não for um lead da Prospecção, a RPC
