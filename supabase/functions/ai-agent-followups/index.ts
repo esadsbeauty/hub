@@ -848,6 +848,123 @@ async function processJob(job: FollowupJob) {
     })
     .eq("id", job.id);
 
+  /*
+   * O segundo follow-up só passa a existir depois que o primeiro foi
+   * efetivamente enviado. O intervalo é contado a partir do envio real,
+   * não do horário originalmente previsto.
+   */
+  if (job.sequence === 1) {
+    const maxPerRound = Math.min(
+      2,
+      Math.max(
+        1,
+        Number(
+          behavior.followup_max_per_round ?? 2,
+        ),
+      ),
+    );
+
+    if (maxPerRound >= 2) {
+      const secondDelay = Math.round(
+        Math.max(
+          1,
+          Math.min(
+            Number(
+              behavior.followup_second_min_minutes ??
+                360,
+            ),
+            Number(
+              behavior.followup_second_max_minutes ??
+                480,
+            ),
+          ),
+        ) +
+          Math.random() *
+            Math.max(
+              0,
+              Math.max(
+                Number(
+                  behavior.followup_second_min_minutes ??
+                    360,
+                ),
+                Number(
+                  behavior.followup_second_max_minutes ??
+                    480,
+                ),
+              ) -
+                Math.max(
+                  1,
+                  Math.min(
+                    Number(
+                      behavior.followup_second_min_minutes ??
+                        360,
+                    ),
+                    Number(
+                      behavior.followup_second_max_minutes ??
+                        480,
+                    ),
+                  ),
+                ),
+            ),
+      );
+
+      const secondDueAt = new Date(
+        new Date(sentAt).getTime() +
+          secondDelay * 60_000,
+      ).toISOString();
+
+      const { error: secondScheduleError } =
+        await admin
+          .from("ai_agent_followups")
+          .upsert(
+            {
+              organization_id:
+                job.organization_id,
+              agent_id: job.agent_id,
+              ai_conversation_id:
+                job.ai_conversation_id,
+              whatsapp_conversation_id:
+                job.whatsapp_conversation_id,
+              round_key: job.round_key,
+              sequence: 2,
+              source_lead_message_at:
+                job.source_lead_message_at,
+              source_ai_message_at:
+                sentAt,
+              due_at: secondDueAt,
+              status: "pending",
+              metadata: {
+                delay_minutes:
+                  secondDelay,
+                scheduled_after_followup:
+                  1,
+              },
+            },
+            {
+              onConflict:
+                "ai_conversation_id,round_key,sequence",
+              ignoreDuplicates: true,
+            },
+          );
+
+      if (secondScheduleError) {
+        console.error(
+          "Failed to schedule second AI follow-up",
+          {
+            followupId: job.id,
+            organizationId:
+              job.organization_id,
+            roundKey: job.round_key,
+            code:
+              secondScheduleError.code,
+            message:
+              secondScheduleError.message,
+          },
+        );
+      }
+    }
+  }
+
   await admin
     .from("ai_agent_conversations")
     .update({
