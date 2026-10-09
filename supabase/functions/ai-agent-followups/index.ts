@@ -7,6 +7,8 @@ const OPENAI_API_KEY =
   Deno.env.get("OPENAI_API_KEY") ?? "";
 const AI_AGENT_INTERNAL_SECRET =
   Deno.env.get("AI_AGENT_INTERNAL_SECRET") ?? "";
+const AI_FOLLOWUPS_CRON_SECRET =
+  Deno.env.get("AI_FOLLOWUPS_CRON_SECRET") ?? "";
 
 const admin = createClient(
   SUPABASE_URL,
@@ -890,37 +892,24 @@ Deno.serve(async (request) => {
       "x-ai-agent-secret",
     );
 
-  const receivedApiKey =
-    request.headers.get("apikey");
-
-  let secretApiKeys: string[] = [];
-
-  try {
-    const secretKeyMap = JSON.parse(
-      Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}",
-    ) as Record<string, string>;
-
-    secretApiKeys = Object.values(
-      secretKeyMap,
-    ).filter(Boolean);
-  } catch {
-    secretApiKeys = [];
-  }
+  const receivedCronSecret =
+    request.headers.get(
+      "x-ai-followups-cron-secret",
+    );
 
   const authorizedByInternalSecret =
     Boolean(AI_AGENT_INTERNAL_SECRET) &&
     receivedSecret ===
       AI_AGENT_INTERNAL_SECRET;
 
-  const authorizedByProjectSecret =
-    Boolean(receivedApiKey) &&
-    secretApiKeys.includes(
-      receivedApiKey ?? "",
-    );
+  const authorizedByCronSecret =
+    Boolean(AI_FOLLOWUPS_CRON_SECRET) &&
+    receivedCronSecret ===
+      AI_FOLLOWUPS_CRON_SECRET;
 
   if (
     !authorizedByInternalSecret &&
-    !authorizedByProjectSecret
+    !authorizedByCronSecret
   ) {
     return jsonResponse(401, {
       code: "unauthorized",
