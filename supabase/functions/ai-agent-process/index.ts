@@ -205,6 +205,23 @@ Deno.serve(async (request) => {
     },
   });
 
+  if (mode === "crm" && !payload.test_mode) {
+    const { data: feature, error: featureError } = await admin
+      .from("organization_features")
+      .select("enabled")
+      .eq("organization_id", organizationId)
+      .eq("feature_key", "ai_commercial_assistant")
+      .eq("enabled", true)
+      .maybeSingle();
+
+    if (featureError || feature?.enabled !== true) {
+      return jsonResponse(403, {
+        code: "commercial_assistant_feature_disabled",
+        message: "A Assistente Comercial não está habilitada para esta organização.",
+      });
+    }
+  }
+
   const { data: agent, error: agentError } = await admin
     .from("ai_agents")
     .select("*")
