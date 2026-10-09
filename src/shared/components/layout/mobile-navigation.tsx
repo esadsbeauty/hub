@@ -1,10 +1,8 @@
 import { useState } from "react";
 import {
   BarChart3,
-  BookOpen,
   Building2,
   Calendar,
-  ClipboardCheck,
   Gift,
   Handshake,
   Home,
@@ -55,6 +53,18 @@ const more = [
     permission: "crm.view" as const,
   },
   {
+    to: "/relatorios",
+    label: "Relatórios",
+    icon: BarChart3,
+    permission: "reports.view" as const,
+  },
+  {
+    to: "/configuracoes",
+    label: "Configurações",
+    icon: Settings,
+    permission: "settings.view" as const,
+  },
+  {
     to: "/clientes",
     label: "Clientes",
     icon: Users,
@@ -67,47 +77,23 @@ const more = [
     permission: "finance.view" as const,
   },
   {
-    to: "/indique-e-ganhe",
-    label: "Indique e Ganhe",
-    icon: Gift,
-    permission: "settings.view" as const,
-  },
-  {
     to: "/marketing",
     label: "Marketing",
     icon: Megaphone,
     permission: "marketing.view" as const,
   },
   {
-    to: "/marketing/diagnosticos",
-    label: "Diagnósticos",
-    icon: ClipboardCheck,
-    permission: "marketing.view" as const,
-  },
-  {
-    to: "/marketing/blog",
-    label: "Blog",
-    icon: BookOpen,
-    permission: "blog.view" as const,
-  },
-  {
-    to: "/relatorios",
-    label: "Relatórios",
-    icon: BarChart3,
-    permission: "reports.view" as const,
-  },
-  {
-    to: "/configuracoes",
-    label: "Configurações",
-    icon: Settings,
+    to: "/indique-e-ganhe",
+    label: "Indique e Ganhe",
+    icon: Gift,
     permission: "settings.view" as const,
   },
 ];
 
 const actions = [
   {
-    label: "Nova empresa",
-    detail: "Cadastre um lead com nome e contato",
+    label: "Novo lead",
+    detail: "Cadastre nome e contato",
     to: "/crm?new=company&quick=1",
     icon: UserPlus,
   },
