@@ -890,10 +890,37 @@ Deno.serve(async (request) => {
       "x-ai-agent-secret",
     );
 
+  const receivedApiKey =
+    request.headers.get("apikey");
+
+  let secretApiKeys: string[] = [];
+
+  try {
+    const secretKeyMap = JSON.parse(
+      Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}",
+    ) as Record<string, string>;
+
+    secretApiKeys = Object.values(
+      secretKeyMap,
+    ).filter(Boolean);
+  } catch {
+    secretApiKeys = [];
+  }
+
+  const authorizedByInternalSecret =
+    Boolean(AI_AGENT_INTERNAL_SECRET) &&
+    receivedSecret ===
+      AI_AGENT_INTERNAL_SECRET;
+
+  const authorizedByProjectSecret =
+    Boolean(receivedApiKey) &&
+    secretApiKeys.includes(
+      receivedApiKey ?? "",
+    );
+
   if (
-    !AI_AGENT_INTERNAL_SECRET ||
-    receivedSecret !==
-      AI_AGENT_INTERNAL_SECRET
+    !authorizedByInternalSecret &&
+    !authorizedByProjectSecret
   ) {
     return jsonResponse(401, {
       code: "unauthorized",
