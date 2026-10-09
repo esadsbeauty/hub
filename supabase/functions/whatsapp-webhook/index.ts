@@ -1082,6 +1082,240 @@ async function sendAiWhatsAppMessage(
   return true;
 }
 
+async function cancelPendingAiFollowups(
+  organizationId: string,
+  whatsappConversationId: string,
+  reason: string,
+) {
+  const now = new Date().toISOString();
+
+  const { error } = await supabase
+    .from("ai_agent_followups")
+    .update({
+      status: "cancelled",
+      cancelled_at: now,
+      error_message: reason,
+      updated_at: now,
+    })
+    .eq("organization_id", organizationId)
+    .eq(
+      "whatsapp_conversation_id",
+      whatsappConversationId,
+    )
+    .eq("status", "pending");
+
+  if (
+    error &&
+    error.code !== "42P01"
+  ) {
+    console.error(
+      "Failed to cancel pending AI follow-ups",
+      {
+        organizationId,
+        whatsappConversationId,
+        reason,
+        code: error.code,
+        message: error.message,
+      },
+    );
+  }
+}
+
+function randomMinutes(
+  minValue: unknown,
+  maxValue: unknown,
+  fallbackMin: number,
+  fallbackMax: number,
+) {
+  const min = Number(minValue);
+  const max = Number(maxValue);
+
+  const safeMin =
+    Number.isFinite(min) ? min : fallbackMin;
+
+  const safeMax =
+    Number.isFinite(max) ? max : fallbackMax;
+
+  const lower = Math.max(
+    1,
+    Math.min(safeMin, safeMax),
+  );
+
+  const upper = Math.max(
+    lower,
+    Math.max(safeMin, safeMax),
+  );
+
+  return Math.round(
+    lower +
+      Math.random() * (upper - lower),
+  );
+}
+
+async function scheduleAiFollowups(
+  connection: Connection,
+  whatsappConversationId: string,
+  roundKey: string,
+  sourceLeadMessageAt: string,
+  sourceAiMessageAt: string,
+) {
+  const { data: agent, error: agentError } =
+    await supabase
+      .from("ai_agents")
+      .select(
+        "id,is_enabled,behavior_config,capabilities",
+      )
+      .eq(
+        "organization_id",
+        connection.organization_id,
+      )
+      .maybeSingle();
+
+  if (
+    agentError ||
+    !agent ||
+    agent.is_enabled !== true ||
+    agent.capabilities?.follow_up_leads !== true
+  ) {
+    return;
+  }
+
+  const { data: aiConversation } =
+    await supabase
+      .from("ai_agent_conversations")
+      .select("id,status")
+      .eq(
+        "organization_id",
+        connection.organization_id,
+      )
+      .eq(
+        "whatsapp_conversation_id",
+        whatsappConversationId,
+      )
+      .order("created_at", {
+        ascending: false,
+      })
+      .limit(1)
+      .maybeSingle();
+
+  if (
+    !aiConversation ||
+    !["active", "qualified"].includes(
+      String(aiConversation.status ?? ""),
+    )
+  ) {
+    return;
+  }
+
+  const behavior =
+    agent.behavior_config ?? {};
+
+  const maxPerRound = Math.min(
+    2,
+    Math.max(
+      1,
+      Number(
+        behavior.followup_max_per_round ?? 2,
+      ),
+    ),
+  );
+
+  const firstDelay = randomMinutes(
+    behavior.followup_first_min_minutes,
+    behavior.followup_first_max_minutes,
+    120,
+    180,
+  );
+
+  const secondDelay = randomMinutes(
+    behavior.followup_second_min_minutes,
+    behavior.followup_second_max_minutes,
+    360,
+    480,
+  );
+
+  const firstDue = new Date(
+    new Date(sourceAiMessageAt).getTime() +
+      firstDelay * 60_000,
+  );
+
+  const rows = [
+    {
+      organization_id:
+        connection.organization_id,
+      agent_id: agent.id,
+      ai_conversation_id:
+        aiConversation.id,
+      whatsapp_conversation_id:
+        whatsappConversationId,
+      round_key: roundKey,
+      sequence: 1,
+      source_lead_message_at:
+        sourceLeadMessageAt,
+      source_ai_message_at:
+        sourceAiMessageAt,
+      due_at: firstDue.toISOString(),
+      status: "pending",
+      metadata: {
+        delay_minutes: firstDelay,
+      },
+    },
+  ];
+
+  if (maxPerRound >= 2) {
+    const secondDue = new Date(
+      firstDue.getTime() +
+        secondDelay * 60_000,
+    );
+
+    rows.push({
+      organization_id:
+        connection.organization_id,
+      agent_id: agent.id,
+      ai_conversation_id:
+        aiConversation.id,
+      whatsapp_conversation_id:
+        whatsappConversationId,
+      round_key: roundKey,
+      sequence: 2,
+      source_lead_message_at:
+        sourceLeadMessageAt,
+      source_ai_message_at:
+        sourceAiMessageAt,
+      due_at: secondDue.toISOString(),
+      status: "pending",
+      metadata: {
+        delay_minutes: secondDelay,
+      },
+    });
+  }
+
+  const { error } = await supabase
+    .from("ai_agent_followups")
+    .upsert(rows, {
+      onConflict:
+        "ai_conversation_id,round_key,sequence",
+      ignoreDuplicates: true,
+    });
+
+  if (
+    error &&
+    error.code !== "42P01"
+  ) {
+    console.error(
+      "Failed to schedule AI follow-ups",
+      {
+        organizationId:
+          connection.organization_id,
+        whatsappConversationId,
+        roundKey,
+        code: error.code,
+        message: error.message,
+      },
+    );
+  }
+}
+
 async function convertProspectingReplyToCrm(
   connection: Connection,
   conversation: Conversation,
@@ -1526,6 +1760,26 @@ async function processAiAgentMessage(
     }
   }
 
+  if (agentPayload.handoff === true) {
+    await cancelPendingAiFollowups(
+      connection.organization_id,
+      conversation.id,
+      "handoff_requested",
+    );
+  } else {
+    const followupSourceAiAt =
+      new Date().toISOString();
+
+    await scheduleAiFollowups(
+      connection,
+      conversation.id,
+      currentExternalMessageId,
+      latestInboundMessage?.message_timestamp ??
+        followupSourceAiAt,
+      followupSourceAiAt,
+    );
+  }
+
   if (
     routingMode === "prospecting" &&
     prospectingLeadId
@@ -1646,6 +1900,12 @@ async function processStandardMessages(
       conversation.id,
       message,
       "inbound",
+    );
+
+    await cancelPendingAiFollowups(
+      connection.organization_id,
+      conversation.id,
+      "lead_replied",
     );
 
     await registerPaidTrafficLead(
