@@ -96,6 +96,11 @@ export function CrmPage() {
     () => searchParams.get("q") ?? "",
   );
   const deferredQuery = useDeferredValue(query);
+  const requestedStageIds = (searchParams.get("stages") ?? searchParams.get("stage") ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const requestedOpportunityId = searchParams.get("opportunity") ?? "";
   const [view, setView] = useState<View>("kanban");
   const [sort, setSort] = useState<CrmSort>("newest");
   const [filters, setFilters] = useState<CrmFilters>(emptyFilters);
@@ -114,6 +119,21 @@ export function CrmPage() {
     const requestedQuery = searchParams.get("q");
     setQuery(requestedQuery ?? "");
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!data || !requestedOpportunityId) return;
+
+    const opportunity = data.opportunities.find(
+      (item) =>
+        item.id === requestedOpportunityId &&
+        !item.deletedAt &&
+        item.status !== "archived",
+    );
+
+    if (opportunity) {
+      setSelected(opportunity);
+    }
+  }, [data, requestedOpportunityId]);
 
   useEffect(() => {
     const refreshIfVisible = () => {
@@ -238,6 +258,12 @@ export function CrmPage() {
           .toLowerCase();
         return (
           (!normalized || searchable.includes(normalized)) &&
+          (requestedStageIds.length === 0 ||
+            opportunities.some(
+              (item) =>
+                item.companyId === company.id &&
+                requestedStageIds.includes(item.stageId),
+            )) &&
           (filters.owner === "all" || company.owner === filters.owner) &&
           (filters.source === "all" || company.leadSource === filters.source) &&
           (filters.temperature === "all" ||
@@ -288,6 +314,7 @@ export function CrmPage() {
     deferredQuery,
     filters,
     sort,
+    requestedStageIds.join(","),
   ]);
   if (isLoading)
     return (
@@ -320,6 +347,18 @@ export function CrmPage() {
           stage.isActive !== false,
       )
     : data.stages.filter((stage) => stage.isActive !== false);
+
+  const visibleCrmStages =
+    requestedStageIds.length > 0
+      ? crmStages.filter((stage) => requestedStageIds.includes(stage.id))
+      : crmStages;
+
+  const visibleOpportunities =
+    requestedStageIds.length > 0
+      ? opportunities.filter((item) =>
+          requestedStageIds.includes(item.stageId),
+        )
+      : opportunities;
 
   const companyById = new Map<string, Company>(
     companies.map((item) => [item.id, item]),
@@ -424,9 +463,9 @@ export function CrmPage() {
         businessMode={businessMode}
         companies={filtered}
         contacts={contacts}
-        opportunities={opportunities.filter((item)=>filtered.some((company)=>company.id===item.companyId))}
+        opportunities={visibleOpportunities.filter((item)=>filtered.some((company)=>company.id===item.companyId))}
         tasks={tasks}
-        stages={crmStages}
+        stages={visibleCrmStages}
         query={query}
         filters={filters}
         sort={sort}
@@ -505,7 +544,7 @@ export function CrmPage() {
         />
         </div>
       </section>
-      <NextActionsOverview tasks={tasks} opportunities={opportunities} stages={crmStages} companies={companies} onOpen={setSelected}/>
+      <NextActionsOverview tasks={tasks} opportunities={visibleOpportunities} stages={visibleCrmStages} companies={companies} onOpen={setSelected}/>
       <div className="flex flex-col justify-between gap-3 sm:flex-row">
         <div className="flex items-center gap-2">
         <div className="inline-flex rounded-xl border bg-muted/50 p-1">
@@ -930,7 +969,14 @@ export function CrmPage() {
         )}
         nextTask={selected ? nextAction(selected) : undefined}
         open={Boolean(selected)}
-        onClose={() => setSelected(undefined)}
+        onClose={() => {
+          setSelected(undefined);
+          if (searchParams.has("opportunity")) {
+            const next = new URLSearchParams(searchParams);
+            next.delete("opportunity");
+            setSearchParams(next, { replace: true });
+          }
+        }}
         onMove={(stageId) =>
           selected &&
           actions.moveOpportunity.mutate({
