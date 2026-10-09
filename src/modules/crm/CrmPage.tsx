@@ -2,15 +2,12 @@ import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  Download,
-  FileUp,
   FilterX,
   Kanban,
   List,
   ArrowDownUp,
   Plus,
   SlidersHorizontal,
-  Settings2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
