@@ -765,6 +765,61 @@ async function processJob(job: FollowupJob) {
     };
   }
 
+  // Revalida imediatamente antes do envio. Isso fecha a janela
+  // de corrida entre a geração do texto e uma eventual nova resposta do lead.
+  const { data: finalInbound } = await admin
+    .from("whatsapp_messages")
+    .select("message_timestamp")
+    .eq(
+      "conversation_id",
+      job.whatsapp_conversation_id,
+    )
+    .eq("direction", "inbound")
+    .order("message_timestamp", {
+      ascending: false,
+    })
+    .limit(1)
+    .maybeSingle();
+
+  if (
+    finalInbound?.message_timestamp &&
+    new Date(finalInbound.message_timestamp).getTime() >
+      sourceAiAt
+  ) {
+    await cancelJob(
+      job,
+      "lead_replied_while_followup_was_being_generated",
+    );
+
+    return {
+      id: job.id,
+      result: "cancelled_lead_replied_during_generation",
+    };
+  }
+
+  const { data: finalConversationState } = await admin
+    .from("ai_agent_conversations")
+    .select("status")
+    .eq("id", job.ai_conversation_id)
+    .maybeSingle();
+
+  if (
+    !finalConversationState ||
+    !["active", "qualified"].includes(
+      String(finalConversationState.status ?? ""),
+    )
+  ) {
+    await cancelJob(
+      job,
+      "conversation_changed_before_send",
+    );
+
+    return {
+      id: job.id,
+      result: "cancelled_state_changed_before_send",
+    };
+  }
+
   const {
     sentAt,
     externalMessageId,
