@@ -19,6 +19,7 @@ export type AiAgentCapabilities = {
   send_prices: boolean;
   schedule_appointments: boolean;
   reactivate_leads: boolean;
+  follow_up_leads?: boolean;
 };
 
 export type AiAgentQualificationQuestion = {
