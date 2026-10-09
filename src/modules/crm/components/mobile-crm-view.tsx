@@ -72,7 +72,6 @@ export function MobileCrmView(props: Props) {
   </div>;
 }
 
-function MobileMetric({label,value,hint}:{label:string;value:number;hint:string}) { return <div className="min-w-[78vw] snap-center"><MetricCard label={label} value={value} hint={hint}/></div>; }
 
 const sortLabel:Record<CrmSort,string>={newest:"Mais recentes",oldest:"Mais antigos",name:"Nome",activity:"Última atividade",followup:"Próximo follow-up",priority:"Prioridade"};
 
