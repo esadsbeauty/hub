@@ -143,10 +143,20 @@ export function DashboardPage() {
     stageByName.set(normalize(stage.name), stage.id);
   }
 
-  const countStage = (names: string[]) => {
-    const ids = names
+  const stageIds = (names: string[]) =>
+    names
       .map((name) => stageByName.get(normalize(name)))
       .filter((id): id is string => Boolean(id));
+
+  const crmForStages = (names: string[]) => {
+    const ids = stageIds(names);
+    return ids.length > 0
+      ? `/crm?stages=${encodeURIComponent(ids.join(","))}`
+      : "/crm";
+  };
+
+  const countStage = (names: string[]) => {
+    const ids = stageIds(names);
 
     return crm.data.opportunities.filter(
       (opportunity) =>
@@ -357,7 +367,9 @@ export function DashboardPage() {
           value={String(newLeads)}
           detail="novos leads e conversas em andamento"
           icon={MessageCircle}
-          onClick={() => navigate("/crm")}
+          onClick={() =>
+            navigate(crmForStages(["Novo Lead", "Em atendimento"]))
+          }
         />
 
         <SummaryCard
@@ -370,7 +382,7 @@ export function DashboardPage() {
           }
           icon={UserCheck}
           attention={humanWaiting > 0}
-          onClick={() => navigate("/crm")}
+          onClick={() => navigate(crmForStages(["Atendimento humano"]))}
         />
 
         <SummaryCard
@@ -378,7 +390,7 @@ export function DashboardPage() {
           value={String(scheduled)}
           detail="atendimentos com agendamento"
           icon={CalendarDays}
-          onClick={() => navigate("/crm")}
+          onClick={() => navigate(crmForStages(["Agendado"]))}
         />
 
         <SummaryCard
@@ -415,7 +427,7 @@ export function DashboardPage() {
               onClick={() =>
                 navigate(
                   humanWaiting > 0
-                    ? "/crm"
+                    ? crmForStages(["Atendimento humano"])
                     : "/agenda",
                 )
               }
@@ -458,7 +470,7 @@ export function DashboardPage() {
                   <button
                     key={stage.id}
                     type="button"
-                    onClick={() => navigate("/crm")}
+                    onClick={() => navigate(`/crm?stages=${encodeURIComponent(stage.id)}`)}
                     className="flex min-h-16 items-center justify-between rounded-2xl border border-border/60 bg-background px-4 text-left transition hover:bg-muted/50"
                   >
                     <span className="text-sm font-semibold">
