@@ -212,6 +212,30 @@ async function registerUnavailableWhatsappLead(
     return false;
   }
 
+  const { data: feature, error: featureError } =
+    await supabase
+      .from("organization_features")
+      .select("enabled")
+      .eq("organization_id", connection.organization_id)
+      .eq("feature_key", "ai_commercial_assistant")
+      .eq("enabled", true)
+      .maybeSingle();
+
+  if (featureError || feature?.enabled !== true) {
+    if (featureError) {
+      console.error(
+        "Error checking commercial assistant feature for unavailable starter:",
+        {
+          organizationId: connection.organization_id,
+          code: featureError.code,
+          message: featureError.message,
+        },
+      );
+    }
+
+    return false;
+  }
+
   const { data: agent, error: agentError } =
     await supabase
       .from("ai_agents")
@@ -707,6 +731,30 @@ async function getAiCrmRouting(
   organizationId: string,
   whatsappConversationId: string,
 ) {
+  const { data: feature, error: featureError } = await supabase
+    .from("organization_features")
+    .select("enabled")
+    .eq("organization_id", organizationId)
+    .eq("feature_key", "ai_commercial_assistant")
+    .eq("enabled", true)
+    .maybeSingle();
+
+  if (featureError || feature?.enabled !== true) {
+    if (featureError) {
+      console.error("Error checking commercial assistant feature:", {
+        organizationId,
+        code: featureError.code,
+        message: featureError.message,
+      });
+    }
+
+    return {
+      allowed: false,
+      stage: "blocked",
+      opportunityId: null as string | null,
+    };
+  }
+
   const { data: agent, error: agentError } = await supabase
     .from("ai_agents")
     .select("id,is_enabled,crm_config")
