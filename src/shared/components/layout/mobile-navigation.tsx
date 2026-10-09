@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   BarChart3,
-  Building2,
   Calendar,
   Gift,
   Handshake,
@@ -14,7 +13,6 @@ import {
   ShieldCheck,
   Settings,
   UserPlus,
-  UserRoundSearch,
   Users,
   Wallet,
 } from "lucide-react";
@@ -230,42 +228,6 @@ export function MobileNavigation() {
                   >
                     <ShieldCheck size={24} />
                     Plataforma
-                  </Link>
-                )}
-
-              {sheet === "more" &&
-                isPlatformAdmin && (
-                  <Link
-                    onClick={() => setSheet(null)}
-                    className="premium-focus flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold active:bg-muted"
-                    to="/plataforma/leads"
-                  >
-                    <UserRoundSearch size={24} />
-                    Leads do Produto
-                  </Link>
-                )}
-
-              {sheet === "more" &&
-                isPlatformAdmin && (
-                  <Link
-                    onClick={() => setSheet(null)}
-                    className="premium-focus flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold active:bg-muted"
-                    to="/plataforma/indicacoes"
-                  >
-                    <Gift size={24} />
-                    Indicações
-                  </Link>
-                )}
-
-              {sheet === "more" &&
-                isPlatformAdmin && (
-                  <Link
-                    onClick={() => setSheet(null)}
-                    className="premium-focus flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold active:bg-muted"
-                    to="/plataforma/organizacoes"
-                  >
-                    <Building2 size={24} />
-                    Organizações
                   </Link>
                 )}
 
