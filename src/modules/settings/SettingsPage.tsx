@@ -21,6 +21,7 @@ import { ProfilePanel } from "@/modules/profile/ProfilePanel";
 import { OrganizationServicesPanel } from "./organization-services-panel";
 import { WhatsAppSettingsPanel } from "./whatsapp-settings-panel";
 import { AiAgentSettingsPanel } from "./ai-agent-settings-panel";
+import { useOrganizationFeature } from "@/shared/features/use-organization-feature";
 
 type View = "profile" | "general" | "services" | "whatsapp" | "ai-agent" | "users" | "permissions" | "security" | "audit";
 const tabs = [{ value: "profile", label: "Perfil" }, { value: "general", label: "Geral" }, { value: "services", label: "Serviços" }, { value: "whatsapp", label: "WhatsApp" }, { value: "ai-agent", label: "Assistente Comercial" }, { value: "users", label: "Usuários" }, { value: "permissions", label: "Permissões" }, { value: "security", label: "Segurança" }, { value: "audit", label: "Auditoria" }] satisfies { value: View; label: string }[];
@@ -28,10 +29,10 @@ const statusLabel: Record<MemberStatus, string> = { pending: "Aguardando aprova�
 
 export function SettingsPage() {
   const [view, setView] = useState<View>("profile"); const [inviteOpen, setInviteOpen] = useState(false); const [approvalMember, setApprovalMember] = useState<Member | null>(null); const [auditPage, setAuditPage] = useState(0);
-  const query = useGovernance(auditPage); const actions = useGovernanceActions(); const businessMode=useBusinessMode();const updateBusinessMode=useUpdateBusinessMode(); const { can, role: currentRole } = useAppState(); const { notify } = useToast();
+  const query = useGovernance(auditPage); const actions = useGovernanceActions(); const businessMode=useBusinessMode();const updateBusinessMode=useUpdateBusinessMode(); const assistantFeature=useOrganizationFeature("ai_commercial_assistant"); const { can, role: currentRole } = useAppState(); const { notify } = useToast();
   if (!query.data) return <PageContainer><Skeleton className="h-32"/><Skeleton className="h-96"/></PageContainer>;
   const data = query.data;
-  const visibleTabs = tabs.filter((tab) => (tab.value !== "users" || can("users.view")) && (tab.value !== "permissions" || can("roles.manage")) && (tab.value !== "audit" || can("audit.view")));
+  const visibleTabs = tabs.filter((tab) => (tab.value !== "ai-agent" || assistantFeature.data === true) && (tab.value !== "users" || can("users.view")) && (tab.value !== "permissions" || can("roles.manage")) && (tab.value !== "audit" || can("audit.view")));
   return <PageContainer><PageHeader title="Configurações" description="Organização, acessos e preferências do ESADS BEAUTY CRM."/><Tabs tabs={visibleTabs} value={view} onChange={setView}/>
     {view === "profile" && <ProfilePanel/>}
     {view === "general" && <OrganizationCard data={data.organization} businessMode={businessMode.data??"b2b"} save={(input) => actions.updateOrganization.mutate(input)} saveBusinessMode={(mode)=>updateBusinessMode.mutate(mode,{onSuccess:()=>notify({title:"Configurações salvas."}),onError:error=>notify({title:error.message})})} savingBusinessMode={updateBusinessMode.isPending} editable={can("settings.manage")}/>}
