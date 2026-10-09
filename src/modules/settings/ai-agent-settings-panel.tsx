@@ -662,6 +662,21 @@ export function AiAgentSettingsPanel({
           />
 
           <CapabilityToggle
+            label="Fazer follow-up automático"
+            checked={form.capabilities.follow_up_leads === true}
+            disabled={!editable}
+            onChange={(checked) =>
+              setForm({
+                ...form,
+                capabilities: {
+                  ...form.capabilities,
+                  follow_up_leads: checked,
+                },
+              })
+            }
+          />
+
+          <CapabilityToggle
             label="Reativar leads"
             checked={form.capabilities.reactivate_leads}
             disabled={!editable}
