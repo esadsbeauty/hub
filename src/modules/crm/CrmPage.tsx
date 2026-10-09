@@ -2,8 +2,6 @@ import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  Building2,
-  CalendarClock,
   Download,
   FileUp,
   FilterX,
@@ -13,15 +11,12 @@ import {
   Plus,
   SlidersHorizontal,
   Settings2,
-  TrendingUp,
-  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { DataTable } from "@/shared/components/data-display/data-table";
-import { MetricCard } from "@/shared/components/data-display/metric-card";
 import {
   PriorityBadge,
   TemperatureBadge,
@@ -485,65 +480,36 @@ export function CrmPage() {
         title="CRM"
         description={b2c?"Leads, clientes e próximos passos.":"Empresas, oportunidades e próximos passos."}
         actions={
-          <>
-            <Button className="hidden md:inline-flex" variant="outline" onClick={() => setModal("import")}>
-              <FileUp size={17} /> Importar
-            </Button>
-            <Button className="hidden md:inline-flex" variant="outline" onClick={exportLeads}>
-              <Download size={17} /> Exportar
-            </Button>
-            <Button className="hidden md:inline-flex" variant="outline" onClick={() => setModal("followup")}>
-              Tarefa / follow-up
-            </Button>
-            <Button className="hidden md:inline-flex" variant="outline" onClick={() => setModal("opportunity")}>
-              Nova oportunidade
-            </Button>
-            <Button className="hidden md:inline-flex" variant="outline" onClick={() => setModal("pipeline")}>
-              <Settings2 size={17} /> Editar pipeline
-            </Button>
-            <Button className="hidden md:inline-flex" onClick={() => setModal("company")}>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setModal("company")}>
               <Plus size={17} /> <span>{terms.newCompany}</span>
             </Button>
-          </>
+
+            <details className="relative hidden md:block">
+              <summary className="cursor-pointer list-none rounded-xl border border-border/70 bg-card px-3 py-2 text-sm font-medium hover:bg-muted">
+                Mais ações
+              </summary>
+              <div className="absolute right-0 z-30 mt-2 w-56 rounded-2xl border bg-card p-2 shadow-overlay">
+                <button className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => setModal("opportunity")}>
+                  Nova oportunidade
+                </button>
+                <button className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => setModal("followup")}>
+                  Tarefa / follow-up
+                </button>
+                <button className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => setModal("import")}>
+                  Importar leads
+                </button>
+                <button className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-muted" onClick={exportLeads}>
+                  Exportar leads
+                </button>
+                <button className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => setModal("pipeline")}>
+                  Editar pipeline
+                </button>
+              </div>
+            </details>
+          </div>
         }
       />
-      <section aria-label="Indicadores do CRM" className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-4">
-        <div className="min-w-[82vw] snap-center md:min-w-0">
-        <MetricCard
-          label={terms.companies}
-          value={companies.length}
-          hint={b2c?"Pessoas no relacionamento comercial":"Contas no relacionamento comercial"}
-          icon={Building2}
-        />
-        </div>
-        <div className="min-w-[82vw] snap-center md:min-w-0">
-        <MetricCard
-          label="Clientes"
-          value={
-            companies.filter((item) => item.lifecycleStage === "customer")
-              .length
-          }
-          hint="Relacionamentos já convertidos"
-          icon={Users}
-        />
-        </div>
-        <div className="min-w-[82vw] snap-center md:min-w-0">
-        <MetricCard
-          label="Oportunidades abertas"
-          value={opportunities.filter((item) => item.status === "open").length}
-          hint="Negociações em andamento"
-          icon={TrendingUp}
-        />
-        </div>
-        <div className="min-w-[82vw] snap-center md:min-w-0">
-        <MetricCard
-          label="Follow-ups pendentes"
-          value={tasks.filter((item) => item.status === "pending").length}
-          hint="Ações que ainda precisam acontecer"
-          icon={CalendarClock}
-        />
-        </div>
-      </section>
       <NextActionsOverview tasks={tasks} opportunities={visibleOpportunities} stages={visibleCrmStages} companies={companies} onOpen={setSelected}/>
       {requestedStageIds.length > 0 && (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/40 px-3 py-2">
@@ -585,9 +551,6 @@ export function CrmPage() {
             <List size={15} /> Lista
           </Button>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setModal("pipeline")}>
-          <Settings2 size={16} /> <span className="hidden sm:inline">Editar pipeline</span>
-        </Button>
         </div>
         <Button className="md:hidden" variant="outline" onClick={()=>setMobileSortOpen(true)}><ArrowDownUp size={19}/> Ordenar</Button>
         <Select
