@@ -14,6 +14,7 @@ import {
   LogOut,
   Megaphone,
   MessageCircle,
+  Menu,
   PanelLeftClose,
   PanelLeftOpen,
   ShieldCheck,
@@ -126,16 +127,24 @@ export function SidebarNavigation({
   const prospectingFeature = useOrganizationFeature("prospecting_agent");
   const { pathname } = useLocation();
 
-  const [marketingOpen, setMarketingOpen] = useState(
-    pathname.startsWith("/marketing"),
+  const [moreOpen, setMoreOpen] = useState(
+    pathname.startsWith("/clientes") ||
+      pathname.startsWith("/financeiro") ||
+      pathname.startsWith("/marketing") ||
+      pathname.startsWith("/indique-e-ganhe"),
   );
 
   const [platformOpen, setPlatformOpen] = useState(
     pathname.startsWith("/plataforma"),
   );
 
-  const mainBeforeMarketing = navigationItems.slice(0, 6);
-  const mainAfterMarketing = navigationItems.slice(6);
+  const primaryItems = navigationItems.filter((item) =>
+    ["/", "/whatsapp", "/crm", "/agenda", "/relatorios", "/configuracoes"].includes(item.to),
+  );
+
+  const secondaryItems = navigationItems.filter((item) =>
+    ["/clientes", "/financeiro", "/indique-e-ganhe"].includes(item.to),
+  );
 
   const renderLink = ({
     to,
@@ -165,7 +174,7 @@ export function SidebarNavigation({
 
   return (
     <nav className="space-y-1" aria-label="Navegação lateral">
-      {mainBeforeMarketing.slice(0, 1).map(renderLink)}
+      {primaryItems.slice(0, 1).map(renderLink)}
 
       {prospectingFeature.data === true && (
         <NavLink
@@ -184,48 +193,53 @@ export function SidebarNavigation({
         </NavLink>
       )}
 
-      {mainBeforeMarketing.slice(1).map(renderLink)}
+      {primaryItems.slice(1, 4).map(renderLink)}
+      {primaryItems.slice(4).map(renderLink)}
 
-      {can("marketing.view") && (
-        <NavGroup
-          label="Marketing"
-          icon={Megaphone}
-          open={marketingOpen}
-          setOpen={setMarketingOpen}
-          active={pathname.startsWith("/marketing")}
-          collapsed={collapsed}
-        >
-          <NavLink
-            onClick={onNavigate}
-            to="/marketing"
-            className={linkClass}
-          >
-            Visão Geral / Marketing
-          </NavLink>
+      <NavGroup
+        label="Mais"
+        icon={Menu}
+        open={moreOpen}
+        setOpen={setMoreOpen}
+        active={
+          pathname.startsWith("/clientes") ||
+          pathname.startsWith("/financeiro") ||
+          pathname.startsWith("/marketing") ||
+          pathname.startsWith("/indique-e-ganhe")
+        }
+        collapsed={collapsed}
+      >
+        {secondaryItems.map(renderLink)}
 
-          <NavLink
-            onClick={onNavigate}
-            to="/marketing/diagnosticos"
-            className={linkClass}
-          >
-            <ClipboardCheck size={16} />
-            Diagnósticos
-          </NavLink>
+        {can("marketing.view") && (
+          <>
+            <NavLink onClick={onNavigate} to="/marketing" className={linkClass}>
+              <Megaphone size={16} />
+              Marketing
+            </NavLink>
 
-          {can("blog.view") && (
             <NavLink
               onClick={onNavigate}
-              to="/marketing/blog"
+              to="/marketing/diagnosticos"
               className={linkClass}
             >
-              <BookOpen size={16} />
-              Blog
+              <ClipboardCheck size={16} />
+              Diagnósticos
             </NavLink>
-          )}
-        </NavGroup>
-      )}
 
-      {mainAfterMarketing.map(renderLink)}
+            {can("blog.view") && (
+              <NavLink
+                onClick={onNavigate}
+                to="/marketing/blog"
+                className={linkClass}
+              >
+                <BookOpen size={16} />
+                Blog
+              </NavLink>
+            )}
+          </>
+        )}
+      </NavGroup>
 
       {isPlatformAdmin && (
         <NavGroup
