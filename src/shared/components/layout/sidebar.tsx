@@ -435,10 +435,10 @@ export function Sidebar({
       </div>
 
       <div
-        className={`min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4 [scrollbar-width:thin] ${
+        className={`min-h-0 flex-1 pb-4 ${
           collapsed
-            ? "overflow-x-visible px-3"
-            : "px-4"
+            ? "overflow-visible px-3"
+            : "overflow-y-auto overscroll-contain px-4 [scrollbar-width:thin]"
         }`}
       >
         <SidebarNavigation collapsed={collapsed} />
