@@ -38,7 +38,7 @@ import { NextActionStatus } from "./components/next-action-status";
 import { OpportunityStatusBadge } from "./components/opportunity-status-badge";
 import { PipelineStageManager } from "./components/pipeline-stage-manager";
 import { LeadImportDialog } from "./components/lead-import-dialog";
-import { isOpenStage, lastContactForOpportunity, nextActionForOpportunity, prioritizedPendingActions } from "./next-action";
+import { lastContactForOpportunity, nextActionForOpportunity } from "./next-action";
 import { useCrmActions, useCrmData } from "./hooks";
 import type { CompanyFormData } from "./schema";
 import type {
@@ -507,7 +507,6 @@ export function CrmPage() {
           </div>
         }
       />
-      <NextActionsOverview tasks={tasks} opportunities={visibleOpportunities} stages={visibleCrmStages} companies={companies} onOpen={setSelected}/>
       {requestedStageIds.length > 0 && (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/40 px-3 py-2">
           <p className="text-sm text-muted-foreground">
@@ -1024,20 +1023,6 @@ export function CrmPage() {
   );
 }
 
-function NextActionsOverview({tasks,opportunities,stages,companies,onOpen}:{tasks:Task[];opportunities:Opportunity[];stages:PipelineStage[];companies:Company[];onOpen:(opportunity:Opportunity)=>void}) {
-  const now=new Date();
-  const nextTasks = opportunities
-    .filter((opportunity) => isOpenStage(opportunity, stages))
-    .map((opportunity) => nextActionForOpportunity(opportunity, tasks))
-    .filter((task): task is Task => Boolean(task));
-  const pending=prioritizedPendingActions([...new Map(nextTasks.map((task) => [task.id, task])).values()],now);
-  const groups=[
-    {label:"Atrasados",items:pending.filter(task=>new Date(task.dueAt)<now)},
-    {label:"Hoje",items:pending.filter(task=>{const due=new Date(task.dueAt),end=new Date(now);end.setHours(24,0,0,0);return due>=now&&due<end})},
-    {label:"Próximos",items:pending.filter(task=>{const end=new Date(now);end.setHours(24,0,0,0);return new Date(task.dueAt)>=end})},
-  ];
-  return <section aria-label="PrÃ³ximas ações" className="grid gap-3 rounded-2xl border bg-card p-4 lg:grid-cols-3">{groups.map(group=><div key={group.label}><h2 className="text-sm font-semibold">{group.label} <span className="text-muted-foreground">({group.items.length})</span></h2><div className="mt-2 space-y-2">{group.items.slice(0,3).map(task=>{const opportunity=opportunities.find(item=>item.id===task.opportunityId);const company=companies.find(item=>item.id===opportunity?.companyId);return opportunity?<button key={task.id} onClick={()=>onOpen(opportunity)} className="block min-h-12 w-full rounded-xl bg-muted/60 px-3 py-2 text-left text-sm premium-focus"><b>{company?.fantasyName??opportunity.title}</b><span className="block text-muted-foreground">{task.title} · {formatDateTime(task.dueAt)}</span></button>:null})}{!group.items.length&&<p className="py-2 text-sm text-muted-foreground">Nenhuma ação.</p>}</div></div>)}</section>;
-}
 function FilterSelect({
   value,
   label,
