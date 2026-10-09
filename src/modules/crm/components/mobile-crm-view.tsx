@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
-import { MetricCard } from "@/shared/components/data-display/metric-card";
 import { PriorityBadge, TemperatureBadge } from "@/shared/components/data-display/status-badges";
 import { SearchInput } from "@/shared/components/forms/search-input";
 import { Modal } from "@/shared/components/overlays/modal";
@@ -45,22 +44,27 @@ export function MobileCrmView(props: Props) {
   const [filterSheet,setFilterSheet]=useState(false);
   const [sortSheet,setSortSheet]=useState(false);
   const [stageFilter,setStageFilter]=useState("all");
-  const clients=props.companies.filter(item=>item.lifecycleStage==="customer").length,terms=crmTerminology(props.businessMode),b2c=(props.businessMode==="b2c"||props.businessMode==="b2c_beauty");
-  return <div className="space-y-6 md:hidden">
-    <header><p className="text-[15px] font-medium text-muted-foreground">Gestão comercial</p><h1 className="mt-1 text-[2rem] font-bold leading-none tracking-[-.055em]">CRM</h1><p className="mt-2 text-base leading-6 text-muted-foreground">{b2c?"Leads, clientes e próximos passos.":"Empresas, oportunidades e próximos passos."}</p></header>
-    <section aria-label="Indicadores do CRM" className="-mx-4 flex min-[430px]:-mx-5 snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-4 min-[430px]:px-5 pb-2">
-      <MobileMetric label={terms.companies} value={props.companies.length} hint={b2c?"Pessoas no relacionamento comercial":"Contas no relacionamento comercial"}/>
-      <MobileMetric label="Clientes" value={clients} hint="Relacionamentos já convertidos"/>
-      <MobileMetric label="Oportunidades abertas" value={props.opportunities.filter(item=>item.status==="open").length} hint="Negociações em andamento"/>
-      <MobileMetric label="Follow-ups pendentes" value={props.tasks.filter(item=>item.status==="pending").length} hint="Ações que ainda precisam acontecer"/>
-    </section>
+  const terms=crmTerminology(props.businessMode),b2c=(props.businessMode==="b2c"||props.businessMode==="b2c_beauty");
+  return <div className="space-y-4 md:hidden">
+    <header className="pb-1">
+      <h1 className="text-[1.8rem] font-semibold leading-none tracking-[-.045em]">CRM</h1>
+      <p className="mt-2 text-sm text-muted-foreground">{b2c?"Leads e oportunidades em andamento.":"Empresas e oportunidades em andamento."}</p>
+    </header>
     <section className="space-y-3">
-      <div className="grid grid-cols-2 rounded-xl bg-muted p-1">
-        <Button variant={view==="kanban"?"default":"ghost"} onClick={()=>setView("kanban")}><Kanban size={18}/>Kanban</Button>
-        <Button variant={view==="list"?"default":"ghost"} onClick={()=>setView("list")}><List size={18}/>Lista</Button>
-      </div>
       <SearchInput value={props.query} onChange={event=>props.onQueryChange(event.target.value)} placeholder="Buscar lead ou contato…"/>
-      <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={()=>setFilterSheet(true)}><SlidersHorizontal size={18}/>Filtros{props.activeFilters>0&&` (${props.activeFilters})`}</Button><Button variant="outline" onClick={()=>setSortSheet(true)}><ArrowDownUp size={18}/>{sortLabel[props.sort]}</Button></div>
+      <div className="flex items-center gap-2">
+        <div className="inline-flex rounded-xl bg-muted p-1">
+          <Button size="sm" variant={view==="kanban"?"default":"ghost"} onClick={()=>setView("kanban")}><Kanban size={17}/>Kanban</Button>
+          <Button size="sm" variant={view==="list"?"default":"ghost"} onClick={()=>setView("list")}><List size={17}/>Lista</Button>
+        </div>
+        <Button className="ml-auto" size="sm" variant="outline" onClick={()=>setFilterSheet(true)}>
+          <SlidersHorizontal size={17}/>
+          Filtros{props.activeFilters>0&&` (${props.activeFilters})`}
+        </Button>
+        <Button size="sm" variant="ghost" aria-label="Ordenar CRM" onClick={()=>setSortSheet(true)}>
+          <ArrowDownUp size={17}/>
+        </Button>
+      </div>
     </section>
     {view==="kanban"?<MobileKanban {...props} stageFilter={stageFilter}/>:<MobileCompanyList {...props}/>} 
     <FilterSheet open={filterSheet} close={()=>setFilterSheet(false)} stageFilter={stageFilter} onStageFilter={setStageFilter} {...props}/>
