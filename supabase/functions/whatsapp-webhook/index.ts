@@ -1210,16 +1210,6 @@ async function scheduleAiFollowups(
   const behavior =
     agent.behavior_config ?? {};
 
-  const maxPerRound = Math.min(
-    2,
-    Math.max(
-      1,
-      Number(
-        behavior.followup_max_per_round ?? 2,
-      ),
-    ),
-  );
-
   const firstDelay = randomMinutes(
     behavior.followup_first_min_minutes,
     behavior.followup_first_max_minutes,
@@ -1227,76 +1217,46 @@ async function scheduleAiFollowups(
     180,
   );
 
-  const secondDelay = randomMinutes(
-    behavior.followup_second_min_minutes,
-    behavior.followup_second_max_minutes,
-    360,
-    480,
-  );
-
   const firstDue = new Date(
     new Date(sourceAiMessageAt).getTime() +
       firstDelay * 60_000,
   );
 
-  const rows = [
-    {
-      organization_id:
-        connection.organization_id,
-      agent_id: agent.id,
-      ai_conversation_id:
-        aiConversation.id,
-      whatsapp_conversation_id:
-        whatsappConversationId,
-      round_key: roundKey,
-      sequence: 1,
-      source_lead_message_at:
-        sourceLeadMessageAt,
-      source_ai_message_at:
-        sourceAiMessageAt,
-      due_at: firstDue.toISOString(),
-      status: "pending",
-      metadata: {
-        delay_minutes: firstDelay,
-      },
-    },
-  ];
-
-  if (maxPerRound >= 2) {
-    const secondDue = new Date(
-      firstDue.getTime() +
-        secondDelay * 60_000,
-    );
-
-    rows.push({
-      organization_id:
-        connection.organization_id,
-      agent_id: agent.id,
-      ai_conversation_id:
-        aiConversation.id,
-      whatsapp_conversation_id:
-        whatsappConversationId,
-      round_key: roundKey,
-      sequence: 2,
-      source_lead_message_at:
-        sourceLeadMessageAt,
-      source_ai_message_at:
-        sourceAiMessageAt,
-      due_at: secondDue.toISOString(),
-      status: "pending",
-      metadata: {
-        delay_minutes: secondDelay,
-      },
-    });
-  }
-
+  /*
+   * Agendamos somente o primeiro follow-up da rodada.
+   * O segundo é criado apenas depois que o primeiro for realmente enviado.
+   * Assim, se o worker atrasar ou ficar indisponível, dois follow-ups vencidos
+   * nunca são disparados em sequência.
+   */
   const { error } = await supabase
     .from("ai_agent_followups")
-    .upsert(rows, {
-      onConflict:
-        "ai_conversation_id,round_key,sequence",
-      ignoreDuplicates: true,
-    });
+    .upsert(
+      {
+        organization_id:
+          connection.organization_id,
+        agent_id: agent.id,
+        ai_conversation_id:
+          aiConversation.id,
+        whatsapp_conversation_id:
+          whatsappConversationId,
+        round_key: roundKey,
+        sequence: 1,
+        source_lead_message_at:
+          sourceLeadMessageAt,
+        source_ai_message_at:
+          sourceAiMessageAt,
+        due_at: firstDue.toISOString(),
+        status: "pending",
+        metadata: {
+          delay_minutes: firstDelay,
+        },
+      },
+      {
+        onConflict:
+          "ai_conversation_id,round_key,sequence",
+        ignoreDuplicates: true,
+      },
+    );
 
   if (
     error &&
