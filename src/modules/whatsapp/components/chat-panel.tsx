@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { ArrowLeft, Check, CheckCheck, FileText, Info, LoaderCircle, Mic, Paperclip, Reply, RotateCcw, Send, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -219,6 +219,42 @@ export function ChatPanel({
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recorderChunksRef = useRef<Blob[]>([]);
   const recorderStreamRef = useRef<MediaStream | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const displayedConversationRef = useRef<string | null>(null);
+  const lastRenderedMessageRef = useRef<string | null>(null);
+  const shouldFollowBottomRef = useRef(true);
+  const lastMessage = messages[messages.length - 1];
+  const lastMessageKey = lastMessage?.id ?? null;
+
+  useLayoutEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!conversation || !container) return;
+
+    const changedConversation = displayedConversationRef.current !== conversation.id;
+    if (changedConversation) {
+      displayedConversationRef.current = conversation.id;
+      lastRenderedMessageRef.current = null;
+      shouldFollowBottomRef.current = true;
+    }
+
+    if (loading) return;
+
+    const changedLastMessage = lastRenderedMessageRef.current !== lastMessageKey;
+    if (changedConversation || changedLastMessage || pendingMessage?.status === "sending") {
+      if (shouldFollowBottomRef.current) {
+        container.scrollTop = container.scrollHeight;
+      }
+      lastRenderedMessageRef.current = lastMessageKey;
+    }
+  }, [conversation?.id, loading, lastMessageKey, pendingMessage?.status]);
+
+  const trackMessageScroll = () => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    shouldFollowBottomRef.current =
+      container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+  };
+
 
   if (!conversation) {
     return (
@@ -415,7 +451,7 @@ export function ChatPanel({
         </button>
       </header>
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 md:p-6" aria-live="polite">
+      <div ref={messagesContainerRef} onScroll={trackMessageScroll} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 md:p-6" aria-live="polite">
         {loading ? (
           <p className="text-center text-sm text-muted-foreground">Carregando mensagens…</p>
         ) : messages.length === 0 && !pendingMessage ? (
