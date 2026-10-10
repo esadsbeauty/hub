@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ArrowLeft, Check, Info, LoaderCircle, RotateCcw, Send } from "lucide-react";
+import { useRef, useState } from "react";
+import { ArrowLeft, Check, FileText, Info, LoaderCircle, Mic, Paperclip, RotateCcw, Send, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { WhatsAppConversation, WhatsAppMessage } from "../types";
@@ -76,6 +76,30 @@ function MessageContent({
     );
   }
 
+  if (
+    message.messageType === "document" &&
+    message.mediaUrl
+  ) {
+    return (
+      <a
+        href={message.mediaUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="flex min-w-[220px] items-center gap-3 rounded-xl border border-current/15 px-3 py-2 text-sm"
+      >
+        <FileText size={20} className="shrink-0" />
+        <span className="min-w-0">
+          <b className="block truncate">
+            {message.mediaFileName || "Arquivo"}
+          </b>
+          <span className="text-xs opacity-70">
+            Abrir arquivo
+          </span>
+        </span>
+      </a>
+    );
+  }
+
   return (
     <p
       className={`whitespace-pre-wrap break-words text-sm ${
@@ -98,6 +122,7 @@ type Props = {
   onBack: () => void;
   onDetails: () => void;
   onSend: (text: string) => Promise<unknown>;
+  onSendMedia: (file: File) => Promise<unknown>;
 };
 
 type PendingMessage = {
@@ -114,10 +139,16 @@ export function ChatPanel({
   onBack,
   onDetails,
   onSend,
+  onSendMedia,
 }: Props) {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
   const [pendingMessage, setPendingMessage] = useState<PendingMessage | null>(null);
+  const [recording, setRecording] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recorderChunksRef = useRef<Blob[]>([]);
+  const recorderStreamRef = useRef<MediaStream | null>(null);
 
   if (!conversation) {
     return (
@@ -167,6 +198,112 @@ export function ChatPanel({
     }
 
     await sendText(pendingMessage.text);
+  };
+
+  const sendMediaFile = async (file?: File) => {
+    if (!file || sending || !canReply) return;
+
+    setError("");
+
+    try {
+      await onSendMedia(file);
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Não foi possível enviar o arquivo.",
+      );
+    }
+  };
+
+  const stopRecorderStream = () => {
+    recorderStreamRef.current?.getTracks().forEach((track) => track.stop());
+    recorderStreamRef.current = null;
+  };
+
+  const startRecording = async () => {
+    if (sending || !canReply || recording) return;
+
+    setError("");
+
+    try {
+      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+        throw new Error("Este navegador não permite gravar áudio por aqui.");
+      }
+
+      const compatibleMimeType = [
+        "audio/mp4",
+        "audio/ogg;codecs=opus",
+      ].find((type) => MediaRecorder.isTypeSupported(type));
+
+      if (!compatibleMimeType) {
+        throw new Error(
+          "Seu navegador não oferece um formato de gravação compatível com o WhatsApp. Use o botão de anexo para enviar um áudio MP3, M4A, AAC, AMR ou OGG.",
+        );
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recorderStreamRef.current = stream;
+      recorderChunksRef.current = [];
+
+      const recorder = new MediaRecorder(stream, {
+        mimeType: compatibleMimeType,
+      });
+
+      recorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recorderChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const chunks = recorderChunksRef.current;
+        recorderChunksRef.current = [];
+        stopRecorderStream();
+        recorderRef.current = null;
+        setRecording(false);
+
+        if (!chunks.length) return;
+
+        const mimeType = compatibleMimeType.split(";")[0];
+        const extension =
+          mimeType === "audio/mp4" ? "m4a" : "ogg";
+        const blob = new Blob(chunks, { type: mimeType });
+        const file = new File(
+          [blob],
+          `audio-${Date.now()}.${extension}`,
+          { type: mimeType },
+        );
+
+        void sendMediaFile(file);
+      };
+
+      recorder.onerror = () => {
+        stopRecorderStream();
+        recorderRef.current = null;
+        setRecording(false);
+        setError("Não foi possível concluir a gravação.");
+      };
+
+      recorder.start();
+      setRecording(true);
+    } catch (reason) {
+      stopRecorderStream();
+      setRecording(false);
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Não foi possível iniciar a gravação.",
+      );
+    }
+  };
+
+  const stopRecording = () => {
+    if (recorderRef.current?.state === "recording") {
+      recorderRef.current.stop();
+    }
   };
 
   return (
@@ -284,7 +421,61 @@ export function ChatPanel({
       </div>
 
       <footer className="border-t bg-card p-3 pb-[max(.75rem,env(safe-area-inset-bottom))] md:p-4">
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          accept="audio/*,image/jpeg,image/png,image/webp,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.currentTarget.value = "";
+            void sendMediaFile(file);
+          }}
+        />
+
+        {recording && (
+          <div className="mb-2 flex items-center gap-2 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-current" />
+            Gravando áudio…
+            <button
+              type="button"
+              className="ml-auto font-medium underline underline-offset-2"
+              onClick={stopRecording}
+            >
+              Parar e enviar
+            </button>
+          </div>
+        )}
+
         <div className="flex items-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            disabled={!canReply || sending || recording}
+            onClick={() => fileInputRef.current?.click()}
+            aria-label="Anexar arquivo ou áudio"
+            title="Anexar arquivo"
+          >
+            <Paperclip size={18} />
+          </Button>
+
+          <Button
+            type="button"
+            variant={recording ? "default" : "outline"}
+            size="icon"
+            disabled={!canReply || sending}
+            onClick={() =>
+              recording
+                ? stopRecording()
+                : void startRecording()
+            }
+            aria-label={recording ? "Parar gravação" : "Gravar áudio"}
+            title={recording ? "Parar e enviar" : "Gravar áudio"}
+          >
+            {recording ? <Square size={16} /> : <Mic size={18} />}
+          </Button>
+
           <Textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
