@@ -583,6 +583,361 @@ async function findOrCreateConversation(
   return existingConversation as Conversation;
 }
 
+const WHATSAPP_MEDIA_BUCKET = "whatsapp-media";
+const WHATSAPP_MEDIA_MAX_BYTES = 25 * 1024 * 1024;
+const WHATSAPP_MEDIA_TYPES = new Set([
+  "audio",
+  "image",
+  "sticker",
+]);
+
+type WhatsAppMediaDescriptor = {
+  mediaId: string;
+  mimeType: string | null;
+  fileName: string | null;
+  messageType: "audio" | "image" | "sticker";
+};
+
+function normalizeMediaMimeType(value: unknown) {
+  const mime = String(value ?? "")
+    .split(";")[0]
+    .trim()
+    .toLowerCase();
+
+  return mime || null;
+}
+
+function messageMediaDescriptor(
+  message: any,
+): WhatsAppMediaDescriptor | null {
+  const messageType = String(message?.type ?? "");
+
+  if (!WHATSAPP_MEDIA_TYPES.has(messageType)) {
+    return null;
+  }
+
+  const media = message?.[messageType];
+
+  if (!media?.id) {
+    return null;
+  }
+
+  return {
+    mediaId: String(media.id),
+    mimeType: normalizeMediaMimeType(media.mime_type),
+    fileName:
+      typeof media.filename === "string" && media.filename.trim()
+        ? media.filename.trim()
+        : null,
+    messageType: messageType as WhatsAppMediaDescriptor["messageType"],
+  };
+}
+
+function extensionForMedia(
+  mimeType: string | null,
+  messageType: WhatsAppMediaDescriptor["messageType"],
+) {
+  const extensions: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "audio/ogg": "ogg",
+    "audio/mpeg": "mp3",
+    "audio/mp4": "m4a",
+    "audio/aac": "aac",
+    "audio/amr": "amr",
+    "audio/opus": "opus",
+  };
+
+  if (mimeType && extensions[mimeType]) {
+    return extensions[mimeType];
+  }
+
+  if (messageType === "sticker") {
+    return "webp";
+  }
+
+  if (messageType === "audio") {
+    return "ogg";
+  }
+
+  return "jpg";
+}
+
+function safeStorageSegment(value: string) {
+  return value
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .slice(0, 180);
+}
+
+async function whatsappAccessToken(
+  connection: Connection,
+) {
+  const secretResult = await supabase
+    .from("whatsapp_connection_secrets")
+    .select("access_token,token_expires_at")
+    .eq("connection_id", connection.id)
+    .maybeSingle();
+
+  if (secretResult.error) {
+    console.error(
+      "Failed to load WhatsApp token for media",
+      {
+        connectionId: connection.id,
+        organizationId: connection.organization_id,
+        code: secretResult.error.code,
+      },
+    );
+  }
+
+  const token =
+    secretResult.data?.access_token ??
+    Deno.env.get("WHATSAPP_ACCESS_TOKEN") ??
+    null;
+
+  if (!token) {
+    return null;
+  }
+
+  const tokenExpiresAt =
+    secretResult.data?.token_expires_at ?? null;
+
+  if (
+    tokenExpiresAt &&
+    new Date(tokenExpiresAt).getTime() <= Date.now()
+  ) {
+    console.error(
+      "WhatsApp media skipped: token expired",
+      {
+        connectionId: connection.id,
+        organizationId: connection.organization_id,
+      },
+    );
+    return null;
+  }
+
+  return token;
+}
+
+async function persistWhatsAppMedia(
+  connection: Connection,
+  conversationId: string,
+  externalMessageId: string,
+  descriptor: WhatsAppMediaDescriptor,
+) {
+  const accessToken = await whatsappAccessToken(connection);
+
+  if (!accessToken) {
+    console.error(
+      "WhatsApp media skipped: access token missing",
+      {
+        organizationId: connection.organization_id,
+        conversationId,
+        externalMessageId,
+      },
+    );
+    return;
+  }
+
+  let mediaInfoResponse: Response;
+
+  try {
+    mediaInfoResponse = await fetch(
+      `https://graph.facebook.com/v26.0/${encodeURIComponent(
+        descriptor.mediaId,
+      )}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+    );
+  } catch (error) {
+    console.error(
+      "WhatsApp media metadata request failed",
+      {
+        organizationId: connection.organization_id,
+        conversationId,
+        externalMessageId,
+        error:
+          error instanceof Error
+            ? error.message
+            : "network_error",
+      },
+    );
+    return;
+  }
+
+  const mediaInfo = await mediaInfoResponse
+    .json()
+    .catch(() => ({})) as {
+      url?: string;
+      mime_type?: string;
+      file_size?: number | string;
+    };
+
+  if (!mediaInfoResponse.ok || !mediaInfo.url) {
+    console.error(
+      "Meta rejected WhatsApp media metadata request",
+      {
+        organizationId: connection.organization_id,
+        conversationId,
+        externalMessageId,
+        status: mediaInfoResponse.status,
+      },
+    );
+    return;
+  }
+
+  const reportedSize = Number(mediaInfo.file_size ?? 0);
+
+  if (
+    Number.isFinite(reportedSize) &&
+    reportedSize > WHATSAPP_MEDIA_MAX_BYTES
+  ) {
+    console.warn(
+      "WhatsApp media skipped: file is larger than storage limit",
+      {
+        organizationId: connection.organization_id,
+        conversationId,
+        externalMessageId,
+        reportedSize,
+      },
+    );
+    return;
+  }
+
+  let mediaResponse: Response;
+
+  try {
+    mediaResponse = await fetch(mediaInfo.url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "WhatsApp media download failed",
+      {
+        organizationId: connection.organization_id,
+        conversationId,
+        externalMessageId,
+        error:
+          error instanceof Error
+            ? error.message
+            : "network_error",
+      },
+    );
+    return;
+  }
+
+  if (!mediaResponse.ok) {
+    console.error(
+      "WhatsApp media download returned non-2xx",
+      {
+        organizationId: connection.organization_id,
+        conversationId,
+        externalMessageId,
+        status: mediaResponse.status,
+      },
+    );
+    return;
+  }
+
+  const bytes = await mediaResponse.arrayBuffer();
+
+  if (bytes.byteLength > WHATSAPP_MEDIA_MAX_BYTES) {
+    console.warn(
+      "WhatsApp media skipped after download: file is larger than storage limit",
+      {
+        organizationId: connection.organization_id,
+        conversationId,
+        externalMessageId,
+        size: bytes.byteLength,
+      },
+    );
+    return;
+  }
+
+  const mimeType =
+    normalizeMediaMimeType(
+      mediaInfo.mime_type ??
+      mediaResponse.headers.get("content-type") ??
+      descriptor.mimeType,
+    ) ??
+    descriptor.mimeType ??
+    (descriptor.messageType === "sticker"
+      ? "image/webp"
+      : descriptor.messageType === "audio"
+        ? "audio/ogg"
+        : "image/jpeg");
+
+  const extension = extensionForMedia(
+    mimeType,
+    descriptor.messageType,
+  );
+
+  const storagePath = [
+    connection.organization_id,
+    conversationId,
+    `${safeStorageSegment(externalMessageId)}.${extension}`,
+  ].join("/");
+
+  const upload = await supabase.storage
+    .from(WHATSAPP_MEDIA_BUCKET)
+    .upload(storagePath, bytes, {
+      contentType: mimeType,
+      upsert: true,
+    });
+
+  if (upload.error) {
+    console.error(
+      "Failed to store WhatsApp media",
+      {
+        organizationId: connection.organization_id,
+        conversationId,
+        externalMessageId,
+        message: upload.error.message,
+      },
+    );
+    return;
+  }
+
+  const fileName =
+    descriptor.fileName ??
+    `${descriptor.messageType}.${extension}`;
+
+  const update = await supabase
+    .from("whatsapp_messages")
+    .update({
+      media_id: descriptor.mediaId,
+      media_path: storagePath,
+      media_mime_type: mimeType,
+      media_file_name: fileName,
+      media_size_bytes: bytes.byteLength,
+    })
+    .eq(
+      "organization_id",
+      connection.organization_id,
+    )
+    .eq(
+      "external_message_id",
+      externalMessageId,
+    );
+
+  if (update.error) {
+    console.error(
+      "Failed to link stored WhatsApp media to message",
+      {
+        organizationId: connection.organization_id,
+        conversationId,
+        externalMessageId,
+        code: update.error.code,
+      },
+    );
+  }
+}
+
 async function saveMessage(
   connection: Connection,
   conversationId: string,
@@ -600,6 +955,9 @@ async function saveMessage(
 
   const messageTimestamp =
     timestampToIso(message?.timestamp);
+
+  const mediaDescriptor =
+    messageMediaDescriptor(message);
 
   const {
     error: messageInsertError,
@@ -621,6 +979,12 @@ async function saveMessage(
         messageTimestamp,
       raw_payload:
         message,
+      media_id:
+        mediaDescriptor?.mediaId ?? null,
+      media_mime_type:
+        mediaDescriptor?.mimeType ?? null,
+      media_file_name:
+        mediaDescriptor?.fileName ?? null,
     });
 
   if (messageInsertError) {
@@ -648,6 +1012,15 @@ async function saveMessage(
     );
 
     return false;
+  }
+
+  if (mediaDescriptor) {
+    await persistWhatsAppMedia(
+      connection,
+      conversationId,
+      externalMessageId,
+      mediaDescriptor,
+    );
   }
 
   return true;
