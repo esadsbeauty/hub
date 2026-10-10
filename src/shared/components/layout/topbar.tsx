@@ -341,7 +341,7 @@ function NotificationsBell({
                 Notificações
               </p>
               <p className="text-xs text-muted-foreground">
-                Atendimento humano
+                Leads novos e atendimento comercial
               </p>
             </div>
 
@@ -352,11 +352,11 @@ function NotificationsBell({
             )}
           </div>
 
-          {ordered.length === 0 ? (
+          {ordered.length === 0 && growthAlerts.length === 0 ? (
             <div className="rounded-xl bg-muted/40 px-4 py-6 text-center text-sm text-muted-foreground">
-              Nenhum lead aguardando atendimento humano.
+              Nenhuma notificação no momento.
             </div>
-          ) : (
+          ) : ordered.length > 0 ? (
             <div className="space-y-2">
               {ordered.map(
                 (alert) => (
