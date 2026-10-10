@@ -235,3 +235,47 @@ export function useSendWhatsAppMessage(
     },
   });
 }
+
+
+export function useSendWhatsAppMedia(
+  conversationId?: string,
+) {
+  const { organizationId } = useAppState();
+  const cache = useQueryClient();
+
+  return useMutation({
+    mutationFn: (file: File) => {
+      if (!conversationId) {
+        throw new Error(
+          "Conversa não selecionada.",
+        );
+      }
+
+      return whatsappRepository.sendMedia({
+        organizationId,
+        conversationId,
+        file,
+      });
+    },
+
+    onSuccess: async () => {
+      await Promise.all([
+        cache.invalidateQueries({
+          queryKey: whatsappKeys.inbox(
+            organizationId,
+          ),
+        }),
+
+        conversationId
+          ? cache.invalidateQueries({
+              queryKey:
+                whatsappKeys.messages(
+                  organizationId,
+                  conversationId,
+                ),
+            })
+          : Promise.resolve(),
+      ]);
+    },
+  });
+}
