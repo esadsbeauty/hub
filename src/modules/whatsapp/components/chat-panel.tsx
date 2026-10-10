@@ -498,19 +498,17 @@ export function ChatPanel({
 
                     <MessageContent message={message} />
 
-                    <div className="mt-1 flex items-center justify-end gap-2 text-[10px] opacity-60">
+                    <div className="mt-1 flex items-center justify-end gap-1.5 text-[10px] opacity-65">
                       <button
                         type="button"
                         onClick={() => setReplyingTo(message)}
-                        className="inline-flex items-center gap-1 rounded px-1 py-0.5 opacity-0 transition-opacity hover:bg-black/5 group-hover:opacity-100 focus:opacity-100"
+                        className="inline-flex items-center gap-1 rounded px-1 py-0.5 opacity-70 transition-opacity hover:bg-black/5 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100"
                         aria-label="Responder esta mensagem"
                         title="Responder"
                       >
                         <Reply size={11} />
-                        Responder
+                        <span className="sr-only md:not-sr-only">Responder</span>
                       </button>
-
-                      <span>{message.messageType}</span>
 
                       <time>
                         {new Date(message.messageTimestamp || message.createdAt).toLocaleTimeString(
@@ -656,7 +654,7 @@ export function ChatPanel({
           <Button
             type="button"
             variant={recording ? "default" : "outline"}
-            size="sm" className="h-12 w-12 px-0 md:h-11 md:w-11 md:px-0"
+            size="sm" className="h-10 w-10 shrink-0 px-0 md:h-11 md:w-11 md:px-0"
             disabled={!canReply || sending}
             onClick={() =>
               recording
