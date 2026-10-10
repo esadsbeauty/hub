@@ -27,6 +27,7 @@ type Input = {
   mediaPath?: string;
   mediaMimeType?: string;
   mediaFileName?: string;
+  replyToExternalMessageId?: string;
 };
 
 type Authorization = {
@@ -181,6 +182,9 @@ Deno.serve(async (request) => {
 
   const mediaFileName =
     body.mediaFileName?.trim() ?? "";
+
+  const replyToExternalMessageId =
+    body.replyToExternalMessageId?.trim() ?? "";
 
   const hasText = Boolean(text);
   const hasMedia = Boolean(mediaPath);
@@ -557,6 +561,14 @@ Deno.serve(async (request) => {
             messaging_product: "whatsapp",
             recipient_type: "individual",
             to: conversation.wa_id,
+            ...(replyToExternalMessageId
+              ? {
+                  context: {
+                    message_id:
+                      replyToExternalMessageId,
+                  },
+                }
+              : {}),
             type: outboundMessageType,
             [outboundMessageType]:
               mediaPayload,
@@ -580,6 +592,14 @@ Deno.serve(async (request) => {
             messaging_product: "whatsapp",
             recipient_type: "individual",
             to: conversation.wa_id,
+            ...(replyToExternalMessageId
+              ? {
+                  context: {
+                    message_id:
+                      replyToExternalMessageId,
+                  },
+                }
+              : {}),
             type: "text",
             text: {
               preview_url: false,
@@ -705,6 +725,9 @@ Deno.serve(async (request) => {
           hasMedia
             ? persistedMediaSize
             : null,
+        reply_to_external_message_id:
+          replyToExternalMessageId || null,
+        delivery_status: "sent",
         raw_payload: {
           messages: [
             {
