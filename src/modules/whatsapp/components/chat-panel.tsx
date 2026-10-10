@@ -422,7 +422,7 @@ export function ChatPanel({
 
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
-      <header className="flex min-h-16 items-center gap-3 border-b bg-card px-3 md:px-5">
+      <header className="flex min-h-14 shrink-0 items-center gap-2 border-b bg-card px-2 py-1 md:min-h-16 md:gap-3 md:px-5">
         <button
           onClick={onBack}
           className="premium-focus grid h-11 w-11 place-items-center rounded-xl md:hidden"
@@ -451,7 +451,7 @@ export function ChatPanel({
         </button>
       </header>
 
-      <div ref={messagesContainerRef} onScroll={trackMessageScroll} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 md:p-6" aria-live="polite">
+      <div ref={messagesContainerRef} onScroll={trackMessageScroll} className="min-h-0 flex-1 space-y-2 overflow-y-auto px-3 py-3 overscroll-contain md:space-y-3 md:p-6" aria-live="polite">
         {loading ? (
           <p className="text-center text-sm text-muted-foreground">Carregando mensagens…</p>
         ) : messages.length === 0 && !pendingMessage ? (
@@ -477,7 +477,7 @@ export function ChatPanel({
                   className={`group flex ${message.direction === "outbound" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`relative max-w-[85%] rounded-2xl px-4 py-3 shadow-sm md:max-w-[70%] ${
+                    className={`relative max-w-[88%] rounded-2xl px-3 py-2 shadow-sm md:max-w-[70%] md:px-4 md:py-3 ${
                       message.direction === "outbound"
                         ? "rounded-br-md bg-primary text-primary-foreground"
                         : "rounded-bl-md border bg-card"
@@ -589,7 +589,7 @@ export function ChatPanel({
         )}
       </div>
 
-      <footer className="border-t bg-card p-3 pb-[max(.75rem,env(safe-area-inset-bottom))] md:p-4">
+      <footer className="shrink-0 border-t bg-card p-2 pb-[max(.5rem,env(safe-area-inset-bottom))] md:p-4">
         <input
           ref={fileInputRef}
           type="file"
@@ -644,7 +644,7 @@ export function ChatPanel({
           <Button
             type="button"
             variant="outline"
-            size="sm" className="h-12 w-12 px-0 md:h-11 md:w-11 md:px-0"
+            size="sm" className="h-10 w-10 shrink-0 px-0 md:h-11 md:w-11 md:px-0"
             disabled={!canReply || sending || recording}
             onClick={() => fileInputRef.current?.click()}
             aria-label="Anexar arquivo ou áudio"
@@ -690,7 +690,8 @@ export function ChatPanel({
                 ? "Digite uma mensagem"
                 : "Seu perfil não possui permissão para responder."
             }
-            className="max-h-36 min-h-12 resize-none"
+            rows={1}
+            className="max-h-32 min-h-10 flex-1 resize-none py-2.5 md:min-h-12"
           />
 
           <Button
@@ -713,7 +714,7 @@ export function ChatPanel({
           </p>
         )}
 
-        <p className="mt-2 text-xs text-muted-foreground">
+        <p className="mt-2 hidden text-xs text-muted-foreground md:block">
           Enter envia · Shift+Enter quebra a linha. Mensagens livres dependem da janela de atendimento do WhatsApp.
         </p>
       </footer>
