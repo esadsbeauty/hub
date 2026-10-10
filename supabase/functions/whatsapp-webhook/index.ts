@@ -591,13 +591,15 @@ const WHATSAPP_MEDIA_TYPES = new Set([
   "audio",
   "image",
   "sticker",
+  "video",
+  "document",
 ]);
 
 type WhatsAppMediaDescriptor = {
   mediaId: string;
   mimeType: string | null;
   fileName: string | null;
-  messageType: "audio" | "image" | "sticker";
+  messageType: "audio" | "image" | "sticker" | "video" | "document";
 };
 
 function normalizeMediaMimeType(value: unknown) {
@@ -649,6 +651,20 @@ function extensionForMedia(
     "audio/aac": "aac",
     "audio/amr": "amr",
     "audio/opus": "opus",
+    "video/mp4": "mp4",
+    "video/3gpp": "3gp",
+    "video/quicktime": "mov",
+    "video/webm": "webm",
+    "application/pdf": "pdf",
+    "application/msword": "doc",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+    "application/vnd.ms-excel": "xls",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+    "application/vnd.ms-powerpoint": "ppt",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+    "text/plain": "txt",
+    "text/csv": "csv",
+    "application/zip": "zip",
   };
 
   if (mimeType && extensions[mimeType]) {
@@ -661,6 +677,14 @@ function extensionForMedia(
 
   if (messageType === "audio") {
     return "ogg";
+  }
+
+  if (messageType === "video") {
+    return "mp4";
+  }
+
+  if (messageType === "document") {
+    return "bin";
   }
 
   return "jpg";
@@ -872,7 +896,11 @@ async function persistWhatsAppMedia(
       ? "image/webp"
       : descriptor.messageType === "audio"
         ? "audio/ogg"
-        : "image/jpeg");
+        : descriptor.messageType === "video"
+          ? "video/mp4"
+          : descriptor.messageType === "document"
+            ? "application/octet-stream"
+            : "image/jpeg");
 
   const extension = extensionForMedia(
     mimeType,
@@ -1279,6 +1307,14 @@ async function saveMessage(
         mediaDescriptor?.mimeType ?? null,
       media_file_name:
         mediaDescriptor?.fileName ?? null,
+      reply_to_external_message_id:
+        typeof message?.context?.id === "string"
+          ? message.context.id
+          : null,
+      delivery_status:
+        direction === "outbound"
+          ? "sent"
+          : null,
     });
 
   if (messageInsertError) {
@@ -2765,6 +2801,71 @@ async function processAiAgentMessage(
   }
 }
 
+async function processMessageStatuses(
+  connection: Connection,
+  statuses: any[],
+) {
+  for (const statusItem of statuses) {
+    const externalMessageId =
+      String(statusItem?.id ?? "").trim();
+
+    const status =
+      String(statusItem?.status ?? "").trim();
+
+    if (
+      !externalMessageId ||
+      !["sent", "delivered", "read", "failed"].includes(status)
+    ) {
+      continue;
+    }
+
+    const occurredAt =
+      timestampToIso(statusItem?.timestamp);
+
+    const payload: Record<string, unknown> = {
+      delivery_status: status,
+    };
+
+    if (status === "delivered") {
+      payload.delivered_at = occurredAt;
+    }
+
+    if (status === "read") {
+      payload.read_at = occurredAt;
+      payload.delivered_at = occurredAt;
+    }
+
+    if (status === "failed") {
+      payload.failed_at = occurredAt;
+    }
+
+    const { error } = await supabase
+      .from("whatsapp_messages")
+      .update(payload)
+      .eq(
+        "organization_id",
+        connection.organization_id,
+      )
+      .eq(
+        "external_message_id",
+        externalMessageId,
+      );
+
+    if (error) {
+      console.error(
+        "Failed to update WhatsApp delivery status",
+        {
+          organizationId:
+            connection.organization_id,
+          externalMessageId,
+          status,
+          code: error.code,
+        },
+      );
+    }
+  }
+}
+
 async function processStandardMessages(
   value: Record<string, any>,
 ) {
@@ -2783,6 +2884,15 @@ async function processStandardMessages(
 
   if (!connection) {
     return;
+  }
+
+  const statuses = value?.statuses ?? [];
+
+  if (Array.isArray(statuses) && statuses.length > 0) {
+    await processMessageStatuses(
+      connection,
+      statuses,
+    );
   }
 
   const messages = value?.messages ?? [];
