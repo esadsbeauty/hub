@@ -285,6 +285,113 @@ export const whatsappRepository = {
     }
   },
 
+  async sendMedia(input: {
+    organizationId: string;
+    conversationId: string;
+    file: File;
+  }): Promise<{
+    messageId?: string;
+    externalMessageId: string;
+  }> {
+    if (isLocalMode) {
+      throw new Error("O envio real exige conexão com o Supabase.");
+    }
+
+    if (input.file.size > 25 * 1024 * 1024) {
+      throw new Error("O arquivo deve ter no máximo 25 MB.");
+    }
+
+    const safeName =
+      input.file.name
+        .normalize("NFKD")
+        .replace(/[^a-zA-Z0-9._-]/g, "_")
+        .slice(0, 120) || "arquivo";
+
+    const mediaPath = [
+      input.organizationId,
+      input.conversationId,
+      "outgoing",
+      `${crypto.randomUUID()}-${safeName}`,
+    ].join("/");
+
+    const client = configured();
+
+    const uploaded = await client.storage
+      .from("whatsapp-media")
+      .upload(mediaPath, input.file, {
+        contentType:
+          input.file.type || "application/octet-stream",
+        upsert: false,
+      });
+
+    if (uploaded.error) {
+      throw new Error(
+        uploaded.error.message ||
+        "Não foi possível preparar o arquivo para envio.",
+      );
+    }
+
+    try {
+      const result = await client.functions.invoke(
+        "whatsapp-send-message",
+        {
+          body: {
+            organizationId: input.organizationId,
+            conversationId: input.conversationId,
+            mediaPath,
+            mediaMimeType:
+              input.file.type || "application/octet-stream",
+            mediaFileName: input.file.name || safeName,
+          },
+        },
+      );
+
+      if (result.error) {
+        let message =
+          "Não foi possível enviar o arquivo pelo WhatsApp.";
+
+        const context = result.error.context as unknown;
+
+        if (context && typeof context === "object") {
+          const candidate = context as {
+            json?: () => Promise<unknown>;
+            message?: unknown;
+          };
+
+          if (typeof candidate.json === "function") {
+            try {
+              const payload = (await candidate.json()) as {
+                message?: unknown;
+              };
+
+              if (
+                typeof payload?.message === "string" &&
+                payload.message.trim()
+              ) {
+                message = payload.message;
+              }
+            } catch {
+              // Mantém a mensagem padrão.
+            }
+          }
+        }
+
+        throw new Error(message);
+      }
+
+      return result.data as {
+        messageId?: string;
+        externalMessageId: string;
+      };
+    } catch (error) {
+      await client.storage
+        .from("whatsapp-media")
+        .remove([mediaPath]);
+
+      throw error;
+    }
+  },
+
   async sendMessage(input: {
     organizationId: string;
     conversationId: string;
