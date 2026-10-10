@@ -6,7 +6,7 @@ import{useAppState}from"@/shared/state/app-state-context";
 import{ChatPanel}from"../components/chat-panel";
 import{ConversationList}from"../components/conversation-list";
 import{CrmPanel}from"../components/crm-panel";
-import{useSendWhatsAppMessage,useWhatsAppInbox,useWhatsAppMessages,useWhatsAppRealtime}from"../hooks/use-whatsapp-inbox";
+import{useSendWhatsAppMedia,useSendWhatsAppMessage,useWhatsAppInbox,useWhatsAppMessages,useWhatsAppRealtime}from"../hooks/use-whatsapp-inbox";
 import type{WhatsAppConversation}from"../types";
 
 const digits=(value?:string)=>(value??"").replace(/\D/g,"");
@@ -63,6 +63,7 @@ export function WhatsAppInboxPage(){
   const selected=inbox.data?.conversations.find(item=>item.id===selectedId);
   const messages=useWhatsAppMessages(selected?.id);
   const send=useSendWhatsAppMessage(selected?.id);
+  const sendMedia=useSendWhatsAppMedia(selected?.id);
   const canReply=isPlatformAdmin||["owner","admin","manager","sales","operations","marketing"].includes(role);
 
   useWhatsAppRealtime();
@@ -168,7 +169,7 @@ export function WhatsAppInboxPage(){
       </div>
 
       <div className={!selected?"hidden min-h-0 min-w-0 overflow-hidden md:block":"min-h-0 min-w-0 overflow-hidden"}>
-        <ChatPanel conversation={selected} messages={messages.data??[]} loading={messages.isLoading} sending={send.isPending} canReply={canReply} onSend={text=>send.mutateAsync(text)} onBack={()=>setSelectedId(undefined)} onDetails={()=>setDetails(true)}/>
+        <ChatPanel conversation={selected} messages={messages.data??[]} loading={messages.isLoading} sending={send.isPending||sendMedia.isPending} canReply={canReply} onSend={text=>send.mutateAsync(text)} onSendMedia={file=>sendMedia.mutateAsync(file)} onBack={()=>setSelectedId(undefined)} onDetails={()=>setDetails(true)}/>
       </div>
 
       <CrmPanel conversation={selected}/>
