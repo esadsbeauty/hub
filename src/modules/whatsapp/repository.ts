@@ -47,6 +47,11 @@ const mapMessage = (row: Row): WhatsAppMessage => ({
       : Number(row.media_size_bytes),
   mediaTranscript: text(row.media_transcript),
   mediaTranscriptionStatus: text(row.media_transcription_status),
+  deliveryStatus: text(row.delivery_status),
+  deliveredAt: text(row.delivered_at),
+  readAt: text(row.read_at),
+  failedAt: text(row.failed_at),
+  replyToExternalMessageId: text(row.reply_to_external_message_id),
   createdAt: String(row.created_at),
 });
 
@@ -176,7 +181,7 @@ export const whatsappRepository = {
     const result = await configured()
       .from("whatsapp_messages")
       .select(
-        "id,organization_id,conversation_id,external_message_id,direction,message_type,text_body,message_timestamp,media_id,media_path,media_mime_type,media_file_name,media_size_bytes,media_transcript,media_transcription_status,created_at",
+        "id,organization_id,conversation_id,external_message_id,direction,message_type,text_body,message_timestamp,media_id,media_path,media_mime_type,media_file_name,media_size_bytes,media_transcript,media_transcription_status,delivery_status,delivered_at,read_at,failed_at,reply_to_external_message_id,created_at",
       )
       .eq("organization_id", organizationId)
       .eq("conversation_id", conversationId)
@@ -291,6 +296,7 @@ export const whatsappRepository = {
     organizationId: string;
     conversationId: string;
     file: File;
+    replyToExternalMessageId?: string;
   }): Promise<{
     messageId?: string;
     externalMessageId: string;
@@ -344,6 +350,8 @@ export const whatsappRepository = {
             mediaMimeType:
               input.file.type || "application/octet-stream",
             mediaFileName: input.file.name || safeName,
+            replyToExternalMessageId:
+              input.replyToExternalMessageId,
           },
         },
       );
@@ -398,6 +406,7 @@ export const whatsappRepository = {
     organizationId: string;
     conversationId: string;
     text: string;
+    replyToExternalMessageId?: string;
   }): Promise<{
     messageId?: string;
     externalMessageId: string;
