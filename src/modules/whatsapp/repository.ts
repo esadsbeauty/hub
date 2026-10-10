@@ -220,12 +220,13 @@ export const whatsappRepository = {
       return messages;
     }
 
-    const signedByPath = new Map(
-      (signed.data ?? []).map((item) => [
-        item.path,
-        item.signedUrl,
-      ]),
-    );
+    const signedByPath = new Map<string, string>();
+
+    for (const item of signed.data ?? []) {
+      if (item.path && item.signedUrl) {
+        signedByPath.set(item.path, item.signedUrl);
+      }
+    }
 
     return messages.map((message) => ({
       ...message,
