@@ -36,6 +36,24 @@ function MessageContent({
         >
           Seu navegador não suporta reprodução de áudio.
         </audio>
+
+        {message.mediaTranscript && (
+          <details className="mt-2 max-w-[320px] text-xs">
+            <summary className="cursor-pointer font-medium opacity-80">
+              Ver transcrição
+            </summary>
+            <p className="mt-1 whitespace-pre-wrap break-words opacity-80">
+              {message.mediaTranscript}
+            </p>
+          </details>
+        )}
+
+        {!message.mediaTranscript &&
+          message.mediaTranscriptionStatus === "processing" && (
+            <p className="mt-2 text-xs opacity-60">
+              Transcrevendo áudio…
+            </p>
+          )}
       </div>
     );
   }
