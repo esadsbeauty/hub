@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Edit, NotebookPen, Plus, Trash2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,7 @@ export function CompanyCentralPage() {
     | null
   >(null);
   const [note, setNote] = useState("");
+  useEffect(() => { if (searchParams.get("schedule") === "1") setModal("meeting"); }, [searchParams]);
   const [selected, setSelected] = useState<Opportunity>();
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity>();
   const [editingContact, setEditingContact] = useState<CompanyContact>();
