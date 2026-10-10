@@ -404,7 +404,7 @@ function NotificationsBell({
                 ),
               )}
             </div>
-          )}
+          ) : null}
 
           {growthAlerts.length > 0 && (
             <div className="mt-3 border-t border-border/60 pt-3">
