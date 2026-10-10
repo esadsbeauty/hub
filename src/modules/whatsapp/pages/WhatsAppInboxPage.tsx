@@ -144,7 +144,7 @@ export function WhatsAppInboxPage(){
 
   if(!inbox.data?.connection)return<div className="grid min-h-[60dvh] place-items-center text-center"><div className="max-w-md"><span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-champagne-soft text-champagne-dark"><MessageCircle/></span><h1 className="mt-5 text-2xl font-semibold">WhatsApp ainda não conectado</h1><p className="mt-3 leading-7 text-muted-foreground">Conecte uma conta do WhatsApp Business para receber conversas diretamente no CRM.</p><Button className="mt-6" disabled>Configurar WhatsApp</Button><p className="mt-2 text-xs text-muted-foreground">Configuração disponível em uma próxima etapa.</p></div></div>;
 
-  return<div className="-mx-4 -my-6 min-[430px]:-mx-5 md:-mx-6 md:-my-8 lg:-mx-8">
+  return<div className={selected ? "max-md:m-0 md:-mx-6 md:-my-8 lg:-mx-8" : "-mx-4 -my-6 min-[430px]:-mx-5 md:-mx-6 md:-my-8 lg:-mx-8"}>
     <div className="grid h-[calc(100dvh-4rem)] max-h-[calc(100dvh-4rem)] max-md:h-[100dvh] max-md:max-h-[100dvh] min-h-0 min-w-0 overflow-hidden border-y bg-card md:grid-cols-[20rem_minmax(0,1fr)] xl:grid-cols-[20rem_minmax(0,1fr)_19rem]">
       <div className={`min-h-0 min-w-0 overflow-hidden ${selected?"hidden md:flex":"flex"}`}>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
