@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ArrowLeft, Check, FileText, Info, LoaderCircle, Mic, Paperclip, RotateCcw, Send, Square } from "lucide-react";
+import { ArrowLeft, Check, CheckCheck, FileText, Info, LoaderCircle, Mic, Paperclip, Reply, RotateCcw, Send, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import type { WhatsAppConversation, WhatsAppMessage } from "../types";
@@ -95,6 +95,22 @@ function MessageContent({
   }
 
   if (
+    message.messageType === "video" &&
+    message.mediaUrl
+  ) {
+    return (
+      <video
+        controls
+        preload="metadata"
+        src={message.mediaUrl}
+        className="max-h-80 max-w-full rounded-xl"
+      >
+        Seu navegador não suporta reprodução de vídeo.
+      </video>
+    );
+  }
+
+  if (
     message.messageType === "document" &&
     message.mediaUrl
   ) {
@@ -131,6 +147,35 @@ function MessageContent({
   );
 }
 
+const messagePreview = (message: WhatsAppMessage) => {
+  if (message.textBody?.trim()) {
+    return message.textBody.trim();
+  }
+
+  if (message.mediaTranscript?.trim()) {
+    return message.mediaTranscript.trim();
+  }
+
+  return unsupported[message.messageType] ?? "Mensagem";
+};
+
+const deliveryLabel = (message: WhatsAppMessage) => {
+  if (message.direction !== "outbound") {
+    return null;
+  }
+
+  switch (message.deliveryStatus) {
+    case "read":
+      return "Lida";
+    case "delivered":
+      return "Entregue";
+    case "failed":
+      return "Falhou";
+    default:
+      return "Enviada";
+  }
+};
+
 type Props = {
   conversation?: WhatsAppConversation;
   messages: WhatsAppMessage[];
@@ -139,8 +184,14 @@ type Props = {
   canReply: boolean;
   onBack: () => void;
   onDetails: () => void;
-  onSend: (text: string) => Promise<unknown>;
-  onSendMedia: (file: File) => Promise<unknown>;
+  onSend: (
+    text: string,
+    replyToExternalMessageId?: string,
+  ) => Promise<unknown>;
+  onSendMedia: (
+    file: File,
+    replyToExternalMessageId?: string,
+  ) => Promise<unknown>;
 };
 
 type PendingMessage = {
@@ -163,6 +214,7 @@ export function ChatPanel({
   const [error, setError] = useState("");
   const [pendingMessage, setPendingMessage] = useState<PendingMessage | null>(null);
   const [recording, setRecording] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<WhatsAppMessage | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recorderChunksRef = useRef<Blob[]>([]);
@@ -184,8 +236,12 @@ export function ChatPanel({
     setPendingMessage({ text, status: "sending" });
 
     try {
-      await onSend(text);
+      await onSend(
+        text,
+        replyingTo?.externalMessageId,
+      );
       setDraft("");
+      setReplyingTo(null);
       setPendingMessage({ text, status: "sent" });
 
       window.setTimeout(() => {
@@ -224,7 +280,11 @@ export function ChatPanel({
     setError("");
 
     try {
-      await onSendMedia(file);
+      await onSendMedia(
+        file,
+        replyingTo?.externalMessageId,
+      );
+      setReplyingTo(null);
     } catch (reason) {
       setError(
         reason instanceof Error
@@ -362,31 +422,86 @@ export function ChatPanel({
           <p className="text-center text-sm text-muted-foreground">Nenhuma mensagem nesta conversa.</p>
         ) : (
           <>
-            {messages.map((message) => (
-              <article
-                key={message.id}
-                className={`flex ${message.direction === "outbound" ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm md:max-w-[70%] ${
-                    message.direction === "outbound"
-                      ? "rounded-br-md bg-primary text-primary-foreground"
-                      : "rounded-bl-md border bg-card"
-                  }`}
+            {messages.map((message) => {
+              const repliedMessage =
+                message.replyToExternalMessageId
+                  ? messages.find(
+                      (item) =>
+                        item.externalMessageId ===
+                        message.replyToExternalMessageId,
+                    )
+                  : undefined;
+
+              const statusLabel =
+                deliveryLabel(message);
+
+              return (
+                <article
+                  key={message.id}
+                  className={`group flex ${message.direction === "outbound" ? "justify-end" : "justify-start"}`}
                 >
-                  <MessageContent message={message} />
-                  <div className="mt-1 flex justify-end gap-2 text-[10px] opacity-60">
-                    <span>{message.messageType}</span>
-                    <time>
-                      {new Date(message.messageTimestamp || message.createdAt).toLocaleTimeString(
-                        "pt-BR",
-                        { hour: "2-digit", minute: "2-digit" },
+                  <div
+                    className={`relative max-w-[85%] rounded-2xl px-4 py-3 shadow-sm md:max-w-[70%] ${
+                      message.direction === "outbound"
+                        ? "rounded-br-md bg-primary text-primary-foreground"
+                        : "rounded-bl-md border bg-card"
+                    }`}
+                  >
+                    {repliedMessage && (
+                      <div className="mb-2 rounded-lg border-l-2 border-current/40 bg-black/5 px-2 py-1.5 text-xs opacity-75">
+                        <p className="truncate font-medium">
+                          {repliedMessage.direction === "outbound"
+                            ? "Você"
+                            : conversation.contactName || "Contato"}
+                        </p>
+                        <p className="line-clamp-2">
+                          {messagePreview(repliedMessage)}
+                        </p>
+                      </div>
+                    )}
+
+                    <MessageContent message={message} />
+
+                    <div className="mt-1 flex items-center justify-end gap-2 text-[10px] opacity-60">
+                      <button
+                        type="button"
+                        onClick={() => setReplyingTo(message)}
+                        className="inline-flex items-center gap-1 rounded px-1 py-0.5 opacity-0 transition-opacity hover:bg-black/5 group-hover:opacity-100 focus:opacity-100"
+                        aria-label="Responder esta mensagem"
+                        title="Responder"
+                      >
+                        <Reply size={11} />
+                        Responder
+                      </button>
+
+                      <span>{message.messageType}</span>
+
+                      <time>
+                        {new Date(message.messageTimestamp || message.createdAt).toLocaleTimeString(
+                          "pt-BR",
+                          { hour: "2-digit", minute: "2-digit" },
+                        )}
+                      </time>
+
+                      {statusLabel && (
+                        <span
+                          className="inline-flex items-center gap-1"
+                          title={statusLabel}
+                        >
+                          {message.deliveryStatus === "read" ||
+                          message.deliveryStatus === "delivered" ? (
+                            <CheckCheck size={12} />
+                          ) : (
+                            <Check size={12} />
+                          )}
+                          {statusLabel}
+                        </span>
                       )}
-                    </time>
+                    </div>
                   </div>
-                </div>
-              </article>
-            ))}
+                </article>
+              );
+            })}
 
             {pendingMessage && (
               <article className="flex justify-end">
@@ -443,13 +558,37 @@ export function ChatPanel({
           ref={fileInputRef}
           type="file"
           className="hidden"
-          accept="audio/*,image/jpeg,image/png,image/webp,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
+          accept="audio/*,video/mp4,video/3gpp,video/quicktime,image/jpeg,image/png,image/webp,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
           onChange={(event) => {
             const file = event.target.files?.[0];
             event.currentTarget.value = "";
             void sendMediaFile(file);
           }}
         />
+
+        {replyingTo && (
+          <div className="mb-2 flex items-start gap-2 rounded-xl border bg-muted/50 px-3 py-2 text-sm">
+            <Reply size={16} className="mt-0.5 shrink-0 text-muted-foreground" />
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-muted-foreground">
+                Respondendo a {replyingTo.direction === "outbound"
+                  ? "você"
+                  : conversation.contactName || "contato"}
+              </p>
+              <p className="truncate">
+                {messagePreview(replyingTo)}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setReplyingTo(null)}
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-lg hover:bg-muted"
+              aria-label="Cancelar resposta"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        )}
 
         {recording && (
           <div className="mb-2 flex items-center gap-2 rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">
