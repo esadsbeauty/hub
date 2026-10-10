@@ -45,6 +45,8 @@ const mapMessage = (row: Row): WhatsAppMessage => ({
     row.media_size_bytes === null || row.media_size_bytes === undefined
       ? undefined
       : Number(row.media_size_bytes),
+  mediaTranscript: text(row.media_transcript),
+  mediaTranscriptionStatus: text(row.media_transcription_status),
   createdAt: String(row.created_at),
 });
 
@@ -174,7 +176,7 @@ export const whatsappRepository = {
     const result = await configured()
       .from("whatsapp_messages")
       .select(
-        "id,organization_id,conversation_id,external_message_id,direction,message_type,text_body,message_timestamp,media_id,media_path,media_mime_type,media_file_name,media_size_bytes,created_at",
+        "id,organization_id,conversation_id,external_message_id,direction,message_type,text_body,message_timestamp,media_id,media_path,media_mime_type,media_file_name,media_size_bytes,media_transcript,media_transcription_status,created_at",
       )
       .eq("organization_id", organizationId)
       .eq("conversation_id", conversationId)
