@@ -63,7 +63,7 @@ export function WhatsAppInboxPage(){
   const selected=inbox.data?.conversations.find(item=>item.id===selectedId);
   useEffect(()=>{
     window.dispatchEvent(new CustomEvent("esads:whatsapp-chat-visibility",{detail:{open:Boolean(selectedId)}}));
-    return ()=>window.dispatchEvent(new CustomEvent("esads:whatsapp-chat-visibility",{detail:{open:false}}));
+    return ()=>{window.dispatchEvent(new CustomEvent("esads:whatsapp-chat-visibility",{detail:{open:false}}));};
   },[selectedId]);
   const messages=useWhatsAppMessages(selected?.id);
   const send=useSendWhatsAppMessage(selected?.id);
