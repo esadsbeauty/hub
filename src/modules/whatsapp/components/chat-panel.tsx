@@ -451,7 +451,7 @@ export function ChatPanel({
           <Button
             type="button"
             variant="outline"
-            size="icon"
+            size="sm" className="h-12 w-12 px-0 md:h-11 md:w-11 md:px-0"
             disabled={!canReply || sending || recording}
             onClick={() => fileInputRef.current?.click()}
             aria-label="Anexar arquivo ou áudio"
@@ -463,7 +463,7 @@ export function ChatPanel({
           <Button
             type="button"
             variant={recording ? "default" : "outline"}
-            size="icon"
+            size="sm" className="h-12 w-12 px-0 md:h-11 md:w-11 md:px-0"
             disabled={!canReply || sending}
             onClick={() =>
               recording
