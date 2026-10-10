@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   BriefcaseBusiness,
   CalendarClock,
@@ -314,6 +315,12 @@ export function CrmPanel({
         </p>
       ) : (
         <>
+          {company && (
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <Link to={`/crm/companies/${company.id}`} onClick={onClose} className="inline-flex min-h-11 items-center justify-center rounded-xl border px-3 text-sm font-semibold">Abrir lead</Link>
+              <Link to={`/crm/companies/${company.id}?schedule=1`} onClick={onClose} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground">Agendar reunião</Link>
+            </div>
+          )}
           <dl className="mt-6 space-y-5">
             <div className="flex gap-3">
               <UserRound className="shrink-0 text-champagne-dark" size={20} />
