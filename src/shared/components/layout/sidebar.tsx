@@ -209,7 +209,19 @@ export function SidebarNavigation({
         }
         collapsed={collapsed}
       >
-        {secondaryItems.map(renderLink)}
+        {secondaryItems.map(({ to, label, icon: Icon, permission }) =>
+          can(permission) ? (
+            <NavLink
+              key={to}
+              to={to}
+              onClick={onNavigate}
+              className={linkClass}
+            >
+              <Icon size={16} />
+              <span>{label}</span>
+            </NavLink>
+          ) : null,
+        )}
 
         {can("marketing.view") && (
           <>
