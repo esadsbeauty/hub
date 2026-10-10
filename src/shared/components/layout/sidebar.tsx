@@ -310,13 +310,11 @@ function NavGroup({
 }) {
   if (collapsed) {
     return (
-      <div className="relative">
+      <div className="group relative">
         <button
           type="button"
           aria-label={label}
           title={label}
-          aria-expanded={open}
-          onClick={() => setOpen(!open)}
           className={`premium-focus flex w-full items-center justify-center rounded-xl px-0 py-2.5 ${
             active
               ? "bg-white/[.09] text-white"
@@ -326,15 +324,13 @@ function NavGroup({
           <Icon size={17} />
         </button>
 
-        {open && (
-          <div className="absolute left-[calc(100%+.75rem)] top-0 z-50 w-56 rounded-xl border border-white/10 bg-sidebar p-2 shadow-overlay">
-            <p className="px-3 py-2 text-xs font-semibold text-white/50">
-              {label}
-            </p>
+        <div className="invisible absolute left-[calc(100%+.75rem)] top-0 z-50 w-56 translate-x-1 rounded-2xl border border-white/10 bg-sidebar p-2 opacity-0 shadow-overlay transition-all duration-150 group-hover:visible group-hover:translate-x-0 group-hover:opacity-100">
+          <p className="px-3 py-2 text-xs font-semibold text-white/50">
+            {label}
+          </p>
 
-            <div className="space-y-1">{children}</div>
-          </div>
-        )}
+          <div className="space-y-1">{children}</div>
+        </div>
       </div>
     );
   }
