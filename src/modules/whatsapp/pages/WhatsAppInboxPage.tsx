@@ -169,7 +169,7 @@ export function WhatsAppInboxPage(){
       </div>
 
       <div className={!selected?"hidden min-h-0 min-w-0 overflow-hidden md:block":"min-h-0 min-w-0 overflow-hidden"}>
-        <ChatPanel conversation={selected} messages={messages.data??[]} loading={messages.isLoading} sending={send.isPending||sendMedia.isPending} canReply={canReply} onSend={text=>send.mutateAsync(text)} onSendMedia={file=>sendMedia.mutateAsync(file)} onBack={()=>setSelectedId(undefined)} onDetails={()=>setDetails(true)}/>
+        <ChatPanel conversation={selected} messages={messages.data??[]} loading={messages.isLoading} sending={send.isPending||sendMedia.isPending} canReply={canReply} onSend={(text,replyToExternalMessageId)=>send.mutateAsync({text,replyToExternalMessageId})} onSendMedia={(file,replyToExternalMessageId)=>sendMedia.mutateAsync({file,replyToExternalMessageId})} onBack={()=>setSelectedId(undefined)} onDetails={()=>setDetails(true)}/>
       </div>
 
       <CrmPanel conversation={selected}/>
