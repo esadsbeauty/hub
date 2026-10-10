@@ -2,26 +2,18 @@ import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  Building2,
-  CalendarClock,
-  Download,
-  FileUp,
   FilterX,
   Kanban,
   List,
   ArrowDownUp,
   Plus,
   SlidersHorizontal,
-  Settings2,
-  TrendingUp,
-  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { DataTable } from "@/shared/components/data-display/data-table";
-import { MetricCard } from "@/shared/components/data-display/metric-card";
 import {
   PriorityBadge,
   TemperatureBadge,
@@ -46,7 +38,7 @@ import { NextActionStatus } from "./components/next-action-status";
 import { OpportunityStatusBadge } from "./components/opportunity-status-badge";
 import { PipelineStageManager } from "./components/pipeline-stage-manager";
 import { LeadImportDialog } from "./components/lead-import-dialog";
-import { isOpenStage, lastContactForOpportunity, nextActionForOpportunity, prioritizedPendingActions } from "./next-action";
+import { lastContactForOpportunity, nextActionForOpportunity } from "./next-action";
 import { useCrmActions, useCrmData } from "./hooks";
 import type { CompanyFormData } from "./schema";
 import type {
@@ -93,15 +85,17 @@ export function CrmPage() {
   const businessModeQuery=useBusinessMode();const businessMode=businessModeQuery.data??"b2b";const terms=crmTerminology(businessMode);const b2c=isB2CMode(businessMode);
   const { notify } = useToast();
   const [query, setQuery] = useState(
-    () => searchParams.get("q") ?? sessionStorage.getItem("crm-query") ?? "",
+    () => searchParams.get("q") ?? "",
   );
   const deferredQuery = useDeferredValue(query);
+  const requestedStageIds = (searchParams.get("stages") ?? searchParams.get("stage") ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const requestedOpportunityId = searchParams.get("opportunity") ?? "";
   const [view, setView] = useState<View>("kanban");
   const [sort, setSort] = useState<CrmSort>("newest");
-  const [filters, setFilters] = useState<CrmFilters>(() => {
-    const saved = sessionStorage.getItem("crm-filters");
-    return saved ? { ...emptyFilters, ...JSON.parse(saved) } : emptyFilters;
-  });
+  const [filters, setFilters] = useState<CrmFilters>(emptyFilters);
   const [modal, setModal] = useState<
     "company" | "opportunity" | "followup" | "pipeline" | "import" | null
   >(null);
@@ -113,7 +107,25 @@ export function CrmPage() {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [mobileSortOpen, setMobileSortOpen] = useState(false);
   useEffect(() => { const requested = searchParams.get("new"); if (requested === "company" || requested === "opportunity") setModal(requested); }, [searchParams]);
-  useEffect(() => { const requestedQuery = searchParams.get("q"); if (requestedQuery !== null) { setQuery(requestedQuery); sessionStorage.setItem("crm-query", requestedQuery); } }, [searchParams]);
+  useEffect(() => {
+    const requestedQuery = searchParams.get("q");
+    setQuery(requestedQuery ?? "");
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!data || !requestedOpportunityId) return;
+
+    const opportunity = data.opportunities.find(
+      (item) =>
+        item.id === requestedOpportunityId &&
+        !item.deletedAt &&
+        item.status !== "archived",
+    );
+
+    if (opportunity) {
+      setSelected(opportunity);
+    }
+  }, [data, requestedOpportunityId]);
 
   useEffect(() => {
     const refreshIfVisible = () => {
@@ -173,7 +185,6 @@ export function CrmPage() {
   const closeModal = () => { setModal(null); setQuickCompanyId(""); setQuickOpportunityId(""); if (searchParams.has("new")) { const next = new URLSearchParams(searchParams); next.delete("new"); next.delete("quick"); setSearchParams(next, { replace: true }); } };
   const updateFilters = (next: CrmFilters) => {
     setFilters(next);
-    sessionStorage.setItem("crm-filters", JSON.stringify(next));
   };
   const companies: Company[] = (data?.companies ?? []).filter(
     (item) => !item.deletedAt,
@@ -239,6 +250,12 @@ export function CrmPage() {
           .toLowerCase();
         return (
           (!normalized || searchable.includes(normalized)) &&
+          (requestedStageIds.length === 0 ||
+            opportunities.some(
+              (item) =>
+                item.companyId === company.id &&
+                requestedStageIds.includes(item.stageId),
+            )) &&
           (filters.owner === "all" || company.owner === filters.owner) &&
           (filters.source === "all" || company.leadSource === filters.source) &&
           (filters.temperature === "all" ||
@@ -289,6 +306,7 @@ export function CrmPage() {
     deferredQuery,
     filters,
     sort,
+    requestedStageIds.join(","),
   ]);
   if (isLoading)
     return (
@@ -321,6 +339,18 @@ export function CrmPage() {
           stage.isActive !== false,
       )
     : data.stages.filter((stage) => stage.isActive !== false);
+
+  const visibleCrmStages =
+    requestedStageIds.length > 0
+      ? crmStages.filter((stage) => requestedStageIds.includes(stage.id))
+      : crmStages;
+
+  const visibleOpportunities =
+    requestedStageIds.length > 0
+      ? opportunities.filter((item) =>
+          requestedStageIds.includes(item.stageId),
+        )
+      : opportunities;
 
   const companyById = new Map<string, Company>(
     companies.map((item) => [item.id, item]),
@@ -425,14 +455,14 @@ export function CrmPage() {
         businessMode={businessMode}
         companies={filtered}
         contacts={contacts}
-        opportunities={opportunities.filter((item)=>filtered.some((company)=>company.id===item.companyId))}
+        opportunities={visibleOpportunities.filter((item)=>filtered.some((company)=>company.id===item.companyId))}
         tasks={tasks}
-        stages={crmStages}
+        stages={visibleCrmStages}
         query={query}
         filters={filters}
         sort={sort}
         activeFilters={activeFilters}
-        onQueryChange={(value)=>{setQuery(value);sessionStorage.setItem("crm-query",value)}}
+        onQueryChange={setQuery}
         onFiltersChange={updateFilters}
         onSortChange={setSort}
         onOpenCompany={(company)=>navigate(`/crm/companies/${company.id}`)}
@@ -447,66 +477,58 @@ export function CrmPage() {
         title="CRM"
         description={b2c?"Leads, clientes e próximos passos.":"Empresas, oportunidades e próximos passos."}
         actions={
-          <>
-            <Button className="hidden md:inline-flex" variant="outline" onClick={() => setModal("import")}>
-              <FileUp size={17} /> Importar
-            </Button>
-            <Button className="hidden md:inline-flex" variant="outline" onClick={exportLeads}>
-              <Download size={17} /> Exportar
-            </Button>
-            <Button className="hidden md:inline-flex" variant="outline" onClick={() => setModal("followup")}>
-              Tarefa / follow-up
-            </Button>
-            <Button className="hidden md:inline-flex" variant="outline" onClick={() => setModal("opportunity")}>
-              Nova oportunidade
-            </Button>
-            <Button className="hidden md:inline-flex" variant="outline" onClick={() => setModal("pipeline")}>
-              <Settings2 size={17} /> Editar pipeline
-            </Button>
-            <Button className="hidden md:inline-flex" onClick={() => setModal("company")}>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setModal("company")}>
               <Plus size={17} /> <span>{terms.newCompany}</span>
             </Button>
-          </>
+
+            <details className="relative hidden md:block">
+              <summary className="cursor-pointer list-none rounded-xl border border-border/70 bg-card px-3 py-2 text-sm font-medium hover:bg-muted">
+                Mais ações
+              </summary>
+              <div className="absolute right-0 z-30 mt-2 w-56 rounded-2xl border bg-card p-2 shadow-overlay">
+                <button className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => setModal("opportunity")}>
+                  Nova oportunidade
+                </button>
+                <button className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => setModal("followup")}>
+                  Tarefa / follow-up
+                </button>
+                <button className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => setModal("import")}>
+                  Importar leads
+                </button>
+                <button className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-muted" onClick={exportLeads}>
+                  Exportar leads
+                </button>
+                <button className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => setModal("pipeline")}>
+                  Editar pipeline
+                </button>
+              </div>
+            </details>
+          </div>
         }
       />
-      <section aria-label="Indicadores do CRM" className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:grid-cols-2 md:overflow-visible md:px-0 xl:grid-cols-4">
-        <div className="min-w-[82vw] snap-center md:min-w-0">
-        <MetricCard
-          label={terms.companies}
-          value={companies.length}
-          hint={b2c?"Pessoas no relacionamento comercial":"Contas no relacionamento comercial"}
-          icon={Building2}
-        />
+      {requestedStageIds.length > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/40 px-3 py-2">
+          <p className="text-sm text-muted-foreground">
+            Exibindo {visibleCrmStages.length === 1 ? "a etapa" : "as etapas"}{" "}
+            <b className="text-foreground">
+              {visibleCrmStages.map((stage) => stage.name).join(", ")}
+            </b>
+          </p>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              const next = new URLSearchParams(searchParams);
+              next.delete("stage");
+              next.delete("stages");
+              setSearchParams(next, { replace: true });
+            }}
+          >
+            Limpar filtro
+          </Button>
         </div>
-        <div className="min-w-[82vw] snap-center md:min-w-0">
-        <MetricCard
-          label="Clientes"
-          value={
-            companies.filter((item) => item.lifecycleStage === "customer")
-              .length
-          }
-          hint="Relacionamentos já convertidos"
-          icon={Users}
-        />
-        </div>
-        <div className="min-w-[82vw] snap-center md:min-w-0">
-        <MetricCard
-          label="Oportunidades abertas"
-          value={opportunities.filter((item) => item.status === "open").length}
-          hint="Negociações em andamento"
-          icon={TrendingUp}
-        />
-        </div>
-        <div className="min-w-[82vw] snap-center md:min-w-0">
-        <MetricCard
-          label="Follow-ups pendentes"
-          value={tasks.filter((item) => item.status === "pending").length}
-          hint="Ações que ainda precisam acontecer"
-          icon={CalendarClock}
-        />
-        </div>
-      </section>
-      <NextActionsOverview tasks={tasks} opportunities={opportunities} stages={crmStages} companies={companies} onOpen={setSelected}/>
+      )}
       <div className="flex flex-col justify-between gap-3 sm:flex-row">
         <div className="flex items-center gap-2">
         <div className="inline-flex rounded-xl border bg-muted/50 p-1">
@@ -525,9 +547,6 @@ export function CrmPage() {
             <List size={15} /> Lista
           </Button>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setModal("pipeline")}>
-          <Settings2 size={16} /> <span className="hidden sm:inline">Editar pipeline</span>
-        </Button>
         </div>
         <Button className="md:hidden" variant="outline" onClick={()=>setMobileSortOpen(true)}><ArrowDownUp size={19}/> Ordenar</Button>
         <Select
@@ -667,18 +686,13 @@ export function CrmPage() {
       <Modal open={mobileSortOpen} title="Ordenar CRM" onClose={()=>setMobileSortOpen(false)}>
         <div className="space-y-4"><Label htmlFor="crm-mobile-sort">Ordenar empresas por</Label><Select id="crm-mobile-sort" value={sort} onChange={(event)=>setSort(event.target.value as CrmSort)}><option value="newest">Mais recentes</option><option value="oldest">Mais antigos</option><option value="name">Nome</option><option value="activity">Última atividade</option><option value="followup">Próximo follow-up</option><option value="priority">Prioridade</option></Select><Button className="w-full" onClick={()=>setMobileSortOpen(false)}>Aplicar ordenação</Button></div>
       </Modal>
-      {filtered.length === 0 ? (
-        <EmptyState
-          title={`Nenhum${b2c?" lead":"a empresa"} encontrado${b2c?"":"a"}`}
-          description="Ajuste a busca ou os filtros para continuar."
-        />
-      ) : view === "kanban" ? (
+      {view === "kanban" ? (
         <OpportunityKanban
           businessMode={businessMode}
-          opportunities={opportunities.filter((item) =>
+          opportunities={visibleOpportunities.filter((item) =>
             filtered.some((company) => company.id === item.companyId),
           )}
-          stages={crmStages}
+          stages={visibleCrmStages}
           companyById={companyById}
           contacts={contacts}
           nextTask={nextAction}
@@ -704,6 +718,11 @@ export function CrmPage() {
             params.set("phone", phone);
             navigate(`/whatsapp?${params.toString()}`);
           }}
+        />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          title={`Nenhum${b2c ? " lead" : "a empresa"} encontrado${b2c ? "" : "a"}`}
+          description="Ajuste a busca ou os filtros para continuar."
         />
       ) : (
         <><div className="grid gap-4 md:hidden">{filtered.map(company=><button key={company.id} onClick={()=>navigate(`/crm/companies/${company.id}`)} className="rounded-[1.5rem] bg-card p-5 text-left shadow-soft premium-focus"><div className="flex items-start justify-between gap-3"><div><h2 className="text-xl font-semibold tracking-[-.025em]">{company.fantasyName}</h2><p className="mt-1 text-base text-muted-foreground">{contacts.find(item=>item.companyId===company.id&&item.isPrimary)?.name??"Sem contato principal"}</p></div><span className="rounded-full bg-muted px-3 py-1.5 text-sm font-semibold">{openCount(company.id)} abertas</span></div><div className="mt-5 flex flex-wrap gap-2"><TemperatureBadge temperature={company.temperature}/><PriorityBadge priority={company.priority}/></div><div className="mt-5 border-t pt-4 text-base"><p>{company.whatsapp??company.phone??"Contato nÃ£o informado"}</p><p className="mt-2 text-muted-foreground">Próximo passo: {nextTask(company.id)?formatDateTime(nextTask(company.id)?.dueAt):"Nenhum"}</p></div></button>)}</div><div className="hidden md:block"><DataTable<Company>
@@ -931,7 +950,14 @@ export function CrmPage() {
         )}
         nextTask={selected ? nextAction(selected) : undefined}
         open={Boolean(selected)}
-        onClose={() => setSelected(undefined)}
+        onClose={() => {
+          setSelected(undefined);
+          if (searchParams.has("opportunity")) {
+            const next = new URLSearchParams(searchParams);
+            next.delete("opportunity");
+            setSearchParams(next, { replace: true });
+          }
+        }}
         onMove={(stageId) =>
           selected &&
           actions.moveOpportunity.mutate({
@@ -997,20 +1023,6 @@ export function CrmPage() {
   );
 }
 
-function NextActionsOverview({tasks,opportunities,stages,companies,onOpen}:{tasks:Task[];opportunities:Opportunity[];stages:PipelineStage[];companies:Company[];onOpen:(opportunity:Opportunity)=>void}) {
-  const now=new Date();
-  const nextTasks = opportunities
-    .filter((opportunity) => isOpenStage(opportunity, stages))
-    .map((opportunity) => nextActionForOpportunity(opportunity, tasks))
-    .filter((task): task is Task => Boolean(task));
-  const pending=prioritizedPendingActions([...new Map(nextTasks.map((task) => [task.id, task])).values()],now);
-  const groups=[
-    {label:"Atrasados",items:pending.filter(task=>new Date(task.dueAt)<now)},
-    {label:"Hoje",items:pending.filter(task=>{const due=new Date(task.dueAt),end=new Date(now);end.setHours(24,0,0,0);return due>=now&&due<end})},
-    {label:"Próximos",items:pending.filter(task=>{const end=new Date(now);end.setHours(24,0,0,0);return new Date(task.dueAt)>=end})},
-  ];
-  return <section aria-label="PrÃ³ximas ações" className="grid gap-3 rounded-2xl border bg-card p-4 lg:grid-cols-3">{groups.map(group=><div key={group.label}><h2 className="text-sm font-semibold">{group.label} <span className="text-muted-foreground">({group.items.length})</span></h2><div className="mt-2 space-y-2">{group.items.slice(0,3).map(task=>{const opportunity=opportunities.find(item=>item.id===task.opportunityId);const company=companies.find(item=>item.id===opportunity?.companyId);return opportunity?<button key={task.id} onClick={()=>onOpen(opportunity)} className="block min-h-12 w-full rounded-xl bg-muted/60 px-3 py-2 text-left text-sm premium-focus"><b>{company?.fantasyName??opportunity.title}</b><span className="block text-muted-foreground">{task.title} · {formatDateTime(task.dueAt)}</span></button>:null})}{!group.items.length&&<p className="py-2 text-sm text-muted-foreground">Nenhuma ação.</p>}</div></div>)}</section>;
-}
 function FilterSelect({
   value,
   label,

@@ -4,6 +4,7 @@ import {
   ArrowUp,
   Bot,
   BriefcaseBusiness,
+  Clock3,
   ListChecks,
   Plus,
   Save,
@@ -81,6 +82,27 @@ export function AiAgentSettingsPanel({
           typeof query.data.business_context === "object"
             ? query.data.business_context
             : {},
+        behavior_config: {
+          ...query.data.behavior_config,
+          followup_first_min_minutes:
+            Number(query.data.behavior_config?.followup_first_min_minutes) || 120,
+          followup_first_max_minutes:
+            Number(query.data.behavior_config?.followup_first_max_minutes) || 180,
+          followup_second_min_minutes:
+            Number(query.data.behavior_config?.followup_second_min_minutes) || 360,
+          followup_second_max_minutes:
+            Number(query.data.behavior_config?.followup_second_max_minutes) || 480,
+          followup_max_per_round:
+            Number(query.data.behavior_config?.followup_max_per_round) || 2,
+          followup_max_per_24h:
+            Number(query.data.behavior_config?.followup_max_per_24h) || 3,
+          followup_timezone:
+            String(query.data.behavior_config?.followup_timezone || "America/Sao_Paulo"),
+          followup_quiet_start_hour:
+            Number(query.data.behavior_config?.followup_quiet_start_hour ?? 22),
+          followup_quiet_end_hour:
+            Number(query.data.behavior_config?.followup_quiet_end_hour ?? 6),
+        },
       });
     }
   }, [query.data]);
@@ -662,6 +684,21 @@ export function AiAgentSettingsPanel({
           />
 
           <CapabilityToggle
+            label="Fazer follow-up automático"
+            checked={form.capabilities.follow_up_leads === true}
+            disabled={!editable}
+            onChange={(checked) =>
+              setForm({
+                ...form,
+                capabilities: {
+                  ...form.capabilities,
+                  follow_up_leads: checked,
+                },
+              })
+            }
+          />
+
+          <CapabilityToggle
             label="Reativar leads"
             checked={form.capabilities.reactivate_leads}
             disabled={!editable}
@@ -677,6 +714,242 @@ export function AiAgentSettingsPanel({
           />
         </CardContent>
       </Card>
+
+      {form.capabilities.follow_up_leads === true && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock3 size={18} />
+              Follow-up automático
+            </CardTitle>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Defina quando a assistente deve retomar a conversa caso o lead pare de responder.
+              Os horários são sorteados dentro dos intervalos abaixo.
+            </p>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <Label>1º follow-up · mínimo (horas)</Label>
+                <Input
+                  disabled={!editable}
+                  type="number"
+                  min="0.1"
+                  step="0.5"
+                  className="mt-1"
+                  value={form.behavior_config.followup_first_min_minutes / 60}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      behavior_config: {
+                        ...form.behavior_config,
+                        followup_first_min_minutes: Math.max(
+                          1,
+                          Math.round(Number(event.target.value || 0) * 60),
+                        ),
+                      },
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <Label>1º follow-up · máximo (horas)</Label>
+                <Input
+                  disabled={!editable}
+                  type="number"
+                  min="0.1"
+                  step="0.5"
+                  className="mt-1"
+                  value={form.behavior_config.followup_first_max_minutes / 60}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      behavior_config: {
+                        ...form.behavior_config,
+                        followup_first_max_minutes: Math.max(
+                          1,
+                          Math.round(Number(event.target.value || 0) * 60),
+                        ),
+                      },
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <Label>2º follow-up · mínimo após o primeiro (horas)</Label>
+                <Input
+                  disabled={!editable}
+                  type="number"
+                  min="0.1"
+                  step="0.5"
+                  className="mt-1"
+                  value={form.behavior_config.followup_second_min_minutes / 60}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      behavior_config: {
+                        ...form.behavior_config,
+                        followup_second_min_minutes: Math.max(
+                          1,
+                          Math.round(Number(event.target.value || 0) * 60),
+                        ),
+                      },
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <Label>2º follow-up · máximo após o primeiro (horas)</Label>
+                <Input
+                  disabled={!editable}
+                  type="number"
+                  min="0.1"
+                  step="0.5"
+                  className="mt-1"
+                  value={form.behavior_config.followup_second_max_minutes / 60}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      behavior_config: {
+                        ...form.behavior_config,
+                        followup_second_max_minutes: Math.max(
+                          1,
+                          Math.round(Number(event.target.value || 0) * 60),
+                        ),
+                      },
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <Label>Máximo por rodada</Label>
+                <Input
+                  disabled={!editable}
+                  type="number"
+                  min="1"
+                  max="2"
+                  className="mt-1"
+                  value={form.behavior_config.followup_max_per_round}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      behavior_config: {
+                        ...form.behavior_config,
+                        followup_max_per_round: Math.min(
+                          2,
+                          Math.max(1, Number(event.target.value || 1)),
+                        ),
+                      },
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <Label>Máximo em 24 horas</Label>
+                <Input
+                  disabled={!editable}
+                  type="number"
+                  min="1"
+                  max="10"
+                  className="mt-1"
+                  value={form.behavior_config.followup_max_per_24h}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      behavior_config: {
+                        ...form.behavior_config,
+                        followup_max_per_24h: Math.max(
+                          1,
+                          Number(event.target.value || 1),
+                        ),
+                      },
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <Label>Não enviar a partir de</Label>
+                <Select
+                  disabled={!editable}
+                  className="mt-1"
+                  value={String(form.behavior_config.followup_quiet_start_hour)}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      behavior_config: {
+                        ...form.behavior_config,
+                        followup_quiet_start_hour: Number(event.target.value),
+                      },
+                    })
+                  }
+                >
+                  {Array.from({ length: 24 }, (_, hour) => (
+                    <option key={hour} value={hour}>
+                      {String(hour).padStart(2, "0")}:00
+                    </option>
+                  ))}
+                </Select>
+              </div>
+
+              <div>
+                <Label>Voltar a enviar a partir de</Label>
+                <Select
+                  disabled={!editable}
+                  className="mt-1"
+                  value={String(form.behavior_config.followup_quiet_end_hour)}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      behavior_config: {
+                        ...form.behavior_config,
+                        followup_quiet_end_hour: Number(event.target.value),
+                      },
+                    })
+                  }
+                >
+                  {Array.from({ length: 24 }, (_, hour) => (
+                    <option key={hour} value={hour}>
+                      {String(hour).padStart(2, "0")}:00
+                    </option>
+                  ))}
+                </Select>
+              </div>
+
+              <div>
+                <Label>Fuso horário</Label>
+                <Input
+                  disabled={!editable}
+                  className="mt-1"
+                  value={form.behavior_config.followup_timezone}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      behavior_config: {
+                        ...form.behavior_config,
+                        followup_timezone: event.target.value,
+                      },
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              O sistema cancela o follow-up pendente quando o lead responde e respeita a janela de 24 horas do WhatsApp.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

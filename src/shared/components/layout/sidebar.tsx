@@ -14,6 +14,7 @@ import {
   LogOut,
   Megaphone,
   MessageCircle,
+  Menu,
   PanelLeftClose,
   PanelLeftOpen,
   ShieldCheck,
@@ -39,15 +40,15 @@ export const navigationItems = [
     permission: "dashboard.view",
   },
   {
-    to: "/crm",
-    label: "CRM",
-    icon: Handshake,
-    permission: "crm.view",
-  },
-  {
     to: "/whatsapp",
     label: "WhatsApp",
     icon: MessageCircle,
+    permission: "crm.view",
+  },
+  {
+    to: "/crm",
+    label: "CRM",
+    icon: Handshake,
     permission: "crm.view",
   },
   {
@@ -126,16 +127,24 @@ export function SidebarNavigation({
   const prospectingFeature = useOrganizationFeature("prospecting_agent");
   const { pathname } = useLocation();
 
-  const [marketingOpen, setMarketingOpen] = useState(
-    pathname.startsWith("/marketing"),
+  const [moreOpen, setMoreOpen] = useState(
+    pathname.startsWith("/clientes") ||
+      pathname.startsWith("/financeiro") ||
+      pathname.startsWith("/marketing") ||
+      pathname.startsWith("/indique-e-ganhe"),
   );
 
   const [platformOpen, setPlatformOpen] = useState(
     pathname.startsWith("/plataforma"),
   );
 
-  const mainBeforeMarketing = navigationItems.slice(0, 6);
-  const mainAfterMarketing = navigationItems.slice(6);
+  const primaryItems = navigationItems.filter((item) =>
+    ["/", "/whatsapp", "/crm", "/agenda", "/relatorios", "/configuracoes"].includes(item.to),
+  );
+
+  const secondaryItems = navigationItems.filter((item) =>
+    ["/clientes", "/financeiro", "/indique-e-ganhe"].includes(item.to),
+  );
 
   const renderLink = ({
     to,
@@ -165,7 +174,7 @@ export function SidebarNavigation({
 
   return (
     <nav className="space-y-1" aria-label="Navegação lateral">
-      {mainBeforeMarketing.map(renderLink)}
+      {primaryItems.slice(0, 1).map(renderLink)}
 
       {prospectingFeature.data === true && (
         <NavLink
@@ -184,46 +193,65 @@ export function SidebarNavigation({
         </NavLink>
       )}
 
-      {can("marketing.view") && (
-        <NavGroup
-          label="Marketing"
-          icon={Megaphone}
-          open={marketingOpen}
-          setOpen={setMarketingOpen}
-          active={pathname.startsWith("/marketing")}
-          collapsed={collapsed}
-        >
-          <NavLink
-            onClick={onNavigate}
-            to="/marketing"
-            className={linkClass}
-          >
-            Visão Geral / Marketing
-          </NavLink>
+      {primaryItems.slice(1, 4).map(renderLink)}
+      {primaryItems.slice(4).map(renderLink)}
 
-          <NavLink
-            onClick={onNavigate}
-            to="/marketing/diagnosticos"
-            className={linkClass}
-          >
-            <ClipboardCheck size={16} />
-            Diagnósticos
-          </NavLink>
-
-          {can("blog.view") && (
+      <NavGroup
+        label="Mais"
+        icon={Menu}
+        open={moreOpen}
+        setOpen={setMoreOpen}
+        active={
+          pathname.startsWith("/clientes") ||
+          pathname.startsWith("/financeiro") ||
+          pathname.startsWith("/marketing") ||
+          pathname.startsWith("/indique-e-ganhe")
+        }
+        collapsed={collapsed}
+      >
+        {secondaryItems.map(({ to, label, icon: Icon, permission }) =>
+          can(permission) ? (
             <NavLink
+              key={to}
+              to={to}
               onClick={onNavigate}
-              to="/marketing/blog"
               className={linkClass}
             >
-              <BookOpen size={16} />
-              Blog
+              <Icon size={16} />
+              <span>{label}</span>
             </NavLink>
-          )}
-        </NavGroup>
-      )}
+          ) : null,
+        )}
 
-      {mainAfterMarketing.map(renderLink)}
+        {can("marketing.view") && (
+          <>
+            <NavLink onClick={onNavigate} to="/marketing" className={linkClass}>
+              <Megaphone size={16} />
+              Marketing
+            </NavLink>
+
+            <NavLink
+              onClick={onNavigate}
+              to="/marketing/diagnosticos"
+              className={linkClass}
+            >
+              <ClipboardCheck size={16} />
+              Diagnósticos
+            </NavLink>
+
+            {can("blog.view") && (
+              <NavLink
+                onClick={onNavigate}
+                to="/marketing/blog"
+                className={linkClass}
+              >
+                <BookOpen size={16} />
+                Blog
+              </NavLink>
+            )}
+          </>
+        )}
+      </NavGroup>
 
       {isPlatformAdmin && (
         <NavGroup
@@ -294,13 +322,11 @@ function NavGroup({
 }) {
   if (collapsed) {
     return (
-      <div className="relative">
+      <div className="group relative">
         <button
           type="button"
           aria-label={label}
           title={label}
-          aria-expanded={open}
-          onClick={() => setOpen(!open)}
           className={`premium-focus flex w-full items-center justify-center rounded-xl px-0 py-2.5 ${
             active
               ? "bg-white/[.09] text-white"
@@ -310,15 +336,13 @@ function NavGroup({
           <Icon size={17} />
         </button>
 
-        {open && (
-          <div className="absolute left-[calc(100%+.75rem)] top-0 z-50 w-56 rounded-xl border border-white/10 bg-sidebar p-2 shadow-overlay">
-            <p className="px-3 py-2 text-xs font-semibold text-white/50">
-              {label}
-            </p>
+        <div className="invisible absolute left-[calc(100%+.75rem)] top-0 z-50 w-56 translate-x-1 rounded-2xl border border-white/10 bg-sidebar p-2 opacity-0 shadow-overlay transition-all duration-150 group-hover:visible group-hover:translate-x-0 group-hover:opacity-100">
+          <p className="px-3 py-2 text-xs font-semibold text-white/50">
+            {label}
+          </p>
 
-            <div className="space-y-1">{children}</div>
-          </div>
-        )}
+          <div className="space-y-1">{children}</div>
+        </div>
       </div>
     );
   }
@@ -419,10 +443,10 @@ export function Sidebar({
       </div>
 
       <div
-        className={`min-h-0 flex-1 overflow-y-auto overscroll-contain pb-4 [scrollbar-width:thin] ${
+        className={`min-h-0 flex-1 pb-4 ${
           collapsed
-            ? "overflow-x-visible px-3"
-            : "px-4"
+            ? "overflow-visible px-3"
+            : "overflow-y-auto overscroll-contain px-4 [scrollbar-width:thin]"
         }`}
       >
         <SidebarNavigation collapsed={collapsed} />

@@ -8,6 +8,8 @@ const SUPABASE_SERVICE_ROLE_KEY =
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const AI_AGENT_INTERNAL_SECRET =
   Deno.env.get("AI_AGENT_INTERNAL_SECRET") ?? "";
+const OPENAI_API_KEY =
+  Deno.env.get("OPENAI_API_KEY") ?? "";
 
 const supabase = createClient(
   SUPABASE_URL,
@@ -76,8 +78,70 @@ function safeEqual(a: string, b: string) {
   return result === 0;
 }
 
+function isUnavailableInboundStarter(message: any) {
+  return (
+    message?.type === "unsupported" &&
+    Array.isArray(message?.errors) &&
+    message.errors.some(
+      (error: any) =>
+        Number(error?.code) === 131060,
+    )
+  );
+}
+
+async function linkConversationToCrm(
+  connection: Connection,
+  conversationId: string,
+  crmResult: any,
+) {
+  const companyId =
+    crmResult?.company_id ?? null;
+  const opportunityId =
+    crmResult?.opportunity_id ?? null;
+
+  if (!companyId || !opportunityId) {
+    console.warn(
+      "CRM lead registration returned without link ids",
+      {
+        organizationId:
+          connection.organization_id,
+        conversationId,
+      },
+    );
+    return;
+  }
+
+  const { error } = await supabase
+    .from("whatsapp_conversations")
+    .update({
+      company_id: companyId,
+      opportunity_id: opportunityId,
+      updated_at:
+        new Date().toISOString(),
+    })
+    .eq("id", conversationId)
+    .eq(
+      "organization_id",
+      connection.organization_id,
+    );
+
+  if (error) {
+    console.error(
+      "Error linking WhatsApp conversation to CRM:",
+      {
+        organizationId:
+          connection.organization_id,
+        conversationId,
+        code: error.code,
+        message: error.message,
+      },
+    );
+  }
+}
+
 async function registerPaidTrafficLead(
   connection: Connection,
+  conversationId: string,
   message: any,
   waId: string,
   contactName: string,
@@ -85,7 +149,7 @@ async function registerPaidTrafficLead(
   const referral = message?.referral;
 
   if (!referral) {
-    return;
+    return false;
   }
 
   const cameFromMetaAd =
@@ -94,10 +158,10 @@ async function registerPaidTrafficLead(
     Boolean(referral?.source_id);
 
   if (!cameFromMetaAd) {
-    return;
+    return false;
   }
 
-  const { error } = await supabase.rpc(
+  const { data, error } = await supabase.rpc(
     "upsert_paid_traffic_lead",
     {
       p_organization_id:
@@ -116,8 +180,14 @@ async function registerPaidTrafficLead(
         message: error.message,
       },
     );
-    return;
+    return false;
   }
+
+  await linkConversationToCrm(
+    connection,
+    conversationId,
+    data,
+  );
 
   console.log(
     "Paid traffic lead registered",
@@ -129,6 +199,121 @@ async function registerPaidTrafficLead(
         referral?.ctwa_clid ?? null,
     },
   );
+
+  return true;
+}
+
+async function registerUnavailableWhatsappLead(
+  connection: Connection,
+  conversationId: string,
+  message: any,
+  waId: string,
+  contactName: string,
+) {
+  if (!isUnavailableInboundStarter(message)) {
+    return false;
+  }
+
+  const { data: feature, error: featureError } =
+    await supabase
+      .from("organization_features")
+      .select("enabled")
+      .eq("organization_id", connection.organization_id)
+      .eq("feature_key", "ai_commercial_assistant")
+      .eq("enabled", true)
+      .maybeSingle();
+
+  if (featureError || feature?.enabled !== true) {
+    if (featureError) {
+      console.error(
+        "Error checking commercial assistant feature for unavailable starter:",
+        {
+          organizationId: connection.organization_id,
+          code: featureError.code,
+          message: featureError.message,
+        },
+      );
+    }
+
+    return false;
+  }
+
+  const { data: agent, error: agentError } =
+    await supabase
+      .from("ai_agents")
+      .select(
+        "id,is_enabled,capabilities",
+      )
+      .eq(
+        "organization_id",
+        connection.organization_id,
+      )
+      .maybeSingle();
+
+  if (
+    agentError ||
+    !agent ||
+    !agent.is_enabled ||
+    agent.capabilities?.respond_new_messages ===
+      false
+  ) {
+    if (agentError) {
+      console.error(
+        "Error checking AI agent for unavailable WhatsApp starter:",
+        {
+          organizationId:
+            connection.organization_id,
+          code: agentError.code,
+          message: agentError.message,
+        },
+      );
+    }
+
+    return false;
+  }
+
+  const { data, error } = await supabase.rpc(
+    "upsert_whatsapp_inbound_lead",
+    {
+      p_organization_id:
+        connection.organization_id,
+      p_name: contactName || waId,
+      p_whatsapp: waId,
+    },
+  );
+
+  if (error) {
+    console.error(
+      "Error registering unavailable WhatsApp starter:",
+      {
+        organizationId:
+          connection.organization_id,
+        conversationId,
+        waId,
+        code: error.code,
+        message: error.message,
+      },
+    );
+    return false;
+  }
+
+  await linkConversationToCrm(
+    connection,
+    conversationId,
+    data,
+  );
+
+  console.log(
+    "Unavailable WhatsApp starter registered in CRM",
+    {
+      organizationId:
+        connection.organization_id,
+      conversationId,
+      waId,
+    },
+  );
+
+  return true;
 }
 
 async function verifyMetaSignature(
@@ -400,6 +585,681 @@ async function findOrCreateConversation(
   return existingConversation as Conversation;
 }
 
+const WHATSAPP_MEDIA_BUCKET = "whatsapp-media";
+const WHATSAPP_MEDIA_MAX_BYTES = 25 * 1024 * 1024;
+const WHATSAPP_MEDIA_TYPES = new Set([
+  "audio",
+  "image",
+  "sticker",
+  "video",
+  "document",
+]);
+
+type WhatsAppMediaDescriptor = {
+  mediaId: string;
+  mimeType: string | null;
+  fileName: string | null;
+  messageType: "audio" | "image" | "sticker" | "video" | "document";
+};
+
+function normalizeMediaMimeType(value: unknown) {
+  const mime = String(value ?? "")
+    .split(";")[0]
+    .trim()
+    .toLowerCase();
+
+  return mime || null;
+}
+
+function messageMediaDescriptor(
+  message: any,
+): WhatsAppMediaDescriptor | null {
+  const messageType = String(message?.type ?? "");
+
+  if (!WHATSAPP_MEDIA_TYPES.has(messageType)) {
+    return null;
+  }
+
+  const media = message?.[messageType];
+
+  if (!media?.id) {
+    return null;
+  }
+
+  return {
+    mediaId: String(media.id),
+    mimeType: normalizeMediaMimeType(media.mime_type),
+    fileName:
+      typeof media.filename === "string" && media.filename.trim()
+        ? media.filename.trim()
+        : null,
+    messageType: messageType as WhatsAppMediaDescriptor["messageType"],
+  };
+}
+
+function extensionForMedia(
+  mimeType: string | null,
+  messageType: WhatsAppMediaDescriptor["messageType"],
+) {
+  const extensions: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "audio/ogg": "ogg",
+    "audio/mpeg": "mp3",
+    "audio/mp4": "m4a",
+    "audio/aac": "aac",
+    "audio/amr": "amr",
+    "audio/opus": "opus",
+    "video/mp4": "mp4",
+    "video/3gpp": "3gp",
+    "video/quicktime": "mov",
+    "video/webm": "webm",
+    "application/pdf": "pdf",
+    "application/msword": "doc",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+    "application/vnd.ms-excel": "xls",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+    "application/vnd.ms-powerpoint": "ppt",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": "pptx",
+    "text/plain": "txt",
+    "text/csv": "csv",
+    "application/zip": "zip",
+  };
+
+  if (mimeType && extensions[mimeType]) {
+    return extensions[mimeType];
+  }
+
+  if (messageType === "sticker") {
+    return "webp";
+  }
+
+  if (messageType === "audio") {
+    return "ogg";
+  }
+
+  if (messageType === "video") {
+    return "mp4";
+  }
+
+  if (messageType === "document") {
+    return "bin";
+  }
+
+  return "jpg";
+}
+
+function safeStorageSegment(value: string) {
+  return value
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .slice(0, 180);
+}
+
+async function whatsappAccessToken(
+  connection: Connection,
+) {
+  const secretResult = await supabase
+    .from("whatsapp_connection_secrets")
+    .select("access_token,token_expires_at")
+    .eq("connection_id", connection.id)
+    .maybeSingle();
+
+  if (secretResult.error) {
+    console.error(
+      "Failed to load WhatsApp token for media",
+      {
+        connectionId: connection.id,
+        organizationId: connection.organization_id,
+        code: secretResult.error.code,
+      },
+    );
+  }
+
+  const token =
+    secretResult.data?.access_token ??
+    Deno.env.get("WHATSAPP_ACCESS_TOKEN") ??
+    null;
+
+  if (!token) {
+    return null;
+  }
+
+  const tokenExpiresAt =
+    secretResult.data?.token_expires_at ?? null;
+
+  if (
+    tokenExpiresAt &&
+    new Date(tokenExpiresAt).getTime() <= Date.now()
+  ) {
+    console.error(
+      "WhatsApp media skipped: token expired",
+      {
+        connectionId: connection.id,
+        organizationId: connection.organization_id,
+      },
+    );
+    return null;
+  }
+
+  return token;
+}
+
+async function persistWhatsAppMedia(
+  connection: Connection,
+  conversationId: string,
+  externalMessageId: string,
+  descriptor: WhatsAppMediaDescriptor,
+) {
+  const accessToken = await whatsappAccessToken(connection);
+
+  if (!accessToken) {
+    console.error(
+      "WhatsApp media skipped: access token missing",
+      {
+        organizationId: connection.organization_id,
+        conversationId,
+        externalMessageId,
+      },
+    );
+    return;
+  }
+
+  let mediaInfoResponse: Response;
+
+  try {
+    mediaInfoResponse = await fetch(
+      `https://graph.facebook.com/v26.0/${encodeURIComponent(
+        descriptor.mediaId,
+      )}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+    );
+  } catch (error) {
+    console.error(
+      "WhatsApp media metadata request failed",
+      {
+        organizationId: connection.organization_id,
+        conversationId,
+        externalMessageId,
+        error:
+          error instanceof Error
+            ? error.message
+            : "network_error",
+      },
+    );
+    return;
+  }
+
+  const mediaInfo = await mediaInfoResponse
+    .json()
+    .catch(() => ({})) as {
+      url?: string;
+      mime_type?: string;
+      file_size?: number | string;
+    };
+
+  if (!mediaInfoResponse.ok || !mediaInfo.url) {
+    console.error(
+      "Meta rejected WhatsApp media metadata request",
+      {
+        organizationId: connection.organization_id,
+        conversationId,
+        externalMessageId,
+        status: mediaInfoResponse.status,
+      },
+    );
+    return;
+  }
+
+  const reportedSize = Number(mediaInfo.file_size ?? 0);
+
+  if (
+    Number.isFinite(reportedSize) &&
+    reportedSize > WHATSAPP_MEDIA_MAX_BYTES
+  ) {
+    console.warn(
+      "WhatsApp media skipped: file is larger than storage limit",
+      {
+        organizationId: connection.organization_id,
+        conversationId,
+        externalMessageId,
+        reportedSize,
+      },
+    );
+    return;
+  }
+
+  let mediaResponse: Response;
+
+  try {
+    mediaResponse = await fetch(mediaInfo.url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "WhatsApp media download failed",
+      {
+        organizationId: connection.organization_id,
+        conversationId,
+        externalMessageId,
+        error:
+          error instanceof Error
+            ? error.message
+            : "network_error",
+      },
+    );
+    return;
+  }
+
+  if (!mediaResponse.ok) {
+    console.error(
+      "WhatsApp media download returned non-2xx",
+      {
+        organizationId: connection.organization_id,
+        conversationId,
+        externalMessageId,
+        status: mediaResponse.status,
+      },
+    );
+    return;
+  }
+
+  const bytes = await mediaResponse.arrayBuffer();
+
+  if (bytes.byteLength > WHATSAPP_MEDIA_MAX_BYTES) {
+    console.warn(
+      "WhatsApp media skipped after download: file is larger than storage limit",
+      {
+        organizationId: connection.organization_id,
+        conversationId,
+        externalMessageId,
+        size: bytes.byteLength,
+      },
+    );
+    return;
+  }
+
+  const mimeType =
+    normalizeMediaMimeType(
+      mediaInfo.mime_type ??
+      mediaResponse.headers.get("content-type") ??
+      descriptor.mimeType,
+    ) ??
+    descriptor.mimeType ??
+    (descriptor.messageType === "sticker"
+      ? "image/webp"
+      : descriptor.messageType === "audio"
+        ? "audio/ogg"
+        : descriptor.messageType === "video"
+          ? "video/mp4"
+          : descriptor.messageType === "document"
+            ? "application/octet-stream"
+            : "image/jpeg");
+
+  const extension = extensionForMedia(
+    mimeType,
+    descriptor.messageType,
+  );
+
+  const storagePath = [
+    connection.organization_id,
+    conversationId,
+    `${safeStorageSegment(externalMessageId)}.${extension}`,
+  ].join("/");
+
+  const upload = await supabase.storage
+    .from(WHATSAPP_MEDIA_BUCKET)
+    .upload(storagePath, bytes, {
+      contentType: mimeType,
+      upsert: true,
+    });
+
+  if (upload.error) {
+    console.error(
+      "Failed to store WhatsApp media",
+      {
+        organizationId: connection.organization_id,
+        conversationId,
+        externalMessageId,
+        message: upload.error.message,
+      },
+    );
+    return;
+  }
+
+  const fileName =
+    descriptor.fileName ??
+    `${descriptor.messageType}.${extension}`;
+
+  const update = await supabase
+    .from("whatsapp_messages")
+    .update({
+      media_id: descriptor.mediaId,
+      media_path: storagePath,
+      media_mime_type: mimeType,
+      media_file_name: fileName,
+      media_size_bytes: bytes.byteLength,
+    })
+    .eq(
+      "organization_id",
+      connection.organization_id,
+    )
+    .eq(
+      "external_message_id",
+      externalMessageId,
+    );
+
+  if (update.error) {
+    console.error(
+      "Failed to link stored WhatsApp media to message",
+      {
+        organizationId: connection.organization_id,
+        conversationId,
+        externalMessageId,
+        code: update.error.code,
+      },
+    );
+  }
+}
+
+async function transcribeInboundAudio(
+  connection: Connection,
+  conversationId: string,
+  message: any,
+) {
+  if (message?.type !== "audio") {
+    return null;
+  }
+
+  const externalMessageId =
+    String(message?.id ?? "").trim();
+
+  if (!externalMessageId || !OPENAI_API_KEY) {
+    return null;
+  }
+
+  const {
+    data: storedMessage,
+    error: storedMessageError,
+  } = await supabase
+    .from("whatsapp_messages")
+    .select(
+      "media_path,media_mime_type,media_file_name,media_transcript,media_transcription_status",
+    )
+    .eq(
+      "organization_id",
+      connection.organization_id,
+    )
+    .eq(
+      "conversation_id",
+      conversationId,
+    )
+    .eq(
+      "external_message_id",
+      externalMessageId,
+    )
+    .maybeSingle();
+
+  if (storedMessageError || !storedMessage) {
+    if (storedMessageError) {
+      console.error(
+        "Failed to load WhatsApp audio before transcription",
+        {
+          organizationId:
+            connection.organization_id,
+          conversationId,
+          externalMessageId,
+          code: storedMessageError.code,
+        },
+      );
+    }
+
+    return null;
+  }
+
+  const existingTranscript =
+    String(
+      storedMessage.media_transcript ?? "",
+    ).trim();
+
+  if (existingTranscript) {
+    return existingTranscript;
+  }
+
+  const mediaPath =
+    String(storedMessage.media_path ?? "").trim();
+
+  if (!mediaPath) {
+    return null;
+  }
+
+  await supabase
+    .from("whatsapp_messages")
+    .update({
+      media_transcription_status:
+        "processing",
+    })
+    .eq(
+      "organization_id",
+      connection.organization_id,
+    )
+    .eq(
+      "external_message_id",
+      externalMessageId,
+    );
+
+  const downloaded = await supabase.storage
+    .from(WHATSAPP_MEDIA_BUCKET)
+    .download(mediaPath);
+
+  if (downloaded.error || !downloaded.data) {
+    console.error(
+      "Failed to download WhatsApp audio for transcription",
+      {
+        organizationId:
+          connection.organization_id,
+        conversationId,
+        externalMessageId,
+        message:
+          downloaded.error?.message ?? null,
+      },
+    );
+
+    await supabase
+      .from("whatsapp_messages")
+      .update({
+        media_transcription_status:
+          "failed",
+      })
+      .eq(
+        "organization_id",
+        connection.organization_id,
+      )
+      .eq(
+        "external_message_id",
+        externalMessageId,
+      );
+
+    return null;
+  }
+
+  const mimeType =
+    normalizeMediaMimeType(
+      storedMessage.media_mime_type ??
+      downloaded.data.type,
+    ) ??
+    "audio/ogg";
+
+  const extension =
+    extensionForMedia(
+      mimeType,
+      "audio",
+    );
+
+  const fileName =
+    String(
+      storedMessage.media_file_name ??
+      `audio.${extension}`,
+    );
+
+  const form = new FormData();
+  form.set(
+    "file",
+    new File(
+      [downloaded.data],
+      fileName,
+      { type: mimeType },
+    ),
+  );
+  form.set(
+    "model",
+    "gpt-4o-mini-transcribe",
+  );
+  form.set("language", "pt");
+
+  let transcriptionResponse: Response;
+
+  try {
+    transcriptionResponse = await fetch(
+      "https://api.openai.com/v1/audio/transcriptions",
+      {
+        method: "POST",
+        headers: {
+          Authorization:
+            `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: form,
+      },
+    );
+  } catch (error) {
+    console.error(
+      "OpenAI audio transcription request failed",
+      {
+        organizationId:
+          connection.organization_id,
+        conversationId,
+        externalMessageId,
+        error:
+          error instanceof Error
+            ? error.message
+            : "network_error",
+      },
+    );
+
+    await supabase
+      .from("whatsapp_messages")
+      .update({
+        media_transcription_status:
+          "failed",
+      })
+      .eq(
+        "organization_id",
+        connection.organization_id,
+      )
+      .eq(
+        "external_message_id",
+        externalMessageId,
+      );
+
+    return null;
+  }
+
+  const transcriptionPayload =
+    await transcriptionResponse
+      .json()
+      .catch(() => ({})) as {
+        text?: string;
+        error?: {
+          message?: string;
+        };
+      };
+
+  const transcript =
+    String(
+      transcriptionPayload.text ?? "",
+    ).trim();
+
+  if (
+    !transcriptionResponse.ok ||
+    !transcript
+  ) {
+    console.error(
+      "OpenAI audio transcription failed",
+      {
+        organizationId:
+          connection.organization_id,
+        conversationId,
+        externalMessageId,
+        status:
+          transcriptionResponse.status,
+        message:
+          transcriptionPayload.error?.message ??
+          null,
+      },
+    );
+
+    await supabase
+      .from("whatsapp_messages")
+      .update({
+        media_transcription_status:
+          "failed",
+      })
+      .eq(
+        "organization_id",
+        connection.organization_id,
+      )
+      .eq(
+        "external_message_id",
+        externalMessageId,
+      );
+
+    return null;
+  }
+
+  const {
+    error: transcriptUpdateError,
+  } = await supabase
+    .from("whatsapp_messages")
+    .update({
+      media_transcript:
+        transcript,
+      media_transcription_status:
+        "completed",
+      text_body:
+        transcript,
+    })
+    .eq(
+      "organization_id",
+      connection.organization_id,
+    )
+    .eq(
+      "external_message_id",
+      externalMessageId,
+    );
+
+  if (transcriptUpdateError) {
+    console.error(
+      "Failed to save WhatsApp audio transcription",
+      {
+        organizationId:
+          connection.organization_id,
+        conversationId,
+        externalMessageId,
+        code:
+          transcriptUpdateError.code,
+      },
+    );
+  }
+
+  return transcript;
+}
+
 async function saveMessage(
   connection: Connection,
   conversationId: string,
@@ -409,7 +1269,7 @@ async function saveMessage(
   const externalMessageId = message?.id;
 
   if (!externalMessageId) {
-    return;
+    return false;
   }
 
   const messageType =
@@ -418,37 +1278,60 @@ async function saveMessage(
   const messageTimestamp =
     timestampToIso(message?.timestamp);
 
+  const mediaDescriptor =
+    messageMediaDescriptor(message);
+
   const {
     error: messageInsertError,
   } = await supabase
     .from("whatsapp_messages")
-    .upsert(
-      {
-        organization_id:
-          connection.organization_id,
-        conversation_id:
-          conversationId,
-        external_message_id:
-          externalMessageId,
-        direction,
-        message_type:
-          messageType,
-        text_body:
-          textFromMessage(message),
-        message_timestamp:
-          messageTimestamp,
-        raw_payload:
-          message,
-      },
-      {
-        onConflict:
-          "external_message_id",
-        ignoreDuplicates:
-          true,
-      },
-    );
+    .insert({
+      organization_id:
+        connection.organization_id,
+      conversation_id:
+        conversationId,
+      external_message_id:
+        externalMessageId,
+      direction,
+      message_type:
+        messageType,
+      text_body:
+        textFromMessage(message),
+      message_timestamp:
+        messageTimestamp,
+      raw_payload:
+        message,
+      media_id:
+        mediaDescriptor?.mediaId ?? null,
+      media_mime_type:
+        mediaDescriptor?.mimeType ?? null,
+      media_file_name:
+        mediaDescriptor?.fileName ?? null,
+      reply_to_external_message_id:
+        typeof message?.context?.id === "string"
+          ? message.context.id
+          : null,
+      delivery_status:
+        direction === "outbound"
+          ? "sent"
+          : null,
+    });
 
   if (messageInsertError) {
+    if (
+      messageInsertError.code === "23505"
+    ) {
+      console.log(
+        "Duplicate WhatsApp message ignored",
+        {
+          externalMessageId,
+          direction,
+        },
+      );
+
+      return false;
+    }
+
     console.error(
       "Error saving WhatsApp message:",
       {
@@ -457,7 +1340,57 @@ async function saveMessage(
         code: messageInsertError.code,
       },
     );
+
+    return false;
   }
+
+  if (mediaDescriptor) {
+    await persistWhatsAppMedia(
+      connection,
+      conversationId,
+      externalMessageId,
+      mediaDescriptor,
+    );
+  }
+
+  return true;
+}
+
+async function getLatestAiConversationState(
+  organizationId: string,
+  whatsappConversationId: string,
+) {
+  const { data, error } = await supabase
+    .from("ai_agent_conversations")
+    .select(
+      "id,status,last_ai_message_at,round_started_at",
+    )
+    .eq("organization_id", organizationId)
+    .eq(
+      "whatsapp_conversation_id",
+      whatsappConversationId,
+    )
+    .order("created_at", {
+      ascending: false,
+    })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error(
+      "Error loading latest AI conversation state:",
+      {
+        organizationId,
+        whatsappConversationId,
+        code: error.code,
+        message: error.message,
+      },
+    );
+
+    return null;
+  }
+
+  return data;
 }
 
 async function shouldSkipAiAutomation(
@@ -501,6 +1434,30 @@ async function getAiCrmRouting(
   organizationId: string,
   whatsappConversationId: string,
 ) {
+  const { data: feature, error: featureError } = await supabase
+    .from("organization_features")
+    .select("enabled")
+    .eq("organization_id", organizationId)
+    .eq("feature_key", "ai_commercial_assistant")
+    .eq("enabled", true)
+    .maybeSingle();
+
+  if (featureError || feature?.enabled !== true) {
+    if (featureError) {
+      console.error("Error checking commercial assistant feature:", {
+        organizationId,
+        code: featureError.code,
+        message: featureError.message,
+      });
+    }
+
+    return {
+      allowed: false,
+      stage: "blocked",
+      opportunityId: null as string | null,
+    };
+  }
+
   const { data: agent, error: agentError } = await supabase
     .from("ai_agents")
     .select("id,is_enabled,crm_config")
@@ -1082,6 +2039,200 @@ async function sendAiWhatsAppMessage(
   return true;
 }
 
+async function cancelPendingAiFollowups(
+  organizationId: string,
+  whatsappConversationId: string,
+  reason: string,
+) {
+  const now = new Date().toISOString();
+
+  const { error } = await supabase
+    .from("ai_agent_followups")
+    .update({
+      status: "cancelled",
+      cancelled_at: now,
+      error_message: reason,
+      updated_at: now,
+    })
+    .eq("organization_id", organizationId)
+    .eq(
+      "whatsapp_conversation_id",
+      whatsappConversationId,
+    )
+    .eq("status", "pending");
+
+  if (
+    error &&
+    error.code !== "42P01"
+  ) {
+    console.error(
+      "Failed to cancel pending AI follow-ups",
+      {
+        organizationId,
+        whatsappConversationId,
+        reason,
+        code: error.code,
+        message: error.message,
+      },
+    );
+  }
+}
+
+function randomMinutes(
+  minValue: unknown,
+  maxValue: unknown,
+  fallbackMin: number,
+  fallbackMax: number,
+) {
+  const min = Number(minValue);
+  const max = Number(maxValue);
+
+  const safeMin =
+    Number.isFinite(min) ? min : fallbackMin;
+
+  const safeMax =
+    Number.isFinite(max) ? max : fallbackMax;
+
+  const lower = Math.max(
+    1,
+    Math.min(safeMin, safeMax),
+  );
+
+  const upper = Math.max(
+    lower,
+    Math.max(safeMin, safeMax),
+  );
+
+  return Math.round(
+    lower +
+      Math.random() * (upper - lower),
+  );
+}
+
+async function scheduleAiFollowups(
+  connection: Connection,
+  whatsappConversationId: string,
+  roundKey: string,
+  sourceLeadMessageAt: string,
+  sourceAiMessageAt: string,
+) {
+  const { data: agent, error: agentError } =
+    await supabase
+      .from("ai_agents")
+      .select(
+        "id,is_enabled,behavior_config,capabilities",
+      )
+      .eq(
+        "organization_id",
+        connection.organization_id,
+      )
+      .maybeSingle();
+
+  if (
+    agentError ||
+    !agent ||
+    agent.is_enabled !== true ||
+    agent.capabilities?.follow_up_leads !== true
+  ) {
+    return;
+  }
+
+  const { data: aiConversation } =
+    await supabase
+      .from("ai_agent_conversations")
+      .select("id,status")
+      .eq(
+        "organization_id",
+        connection.organization_id,
+      )
+      .eq(
+        "whatsapp_conversation_id",
+        whatsappConversationId,
+      )
+      .order("created_at", {
+        ascending: false,
+      })
+      .limit(1)
+      .maybeSingle();
+
+  if (
+    !aiConversation ||
+    !["active", "qualified"].includes(
+      String(aiConversation.status ?? ""),
+    )
+  ) {
+    return;
+  }
+
+  const behavior =
+    agent.behavior_config ?? {};
+
+  const firstDelay = randomMinutes(
+    behavior.followup_first_min_minutes,
+    behavior.followup_first_max_minutes,
+    120,
+    180,
+  );
+
+  const firstDue = new Date(
+    new Date(sourceAiMessageAt).getTime() +
+      firstDelay * 60_000,
+  );
+
+  /*
+   * Agendamos somente o primeiro follow-up da rodada.
+   * O segundo é criado apenas depois que o primeiro for realmente enviado.
+   * Assim, se o worker atrasar ou ficar indisponível, dois follow-ups vencidos
+   * nunca são disparados em sequência.
+   */
+  const { error } = await supabase
+    .from("ai_agent_followups")
+    .upsert(
+      {
+        organization_id:
+          connection.organization_id,
+        agent_id: agent.id,
+        ai_conversation_id:
+          aiConversation.id,
+        whatsapp_conversation_id:
+          whatsappConversationId,
+        round_key: roundKey,
+        sequence: 1,
+        source_lead_message_at:
+          sourceLeadMessageAt,
+        source_ai_message_at:
+          sourceAiMessageAt,
+        due_at: firstDue.toISOString(),
+        status: "pending",
+        metadata: {
+          delay_minutes: firstDelay,
+        },
+      },
+      {
+        onConflict:
+          "ai_conversation_id,round_key,sequence",
+        ignoreDuplicates: true,
+      },
+    );
+
+  if (
+    error &&
+    error.code !== "42P01"
+  ) {
+    console.error(
+      "Failed to schedule AI follow-ups",
+      {
+        organizationId:
+          connection.organization_id,
+        whatsappConversationId,
+        roundKey,
+        code: error.code,
+        message: error.message,
+      },
+    );
+  }
+}
+
 async function convertProspectingReplyToCrm(
   connection: Connection,
   conversation: Conversation,
@@ -1144,8 +2295,29 @@ async function processAiAgentMessage(
   message: any,
   waId: string,
 ) {
-  const inboundText =
+  const directInboundText =
     textFromMessage(message)?.trim();
+
+  const transcribedAudioText =
+    !directInboundText &&
+    message?.type === "audio"
+      ? (
+          await transcribeInboundAudio(
+            connection,
+            conversation.id,
+            message,
+          )
+        )?.trim()
+      : "";
+
+  const inboundText =
+    directInboundText ||
+    transcribedAudioText ||
+    (
+      isUnavailableInboundStarter(message)
+        ? "Olá, vim pelo WhatsApp."
+        : ""
+    );
 
   if (!inboundText) {
     return;
@@ -1320,19 +2492,37 @@ async function processAiAgentMessage(
   }
 
   /*
-   * No CRM, Aguardando Qualificação inicia uma nova rodada.
-   * Na Prospecção, a primeira resposta após message_sent também
-   * inicia uma nova rodada, mas sem criar oportunidade no CRM.
+   * Novo Lead/Aguardando Qualificação só deve reiniciar a rodada quando
+   * realmente estamos começando uma nova rodada. Antes, qualquer mensagem
+   * recebida enquanto a oportunidade continuava em Novo Lead zerava o
+   * histórico, fazendo a assistente se apresentar novamente.
    */
+  const latestAiConversation =
+    await getLatestAiConversationState(
+      connection.organization_id,
+      conversation.id,
+    );
+
+  const shouldResetCrmRound =
+    routingMode === "crm" &&
+    crmRouting.stage === "awaiting" &&
+    (
+      !latestAiConversation ||
+      !latestAiConversation.last_ai_message_at ||
+      ["handoff", "paused", "closed"].includes(
+        String(
+          latestAiConversation.status ?? "",
+        ),
+      )
+    );
+
+  const shouldResetProspectingRound =
+    routingMode === "prospecting" &&
+    prospectingPreviousStatus === "message_sent";
+
   if (
-    (
-      routingMode === "crm" &&
-      crmRouting.stage === "awaiting"
-    ) ||
-    (
-      routingMode === "prospecting" &&
-      prospectingPreviousStatus === "message_sent"
-    )
+    shouldResetCrmRound ||
+    shouldResetProspectingRound
   ) {
     const now = new Date().toISOString();
 
@@ -1348,20 +2538,31 @@ async function processAiAgentMessage(
         round_started_at: now,
         updated_at: now,
       })
-      .eq("organization_id", connection.organization_id)
-      .eq("whatsapp_conversation_id", conversation.id);
+      .eq(
+        "organization_id",
+        connection.organization_id,
+      )
+      .eq(
+        "whatsapp_conversation_id",
+        conversation.id,
+      );
 
     if (resetAiConversationError) {
       console.error(
         "Failed to reset AI conversation for new routing round",
         {
-          organizationId: connection.organization_id,
-          conversationId: conversation.id,
+          organizationId:
+            connection.organization_id,
+          conversationId:
+            conversation.id,
           routingMode,
-          opportunityId: crmRouting.opportunityId ?? null,
+          opportunityId:
+            crmRouting.opportunityId ?? null,
           prospectingLeadId,
-          code: resetAiConversationError.code,
-          message: resetAiConversationError.message,
+          code:
+            resetAiConversationError.code,
+          message:
+            resetAiConversationError.message,
         },
       );
 
@@ -1378,8 +2579,10 @@ async function processAiAgentMessage(
       console.log(
         "AI automation skipped for handed-off/paused conversation",
         {
-          organizationId: connection.organization_id,
-          conversationId: conversation.id,
+          organizationId:
+            connection.organization_id,
+          conversationId:
+            conversation.id,
           routingMode,
           prospectingLeadId,
         },
@@ -1526,6 +2729,26 @@ async function processAiAgentMessage(
     }
   }
 
+  if (agentPayload.handoff === true) {
+    await cancelPendingAiFollowups(
+      connection.organization_id,
+      conversation.id,
+      "handoff_requested",
+    );
+  } else {
+    const followupSourceAiAt =
+      new Date().toISOString();
+
+    await scheduleAiFollowups(
+      connection,
+      conversation.id,
+      currentExternalMessageId,
+      latestInboundMessage?.message_timestamp ??
+        followupSourceAiAt,
+      followupSourceAiAt,
+    );
+  }
+
   if (
     routingMode === "prospecting" &&
     prospectingLeadId
@@ -1578,6 +2801,71 @@ async function processAiAgentMessage(
   }
 }
 
+async function processMessageStatuses(
+  connection: Connection,
+  statuses: any[],
+) {
+  for (const statusItem of statuses) {
+    const externalMessageId =
+      String(statusItem?.id ?? "").trim();
+
+    const status =
+      String(statusItem?.status ?? "").trim();
+
+    if (
+      !externalMessageId ||
+      !["sent", "delivered", "read", "failed"].includes(status)
+    ) {
+      continue;
+    }
+
+    const occurredAt =
+      timestampToIso(statusItem?.timestamp);
+
+    const payload: Record<string, unknown> = {
+      delivery_status: status,
+    };
+
+    if (status === "delivered") {
+      payload.delivered_at = occurredAt;
+    }
+
+    if (status === "read") {
+      payload.read_at = occurredAt;
+      payload.delivered_at = occurredAt;
+    }
+
+    if (status === "failed") {
+      payload.failed_at = occurredAt;
+    }
+
+    const { error } = await supabase
+      .from("whatsapp_messages")
+      .update(payload)
+      .eq(
+        "organization_id",
+        connection.organization_id,
+      )
+      .eq(
+        "external_message_id",
+        externalMessageId,
+      );
+
+    if (error) {
+      console.error(
+        "Failed to update WhatsApp delivery status",
+        {
+          organizationId:
+            connection.organization_id,
+          externalMessageId,
+          status,
+          code: error.code,
+        },
+      );
+    }
+  }
+}
+
 async function processStandardMessages(
   value: Record<string, any>,
 ) {
@@ -1596,6 +2884,15 @@ async function processStandardMessages(
 
   if (!connection) {
     return;
+  }
+
+  const statuses = value?.statuses ?? [];
+
+  if (Array.isArray(statuses) && statuses.length > 0) {
+    await processMessageStatuses(
+      connection,
+      statuses,
+    );
   }
 
   const messages = value?.messages ?? [];
@@ -1641,19 +2938,45 @@ async function processStandardMessages(
       continue;
     }
 
-    await saveMessage(
-      connection,
+    const isNewInboundMessage =
+      await saveMessage(
+        connection,
+        conversation.id,
+        message,
+        "inbound",
+      );
+
+    if (!isNewInboundMessage) {
+      continue;
+    }
+
+    await cancelPendingAiFollowups(
+      connection.organization_id,
       conversation.id,
-      message,
-      "inbound",
+      "lead_replied",
     );
 
-    await registerPaidTrafficLead(
-      connection,
-      message,
-      waId,
-      contactMap.get(waId) ?? waId,
-    );
+    const paidTrafficLeadRegistered =
+      await registerPaidTrafficLead(
+        connection,
+        conversation.id,
+        message,
+        waId,
+        contactMap.get(waId) ?? waId,
+      );
+
+    if (
+      !paidTrafficLeadRegistered &&
+      isUnavailableInboundStarter(message)
+    ) {
+      await registerUnavailableWhatsappLead(
+        connection,
+        conversation.id,
+        message,
+        waId,
+        contactMap.get(waId) ?? waId,
+      );
+    }
 
     // Primeiro inbound de um lead da Prospecção já o transforma em
     // oportunidade no CRM. Se não for um lead da Prospecção, a RPC

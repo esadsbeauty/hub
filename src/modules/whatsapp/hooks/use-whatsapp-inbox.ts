@@ -155,7 +155,7 @@ export function useWhatsAppRealtime() {
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "whatsapp_messages",
           filter: `organization_id=eq.${organizationId}`,
@@ -200,7 +200,10 @@ export function useSendWhatsAppMessage(
   const cache = useQueryClient();
 
   return useMutation({
-    mutationFn: (text: string) => {
+    mutationFn: (input: {
+      text: string;
+      replyToExternalMessageId?: string;
+    }) => {
       if (!conversationId) {
         throw new Error(
           "Conversa não selecionada.",
@@ -210,7 +213,58 @@ export function useSendWhatsAppMessage(
       return whatsappRepository.sendMessage({
         organizationId,
         conversationId,
-        text,
+        text: input.text,
+        replyToExternalMessageId:
+          input.replyToExternalMessageId,
+      });
+    },
+
+    onSuccess: async () => {
+      await Promise.all([
+        cache.invalidateQueries({
+          queryKey: whatsappKeys.inbox(
+            organizationId,
+          ),
+        }),
+
+        conversationId
+          ? cache.invalidateQueries({
+              queryKey:
+                whatsappKeys.messages(
+                  organizationId,
+                  conversationId,
+                ),
+            })
+          : Promise.resolve(),
+      ]);
+    },
+  });
+}
+
+
+export function useSendWhatsAppMedia(
+  conversationId?: string,
+) {
+  const { organizationId } = useAppState();
+  const cache = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: {
+      file: File;
+      replyToExternalMessageId?: string;
+    }) => {
+      if (!conversationId) {
+        throw new Error(
+          "Conversa não selecionada.",
+        );
+      }
+
+      return whatsappRepository.sendMedia({
+        organizationId,
+        conversationId,
+        file: input.file,
+        replyToExternalMessageId:
+          input.replyToExternalMessageId,
       });
     },
 

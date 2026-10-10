@@ -6,6 +6,15 @@ export type AiAgentBehaviorConfig = {
   questions_per_message: number;
   avoid_long_paragraphs: boolean;
   split_long_messages: boolean;
+  followup_first_min_minutes: number;
+  followup_first_max_minutes: number;
+  followup_second_min_minutes: number;
+  followup_second_max_minutes: number;
+  followup_max_per_round: number;
+  followup_max_per_24h: number;
+  followup_timezone: string;
+  followup_quiet_start_hour: number;
+  followup_quiet_end_hour: number;
 };
 
 export type AiAgentCapabilities = {
@@ -19,6 +28,7 @@ export type AiAgentCapabilities = {
   send_prices: boolean;
   schedule_appointments: boolean;
   reactivate_leads: boolean;
+  follow_up_leads?: boolean;
 };
 
 export type AiAgentQualificationQuestion = {

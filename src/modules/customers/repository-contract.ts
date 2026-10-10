@@ -1,6 +1,8 @@
 import type { Contract, ContractInput, CustomerData, CustomerService, CustomerServiceInput, Onboarding, OnboardingInput, OnboardingStep, OnboardingStepInput, Service, ServiceInput } from "./types";
 
 export interface CustomerRepository {
+  updatePartnership(id: string, input: import("./types").CustomerPartnershipInput): Promise<void>;
+  updateCustomerService(id: string, input: import("./types").CustomerServiceUpdate): Promise<void>;
   list(): Promise<CustomerData>;
   createService(input: ServiceInput): Promise<Service>;
   addCustomerService(input: CustomerServiceInput): Promise<CustomerService>;
