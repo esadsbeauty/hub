@@ -155,7 +155,7 @@ export function useWhatsAppRealtime() {
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*",
           schema: "public",
           table: "whatsapp_messages",
           filter: `organization_id=eq.${organizationId}`,
