@@ -279,6 +279,23 @@ export function DashboardPage() {
         />
       </div>
 
+      <section aria-label="Prioridades comerciais" className="mb-5 grid gap-3 sm:grid-cols-3">
+        <Link to="/crm" className="rounded-2xl border bg-card p-4 shadow-soft transition-colors hover:bg-muted/50">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">CRM</p>
+          <p className="mt-2 text-lg font-semibold">Ver oportunidades</p>
+          <p className="mt-1 text-sm text-muted-foreground">Acompanhar leads e atualizar etapas.</p>
+        </Link>
+        <Link to="/agenda" className="rounded-2xl border bg-card p-4 shadow-soft transition-colors hover:bg-muted/50">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hoje</p>
+          <p className="mt-2 text-lg font-semibold">{pendingToday.length} atividade(s) pendente(s)</p>
+          <p className="mt-1 text-sm text-muted-foreground">Abrir agenda e organizar compromissos.</p>
+        </Link>
+        <Link to="/agenda" className="rounded-2xl border bg-card p-4 shadow-soft transition-colors hover:bg-muted/50">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Atenção necessária</p>
+          <p className="mt-2 text-lg font-semibold">{overdue.length} atividade(s) atrasada(s)</p>
+          <p className="mt-1 text-sm text-muted-foreground">Revisar e reagendar acompanhamentos.</p>
+        </Link>
+      </section>
       <OnboardingDashboardCard />
 
       <div className="flex items-center gap-2">
