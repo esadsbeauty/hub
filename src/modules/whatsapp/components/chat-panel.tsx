@@ -17,6 +17,78 @@ const body = (message: WhatsAppMessage) =>
     ? message.textBody
     : unsupported[message.messageType] ?? "Tipo de mensagem não suportado";
 
+function MessageContent({
+  message,
+}: {
+  message: WhatsAppMessage;
+}) {
+  if (
+    message.messageType === "audio" &&
+    message.mediaUrl
+  ) {
+    return (
+      <div className="min-w-[230px]">
+        <audio
+          controls
+          preload="metadata"
+          src={message.mediaUrl}
+          className="h-10 w-full max-w-[320px]"
+        >
+          Seu navegador não suporta reprodução de áudio.
+        </audio>
+      </div>
+    );
+  }
+
+  if (
+    message.messageType === "sticker" &&
+    message.mediaUrl
+  ) {
+    return (
+      <img
+        src={message.mediaUrl}
+        alt="Figurinha do WhatsApp"
+        loading="lazy"
+        className="max-h-48 max-w-48 object-contain"
+      />
+    );
+  }
+
+  if (
+    message.messageType === "image" &&
+    message.mediaUrl
+  ) {
+    return (
+      <a
+        href={message.mediaUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="block"
+        aria-label="Abrir imagem em tamanho maior"
+      >
+        <img
+          src={message.mediaUrl}
+          alt={message.mediaFileName || "Imagem do WhatsApp"}
+          loading="lazy"
+          className="max-h-80 max-w-full rounded-xl object-contain"
+        />
+      </a>
+    );
+  }
+
+  return (
+    <p
+      className={`whitespace-pre-wrap break-words text-sm ${
+        message.messageType !== "text"
+          ? "italic opacity-75"
+          : ""
+      }`}
+    >
+      {body(message)}
+    </p>
+  );
+}
+
 type Props = {
   conversation?: WhatsAppConversation;
   messages: WhatsAppMessage[];
@@ -147,13 +219,7 @@ export function ChatPanel({
                       : "rounded-bl-md border bg-card"
                   }`}
                 >
-                  <p
-                    className={`whitespace-pre-wrap break-words text-sm ${
-                      message.messageType !== "text" ? "italic opacity-75" : ""
-                    }`}
-                  >
-                    {body(message)}
-                  </p>
+                  <MessageContent message={message} />
                   <div className="mt-1 flex justify-end gap-2 text-[10px] opacity-60">
                     <span>{message.messageType}</span>
                     <time>
