@@ -200,7 +200,10 @@ export function useSendWhatsAppMessage(
   const cache = useQueryClient();
 
   return useMutation({
-    mutationFn: (text: string) => {
+    mutationFn: (input: {
+      text: string;
+      replyToExternalMessageId?: string;
+    }) => {
       if (!conversationId) {
         throw new Error(
           "Conversa não selecionada.",
@@ -210,7 +213,9 @@ export function useSendWhatsAppMessage(
       return whatsappRepository.sendMessage({
         organizationId,
         conversationId,
-        text,
+        text: input.text,
+        replyToExternalMessageId:
+          input.replyToExternalMessageId,
       });
     },
 
@@ -244,7 +249,10 @@ export function useSendWhatsAppMedia(
   const cache = useQueryClient();
 
   return useMutation({
-    mutationFn: (file: File) => {
+    mutationFn: (input: {
+      file: File;
+      replyToExternalMessageId?: string;
+    }) => {
       if (!conversationId) {
         throw new Error(
           "Conversa não selecionada.",
@@ -254,7 +262,9 @@ export function useSendWhatsAppMedia(
       return whatsappRepository.sendMedia({
         organizationId,
         conversationId,
-        file,
+        file: input.file,
+        replyToExternalMessageId:
+          input.replyToExternalMessageId,
       });
     },
 
