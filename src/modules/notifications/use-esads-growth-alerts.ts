@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from "react";
+import { supabase } from "@/lib/supabase";
 import { useQuery } from "@tanstack/react-query";
 
 import { listDiagnosticSubmissions } from "@/modules/diagnostic/admin-repository";
@@ -13,7 +14,7 @@ export type GrowthAlert = {
   description: string;
   createdAt: string;
   href: string;
-  kind: "diagnostic" | "referral" | "product_lead";
+  kind: "diagnostic" | "referral" | "product_lead" | "crm_lead";
 };
 
 const sevenDaysAgo = () =>
@@ -43,7 +44,7 @@ export function useEsadsGrowthAlerts() {
     refetchInterval: 60_000,
     refetchIntervalInBackground: true,
     queryFn: async (): Promise<GrowthAlert[]> => {
-      const [diagnostics, referrals, leads] =
+      const [diagnostics, referrals, leads, crmLeads] =
         await Promise.all([
           listDiagnosticSubmissions(),
           referralRepository.platform(),
@@ -57,8 +58,10 @@ export function useEsadsGrowthAlerts() {
             page: 1,
             pageSize: 20,
           }),
+          supabase ? supabase.from("opportunities").select("id,title,company_id,created_at").eq("organization_id",organizationId).is("deleted_at",null).gte("created_at",new Date(sevenDaysAgo()).toISOString()).order("created_at",{ascending:false}).limit(40) : Promise.resolve({data:[],error:null}),
         ]);
 
+      if (crmLeads.error) throw crmLeads.error;
       const cutoff = sevenDaysAgo();
 
       const diagnosticAlerts: GrowthAlert[] =
@@ -71,10 +74,10 @@ export function useEsadsGrowthAlerts() {
           .slice(0, 20)
           .map((item) => ({
             id: `diagnostic:${item.id}`,
-            title: "Novo diagnóstico preenchido",
+            title: "Novo lead do diagnóstico no CRM",
             description: `${item.businessName} · ${item.name} · Score ${item.totalScore}/100`,
             createdAt: item.completedAt,
-            href: "/marketing/diagnosticos",
+            href: item.companyId ? `/crm/companies/${item.companyId}` : "/marketing/diagnosticos",
             kind: "diagnostic" as const,
           }));
 
@@ -124,7 +127,19 @@ export function useEsadsGrowthAlerts() {
             kind: "product_lead" as const,
           }));
 
+      const diagnosticOpportunityIds = new Set(diagnostics.map(item=>item.opportunityId).filter(Boolean));
+      const crmAlerts: GrowthAlert[] = (crmLeads.data??[])
+        .filter(item=>!diagnosticOpportunityIds.has(item.id))
+        .map(item=>({
+          id:`crm-lead:${item.id}`,
+          title:"Novo lead no CRM",
+          description:item.title || "Nova oportunidade cadastrada",
+          createdAt:item.created_at,
+          href:`/crm/companies/${item.company_id}`,
+          kind:"crm_lead" as const,
+        }));
       return [
+        ...crmAlerts,
         ...diagnosticAlerts,
         ...referralAlerts,
         ...productLeadAlerts,
