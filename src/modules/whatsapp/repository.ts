@@ -37,6 +37,14 @@ const mapMessage = (row: Row): WhatsAppMessage => ({
   messageType: String(row.message_type),
   textBody: text(row.text_body),
   messageTimestamp: text(row.message_timestamp),
+  mediaId: text(row.media_id),
+  mediaPath: text(row.media_path),
+  mediaMimeType: text(row.media_mime_type),
+  mediaFileName: text(row.media_file_name),
+  mediaSizeBytes:
+    row.media_size_bytes === null || row.media_size_bytes === undefined
+      ? undefined
+      : Number(row.media_size_bytes),
   createdAt: String(row.created_at),
 });
 
@@ -166,7 +174,7 @@ export const whatsappRepository = {
     const result = await configured()
       .from("whatsapp_messages")
       .select(
-        "id,organization_id,conversation_id,external_message_id,direction,message_type,text_body,message_timestamp,created_at",
+        "id,organization_id,conversation_id,external_message_id,direction,message_type,text_body,message_timestamp,media_id,media_path,media_mime_type,media_file_name,media_size_bytes,created_at",
       )
       .eq("organization_id", organizationId)
       .eq("conversation_id", conversationId)
@@ -182,13 +190,50 @@ export const whatsappRepository = {
       );
     }
 
-    return (result.data ?? [])
+    const messages = (result.data ?? [])
       .map((row) => mapMessage(row as unknown as Row))
       .sort(
         (a, b) =>
           new Date(a.messageTimestamp || a.createdAt).getTime() -
           new Date(b.messageTimestamp || b.createdAt).getTime(),
       );
+
+    const mediaPaths = [
+      ...new Set(
+        messages
+          .map((message) => message.mediaPath)
+          .filter((path): path is string => Boolean(path)),
+      ),
+    ];
+
+    if (!mediaPaths.length) {
+      return messages;
+    }
+
+    const signed = await configured()
+      .storage
+      .from("whatsapp-media")
+      .createSignedUrls(mediaPaths, 60 * 60);
+
+    if (signed.error) {
+      console.error("[WhatsApp media signed URLs]", signed.error);
+      return messages;
+    }
+
+    const signedByPath = new Map(
+      (signed.data ?? []).map((item) => [
+        item.path,
+        item.signedUrl,
+      ]),
+    );
+
+    return messages.map((message) => ({
+      ...message,
+      mediaUrl:
+        message.mediaPath
+          ? signedByPath.get(message.mediaPath)
+          : undefined,
+    }));
   },
 
   async linkCrmContext(input: {
