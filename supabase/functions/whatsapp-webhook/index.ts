@@ -8,6 +8,8 @@ const SUPABASE_SERVICE_ROLE_KEY =
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const AI_AGENT_INTERNAL_SECRET =
   Deno.env.get("AI_AGENT_INTERNAL_SECRET") ?? "";
+const OPENAI_API_KEY =
+  Deno.env.get("OPENAI_API_KEY") ?? "";
 
 const supabase = createClient(
   SUPABASE_URL,
@@ -936,6 +938,298 @@ async function persistWhatsAppMedia(
       },
     );
   }
+}
+
+async function transcribeInboundAudio(
+  connection: Connection,
+  conversationId: string,
+  message: any,
+) {
+  if (message?.type !== "audio") {
+    return null;
+  }
+
+  const externalMessageId =
+    String(message?.id ?? "").trim();
+
+  if (!externalMessageId || !OPENAI_API_KEY) {
+    return null;
+  }
+
+  const {
+    data: storedMessage,
+    error: storedMessageError,
+  } = await supabase
+    .from("whatsapp_messages")
+    .select(
+      "media_path,media_mime_type,media_file_name,media_transcript,media_transcription_status",
+    )
+    .eq(
+      "organization_id",
+      connection.organization_id,
+    )
+    .eq(
+      "conversation_id",
+      conversationId,
+    )
+    .eq(
+      "external_message_id",
+      externalMessageId,
+    )
+    .maybeSingle();
+
+  if (storedMessageError || !storedMessage) {
+    if (storedMessageError) {
+      console.error(
+        "Failed to load WhatsApp audio before transcription",
+        {
+          organizationId:
+            connection.organization_id,
+          conversationId,
+          externalMessageId,
+          code: storedMessageError.code,
+        },
+      );
+    }
+
+    return null;
+  }
+
+  const existingTranscript =
+    String(
+      storedMessage.media_transcript ?? "",
+    ).trim();
+
+  if (existingTranscript) {
+    return existingTranscript;
+  }
+
+  const mediaPath =
+    String(storedMessage.media_path ?? "").trim();
+
+  if (!mediaPath) {
+    return null;
+  }
+
+  await supabase
+    .from("whatsapp_messages")
+    .update({
+      media_transcription_status:
+        "processing",
+    })
+    .eq(
+      "organization_id",
+      connection.organization_id,
+    )
+    .eq(
+      "external_message_id",
+      externalMessageId,
+    );
+
+  const downloaded = await supabase.storage
+    .from(WHATSAPP_MEDIA_BUCKET)
+    .download(mediaPath);
+
+  if (downloaded.error || !downloaded.data) {
+    console.error(
+      "Failed to download WhatsApp audio for transcription",
+      {
+        organizationId:
+          connection.organization_id,
+        conversationId,
+        externalMessageId,
+        message:
+          downloaded.error?.message ?? null,
+      },
+    );
+
+    await supabase
+      .from("whatsapp_messages")
+      .update({
+        media_transcription_status:
+          "failed",
+      })
+      .eq(
+        "organization_id",
+        connection.organization_id,
+      )
+      .eq(
+        "external_message_id",
+        externalMessageId,
+      );
+
+    return null;
+  }
+
+  const mimeType =
+    normalizeMediaMimeType(
+      storedMessage.media_mime_type ??
+      downloaded.data.type,
+    ) ??
+    "audio/ogg";
+
+  const extension =
+    extensionForMedia(
+      mimeType,
+      "audio",
+    );
+
+  const fileName =
+    String(
+      storedMessage.media_file_name ??
+      `audio.${extension}`,
+    );
+
+  const form = new FormData();
+  form.set(
+    "file",
+    new File(
+      [downloaded.data],
+      fileName,
+      { type: mimeType },
+    ),
+  );
+  form.set(
+    "model",
+    "gpt-4o-mini-transcribe",
+  );
+  form.set("language", "pt");
+
+  let transcriptionResponse: Response;
+
+  try {
+    transcriptionResponse = await fetch(
+      "https://api.openai.com/v1/audio/transcriptions",
+      {
+        method: "POST",
+        headers: {
+          Authorization:
+            `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: form,
+      },
+    );
+  } catch (error) {
+    console.error(
+      "OpenAI audio transcription request failed",
+      {
+        organizationId:
+          connection.organization_id,
+        conversationId,
+        externalMessageId,
+        error:
+          error instanceof Error
+            ? error.message
+            : "network_error",
+      },
+    );
+
+    await supabase
+      .from("whatsapp_messages")
+      .update({
+        media_transcription_status:
+          "failed",
+      })
+      .eq(
+        "organization_id",
+        connection.organization_id,
+      )
+      .eq(
+        "external_message_id",
+        externalMessageId,
+      );
+
+    return null;
+  }
+
+  const transcriptionPayload =
+    await transcriptionResponse
+      .json()
+      .catch(() => ({})) as {
+        text?: string;
+        error?: {
+          message?: string;
+        };
+      };
+
+  const transcript =
+    String(
+      transcriptionPayload.text ?? "",
+    ).trim();
+
+  if (
+    !transcriptionResponse.ok ||
+    !transcript
+  ) {
+    console.error(
+      "OpenAI audio transcription failed",
+      {
+        organizationId:
+          connection.organization_id,
+        conversationId,
+        externalMessageId,
+        status:
+          transcriptionResponse.status,
+        message:
+          transcriptionPayload.error?.message ??
+          null,
+      },
+    );
+
+    await supabase
+      .from("whatsapp_messages")
+      .update({
+        media_transcription_status:
+          "failed",
+      })
+      .eq(
+        "organization_id",
+        connection.organization_id,
+      )
+      .eq(
+        "external_message_id",
+        externalMessageId,
+      );
+
+    return null;
+  }
+
+  const {
+    error: transcriptUpdateError,
+  } = await supabase
+    .from("whatsapp_messages")
+    .update({
+      media_transcript:
+        transcript,
+      media_transcription_status:
+        "completed",
+      text_body:
+        transcript,
+    })
+    .eq(
+      "organization_id",
+      connection.organization_id,
+    )
+    .eq(
+      "external_message_id",
+      externalMessageId,
+    );
+
+  if (transcriptUpdateError) {
+    console.error(
+      "Failed to save WhatsApp audio transcription",
+      {
+        organizationId:
+          connection.organization_id,
+        conversationId,
+        externalMessageId,
+        code:
+          transcriptUpdateError.code,
+      },
+    );
+  }
+
+  return transcript;
 }
 
 async function saveMessage(
@@ -1968,8 +2262,21 @@ async function processAiAgentMessage(
   const directInboundText =
     textFromMessage(message)?.trim();
 
+  const transcribedAudioText =
+    !directInboundText &&
+    message?.type === "audio"
+      ? (
+          await transcribeInboundAudio(
+            connection,
+            conversation.id,
+            message,
+          )
+        )?.trim()
+      : "";
+
   const inboundText =
     directInboundText ||
+    transcribedAudioText ||
     (
       isUnavailableInboundStarter(message)
         ? "Olá, vim pelo WhatsApp."
