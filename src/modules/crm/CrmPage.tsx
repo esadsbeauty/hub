@@ -1138,7 +1138,7 @@ function OpportunityKanban({
       <div
         ref={kanbanScrollRef}
         aria-label="Pipeline por etapas"
-        className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-5 md:mx-0 md:snap-none md:px-0 md:pb-6 md:[scrollbar-width:none] md:[&::-webkit-scrollbar]:hidden"
+        className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-5 md:mx-0 md:h-[calc(100dvh-17rem)] md:min-h-[360px] md:items-stretch md:snap-none md:px-0 md:pb-2 md:[scrollbar-width:none] md:[&::-webkit-scrollbar]:hidden"
         onScroll={(event) =>
           syncHorizontalScroll(event.currentTarget, stickyScrollRef.current)
         }
@@ -1152,7 +1152,7 @@ function OpportunityKanban({
           return (
             <section
               key={stage.id}
-              className="min-w-[90vw] max-w-[24rem] snap-center rounded-[1.75rem] bg-muted/55 p-5 md:min-w-72 md:max-w-none md:rounded-2xl md:p-3"
+              className="min-w-[90vw] max-w-[24rem] snap-center rounded-[1.75rem] bg-muted/55 p-5 md:flex md:min-h-0 md:min-w-72 md:max-w-none md:flex-col md:rounded-2xl md:p-3"
               onDragOver={(event) => event.preventDefault()}
               onDrop={() => dragging && onMove(dragging, stage.id)}
             >
@@ -1164,7 +1164,7 @@ function OpportunityKanban({
                   )}
                 </p>
               </header>
-              <div className="space-y-4 md:space-y-3">
+              <div className="space-y-4 md:min-h-0 md:flex-1 md:overflow-y-auto md:overscroll-contain md:pr-1 md:space-y-3 md:[scrollbar-width:thin]" aria-label={`Leads da etapa ${stage.name}`} tabIndex={0}>
                 {rows.length === 0 ? (
                   <p className="rounded-xl border border-dashed p-5 text-base leading-6 text-muted-foreground md:p-4 md:text-xs">
                     Nenhuma oportunidade. Arraste uma para cá.
