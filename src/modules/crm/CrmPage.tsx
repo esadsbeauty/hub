@@ -55,7 +55,7 @@ import { crmTerminology, isB2CMode, useBusinessMode } from "./business-mode";
 import { downloadLeadExport } from "./lead-spreadsheet";
 type View = "kanban" | "list";
 export type QuickCrmFilter = "all" | "calls" | "attending" | "waiting" | "overdue";
-const quickCrmOptions: {id:QuickCrmFilter;label:string}[]=[{id:"all",label:"Todos"},{id:"calls",label:"Ligações"},{id:"attending",label:"Em Atendimento"},{id:"waiting",label:"Aguardando Resposta"},{id:"overdue",label:"Atrasados"}];
+const quickCrmOptions: {id:QuickCrmFilter;label:string}[]=[{id:"all",label:"Todos"},{id:"calls",label:"Aguardando Ligação"},{id:"attending",label:"Em Atendimento"},{id:"waiting",label:"Aguardando Resposta"},{id:"overdue",label:"Atrasados"}];
 export type CrmSort = "newest" | "oldest" | "name" | "activity" | "followup" | "priority";
 export type CrmFilters = {
   owner: string;
@@ -204,7 +204,7 @@ export function CrmPage() {
     if(quickFilter==="attending")return stage==="em atendimento";
     if(quickFilter==="waiting")return stage==="aguardando resposta";
     const pending=tasks.filter(t=>t.status==="pending"&&!t.deletedAt&&(t.opportunityId===opportunity.id||(!t.opportunityId&&t.companyId===opportunity.companyId)));
-    if(quickFilter==="calls")return pending.some(t=>t.type==="call");
+    if(quickFilter==="calls")return stage==="aguardando ligação" || pending.some(t=>t.type==="call");
     return pending.some(t=>t.dueAt&&new Date(t.dueAt).getTime()<Date.now());
   };
   const quickCompanyIds=new Set(opportunities.filter(matchesQuickFilter).map(o=>o.companyId));
