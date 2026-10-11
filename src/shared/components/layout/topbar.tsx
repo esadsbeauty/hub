@@ -1,5 +1,7 @@
 import { Bell, Search } from "lucide-react";
-import { useMemo, useState, type FormEvent } from "react";
+import { useAppState } from "@/shared/state/app-state-context";
+import { usePriorityCallAlerts, type PriorityCallAlert } from "@/modules/notifications/use-priority-call-alerts";
+import { useMemo, useState, useEffect, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -30,6 +32,7 @@ export function Topbar() {
   const profile = useCurrentUserProfile().data;
   const humanHandoff = useHumanHandoffAlerts();
   const growthAlerts = useEsadsGrowthAlerts();
+  const priorityCalls = usePriorityCallAlerts();
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -50,6 +53,7 @@ export function Topbar() {
       <MobileHeader
         alerts={humanHandoff.alerts}
         growthAlerts={growthAlerts.alerts}
+        priorityCalls={priorityCalls.alerts}
         search={search}
         setSearch={setSearch}
         submit={submit}
@@ -75,9 +79,11 @@ function MobileHeader({
   signOut,
   alerts,
   growthAlerts,
+  priorityCalls,
 }: ProfileProps & {
   alerts: HumanHandoffAlert[];
   growthAlerts: GrowthAlert[];
+  priorityCalls: PriorityCallAlert[];
   search: string;
   setSearch: (value: string) => void;
   submit: (event: FormEvent) => void;
@@ -105,6 +111,7 @@ function MobileHeader({
           <NotificationsBell
             alerts={alerts}
             growthAlerts={growthAlerts}
+            priorityCalls={priorityCalls}
             mobile
           />
 
@@ -261,192 +268,47 @@ function alertTone(minutes: number) {
 }
 
 function NotificationsBell({
-  alerts,
-  growthAlerts,
-  mobile = false,
-}: {
-  alerts: HumanHandoffAlert[];
-  growthAlerts: GrowthAlert[];
-  mobile?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const navigate = useNavigate();
-
-  const ordered = useMemo(
-    () =>
-      [...alerts].sort(
-        (a, b) =>
-          b.waitingMinutes -
-          a.waitingMinutes,
-      ),
-    [alerts],
-  );
-
-  const totalNotifications =
-    alerts.length + growthAlerts.length;
-
-  return (
-    <div className="relative">
-      <Button
-        variant="ghost"
-        size="sm"
-        aria-label="Notificações"
-        aria-expanded={open}
-        onClick={() =>
-          setOpen(
-            (current) => !current,
-          )
-        }
-        className={
-          totalNotifications
-            ? "relative"
-            : undefined
-        }
-      >
-        <Bell
-          size={
-            mobile
-              ? 21
-              : 20
-          }
-          className={
-            alerts.length
-              ? "animate-pulse text-destructive"
-              : growthAlerts.length
-                ? "text-amber-700"
-                : undefined
-          }
-        />
-
-        {totalNotifications > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 grid min-h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-destructive-foreground">
-            {totalNotifications > 9
-              ? "9+"
-              : totalNotifications}
-          </span>
-        )}
-      </Button>
-
-      {open && (
-        <div
-          className={
-            mobile
-              ? "fixed left-4 right-4 top-16 z-50 max-h-[70dvh] overflow-auto rounded-2xl border bg-card p-3 shadow-overlay"
-              : "absolute right-0 top-[calc(100%+.5rem)] z-50 w-[380px] max-w-[90vw] rounded-2xl border bg-card p-3 shadow-overlay"
-          }
-        >
-          <div className="flex items-center justify-between gap-3 px-1 pb-2">
-            <div>
-              <p className="font-semibold">
-                Notificações
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Leads novos e atendimento comercial
-              </p>
-            </div>
-
-            {alerts.length > 0 && (
-              <span className="rounded-full bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">
-                {alerts.length} aguardando
-              </span>
-            )}
-          </div>
-
-          {ordered.length === 0 && growthAlerts.length === 0 ? (
-            <div className="rounded-xl bg-muted/40 px-4 py-6 text-center text-sm text-muted-foreground">
-              Nenhuma notificação no momento.
-            </div>
-          ) : ordered.length > 0 ? (
-            <div className="space-y-2">
-              {ordered.map(
-                (alert) => (
-                  <button
-                    key={
-                      alert.opportunityId
-                    }
-                    type="button"
-                    onClick={() => {
-                      setOpen(false);
-                      sessionStorage.removeItem("crm-query");
-                      navigate(
-                        `/crm?opportunity=${encodeURIComponent(alert.opportunityId)}`,
-                      );
-                    }}
-                    className={`w-full rounded-xl border p-3 text-left transition hover:brightness-[.98] ${alertTone(
-                      alert.waitingMinutes,
-                    )}`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold">
-                          {alert.title}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Aguardando atendimento humano
-                        </p>
-                      </div>
-
-                      <span
-                        className={
-                          alert.waitingMinutes >= 15
-                            ? "shrink-0 text-xs font-semibold text-destructive"
-                            : alert.waitingMinutes >= 5
-                              ? "shrink-0 text-xs font-semibold text-amber-700"
-                              : "shrink-0 text-xs font-medium text-muted-foreground"
-                        }
-                      >
-                        {waitingLabel(
-                          alert.waitingMinutes,
-                        )}
-                      </span>
-                    </div>
-                  </button>
-                ),
-              )}
-            </div>
-          ) : null}
-
-          {growthAlerts.length > 0 && (
-            <div className="mt-3 border-t border-border/60 pt-3">
-              <div className="mb-2 flex items-center justify-between gap-2 px-1">
-                <p className="text-xs font-semibold uppercase tracking-[.12em] text-muted-foreground">
-                  Novidades da ESADS
-                </p>
-                <span className="text-xs text-muted-foreground">
-                  {growthAlerts.length}
-                </span>
-              </div>
-
-              <div className="space-y-2">
-                {growthAlerts.slice(0, 8).map((alert) => (
-                  <button
-                    key={alert.id}
-                    type="button"
-                    onClick={() => {
-                      setOpen(false);
-                      navigate(alert.href);
-                    }}
-                    className="w-full rounded-xl border border-border/60 bg-background p-3 text-left transition hover:bg-muted/50"
-                  >
-                    <p className="text-sm font-semibold">
-                      {alert.title}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {alert.description}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {ordered.length > 0 && (
-            <p className="mt-3 px-1 text-[11px] leading-4 text-muted-foreground">
-              O alerta de atendimento humano só some quando o lead sair dessa etapa.
-            </p>
-          )}
-        </div>
-      )}
-    </div>
-  );
+  alerts,growthAlerts,priorityCalls,mobile=false,
+}: {alerts:HumanHandoffAlert[];growthAlerts:GrowthAlert[];priorityCalls:PriorityCallAlert[];mobile?:boolean}) {
+  const {organizationId}=useAppState();
+  const navigate=useNavigate();
+  const [open,setOpen]=useState(false);
+  const [readIds,setReadIds]=useState<string[]>([]);
+  const storageKey=`esads-notifications-read:${organizationId}`;
+  useEffect(()=>{
+    const refresh=()=>{try{setReadIds(JSON.parse(localStorage.getItem(storageKey)??"[]") as string[])}catch{setReadIds([])}};
+    refresh();window.addEventListener("storage",refresh);window.addEventListener("esads:notifications-read",refresh);
+    return()=>{window.removeEventListener("storage",refresh);window.removeEventListener("esads:notifications-read",refresh)};
+  },[storageKey]);
+  const ordered=useMemo(()=>[...alerts].sort((a,b)=>b.waitingMinutes-a.waitingMinutes),[alerts]);
+  const combined=useMemo(()=>[
+    ...priorityCalls.map(a=>({...a,id:a.id,kind:"call" as const})),
+    ...ordered.map(a=>({id:`handoff:${a.opportunityId}`,title:a.title,description:`Aguardando atendimento humano ${waitingLabel(a.waitingMinutes)}`,href:`/crm?opportunity=${encodeURIComponent(a.opportunityId)}`,kind:"handoff" as const})),
+    ...growthAlerts.map(a=>({...a,kind:"growth" as const})),
+  ],[priorityCalls,ordered,growthAlerts]);
+  const pending=combined.filter(a=>!readIds.includes(a.id));
+  const markRead=(ids:string[])=>{
+    const next=[...new Set([...readIds,...ids])].slice(-500);
+    localStorage.setItem(storageKey,JSON.stringify(next));
+    setReadIds(next);
+    window.dispatchEvent(new Event("esads:notifications-read"));
+  };
+  return <div className="relative">
+    <Button variant="ghost" size="sm" aria-label="Notificações" aria-expanded={open} onClick={()=>setOpen(v=>!v)} className={pending.length?"relative":undefined}>
+      <Bell size={mobile?21:20} className={pending.some(a=>a.kind==="call")?"text-destructive":pending.length?"text-amber-700":undefined}/>
+      {pending.length>0&&<span className="absolute -right-0.5 -top-0.5 grid min-h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">{pending.length>9?"9+":pending.length}</span>}
+    </Button>
+    {open&&<div className={mobile?"fixed left-4 right-4 top-16 z-50 max-h-[70dvh] overflow-auto rounded-2xl border bg-card p-3 shadow-overlay":"absolute right-0 top-[calc(100%+.5rem)] z-50 max-h-[70dvh] w-[380px] max-w-[90vw] overflow-auto rounded-2xl border bg-card p-3 shadow-overlay"}>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div><p className="font-semibold">Notificações</p><p className="text-xs text-muted-foreground">Avisos pendentes da equipe</p></div>
+        {pending.length>0&&<button className="text-xs font-semibold text-primary hover:underline" onClick={()=>markRead(pending.map(a=>a.id))}>Marcar todas como lidas</button>}
+      </div>
+      {pending.length===0?<p className="rounded-xl bg-muted/40 px-4 py-6 text-center text-sm text-muted-foreground">Nenhuma notificação pendente.</p>:
+      <div className="space-y-2">{pending.slice(0,30).map(alert=><button key={alert.id} type="button" onClick={()=>{markRead([alert.id]);setOpen(false);navigate(alert.href)}} className={`w-full rounded-xl border p-3 text-left transition hover:bg-muted/50 ${alert.kind==="call"?"border-amber-300 bg-amber-50":""}`}>
+        <p className="text-sm font-semibold">{alert.title}</p><p className="mt-1 text-xs text-muted-foreground">{alert.description}</p>
+        <p className="mt-1 text-xs font-semibold text-primary">Abrir e marcar como lida →</p>
+      </button>)}</div>}
+      <p className="mt-3 text-xs text-muted-foreground">Marcar como lida não conclui tarefas de ligação nem atendimentos.</p>
+    </div>}
+  </div>;
 }
