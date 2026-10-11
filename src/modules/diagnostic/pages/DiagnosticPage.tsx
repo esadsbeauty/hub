@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BrandLogo } from "@/shared/components/brand/brand-logo";
 import { diagnosticConsultationUrl } from "@/config/contact";
+import { trackDiagnosticPixel, trackDiagnosticPixelCustom, sendDiagnosticServerEvent } from "../meta-pixel";
 import { categoryContent } from "../content";
 import { diagnosticQuestions } from "../questions";
 import { diagnosticCaptureSchema, diagnosticLeadSchema, formatBrazilianWhatsapp, type DiagnosticCaptureForm } from "../schema";
@@ -29,12 +30,12 @@ export function DiagnosticPage(){
   const saved=useMemo(()=>{try{const stored=JSON.parse(sessionStorage.getItem(progressKey)??"null")as{answers:DiagnosticAnswers;index:number;startedAt:string}|null;if(!stored||stored.answers?.organization||stored.answers?.metrics||stored.answers?.marketing||stored.answers?.financial_clarity)return null;return {...stored,index:Math.max(0,Math.min(stored.index,diagnosticQuestions.length-1))};}catch{return null}},[]);
   const [step,setStep]=useState<Step>(token?"loading":"landing"),[index,setIndex]=useState(saved?.index??0),[answers,setAnswers]=useState<DiagnosticAnswers>(saved?.answers??{}),[submission,setSubmission]=useState<DiagnosticSubmission>(),[error,setError]=useState("");
   const startedAt=saved?.startedAt??new Date().toISOString();
-  useEffect(()=>{captureAttribution();track("diagnostic_viewed");if(token)void diagnosticDataSource.get(token).then(value=>{if(value){setSubmission(value);setStep("thanks");track("diagnostic_result_viewed")}else{setError("Este diagnóstico não está disponível.");setStep("error")}})},[token]);
+  useEffect(()=>{captureAttribution();trackDiagnosticPixel("PageView");track("diagnostic_viewed");if(token)void diagnosticDataSource.get(token).then(value=>{if(value){setSubmission(value);setStep("thanks");track("diagnostic_result_viewed")}else{setError("Este diagnóstico não está disponível.");setStep("error")}})},[token]);
   useEffect(()=>{if(step==="quiz")sessionStorage.setItem(progressKey,JSON.stringify({answers,index,startedAt}))},[answers,index,startedAt,step]);
-  const finishAnalysis=()=>{calculateDiagnosticResult(answers);setStep("capture");track("diagnostic_form_viewed")};
-  const submitted=(value:DiagnosticSubmission)=>{setSubmission(value);sessionStorage.removeItem(progressKey);sessionStorage.removeItem("esads-diagnostic-key");clearAttribution();navigate(`/diagnostico/obrigado/${value.token}`,{replace:true});setStep("thanks");trackPublicEvent(publicEventNames.diagnosticComplete,{bottleneck:value.result.primaryBottleneck});track("diagnostic_submitted");track("diagnostic_result_viewed")};
+  const finishAnalysis=()=>{calculateDiagnosticResult(answers);setStep("capture");track("diagnostic_form_viewed");trackDiagnosticPixelCustom("DiagnosticFormView")};
+  const submitted=(value:DiagnosticSubmission)=>{setSubmission(value);sessionStorage.removeItem(progressKey);sessionStorage.removeItem("esads-diagnostic-key");clearAttribution();navigate(`/diagnostico/obrigado/${value.token}`,{replace:true});setStep("thanks");trackPublicEvent(publicEventNames.diagnosticComplete,{bottleneck:value.result.primaryBottleneck});const eventId=`diagnostic-lead-${value.token}`;trackDiagnosticPixel("Lead",{content_name:"diagnostico_esads_beauty"},eventId);sendDiagnosticServerEvent("Lead",eventId,value.token);track("diagnostic_submitted");track("diagnostic_result_viewed")};
   return <div className="min-h-[calc(100dvh-5rem)]">
-    {step==="landing"&&<Landing start={()=>{setStep("quiz");trackPublicEvent(publicEventNames.diagnosticStart)}}/>}
+    {step==="landing"&&<Landing start={()=>{setStep("quiz");trackPublicEvent(publicEventNames.diagnosticStart);trackDiagnosticPixel("ViewContent",{content_name:"diagnostico_esads_beauty"})}}/>}
     {step==="quiz"&&<Quiz index={index} answers={answers} choose={(key)=>{const next={...answers,[diagnosticQuestions[index].key]:key};setAnswers(next);sessionStorage.setItem(progressKey,JSON.stringify({answers:next,index,startedAt}));track("diagnostic_question_answered",{question:index+1})}} advance={()=>index===diagnosticQuestions.length-1?setStep("analysis"):setIndex(value=>value+1)} back={()=>index?setIndex(value=>value-1):setStep("landing")}/>}
     {step==="analysis"&&<Analysis complete={finishAnalysis}/>}
     {step==="capture"&&<Capture answers={answers} startedAt={startedAt} success={submitted} back={()=>{setIndex(diagnosticQuestions.length-1);setStep("quiz")}}/>}
@@ -188,7 +189,7 @@ function ThankYou({submission}:{submission:DiagnosticSubmission}){
  const download=async()=>{setPdfError("");try{const{downloadDiagnosticPdf}=await import("../pdf/generate-diagnostic-pdf");downloadDiagnosticPdf(submission);track("diagnostic_pdf_downloaded")}catch{setPdfError("Não foi possível gerar o PDF agora. Seu diagnóstico continua disponível nesta página.")}};
  const consultationEligible = submission.answers.business_stage !== "a";
  const contactUrl=diagnosticConsultationUrl({name:submission.lead.name,score:result.totalScore,stage:result.businessStage,need:result.primaryNeed,bottleneck:bottleneck.label,sourceUrl:typeof window!=="undefined"?window.location.href:"https://beauty.esads.com.br/diagnostico"});
- const consultationClick=()=>{track("diagnostic_consultation_requested",{stage:submission.answers.business_stage,score:result.totalScore,need:submission.answers.primary_need});trackPublicEvent(publicEventNames.diagnosticSystemCtaClick,{bottleneck:result.primaryBottleneck,action:"consultation"});};
+ const consultationClick=()=>{const eventId=`diagnostic-contact-${submission.token}`;trackDiagnosticPixel("Contact",{content_name:"consultoria_esads_beauty"},eventId);sendDiagnosticServerEvent("Contact",eventId,submission.token);track("diagnostic_consultation_requested",{stage:submission.answers.business_stage,score:result.totalScore,need:submission.answers.primary_need});trackPublicEvent(publicEventNames.diagnosticSystemCtaClick,{bottleneck:result.primaryBottleneck,action:"consultation"});};
  return <main className="bg-[var(--brand-ivory)] pb-12">
   <section className="relative overflow-hidden bg-primary px-5 pb-14 pt-10 text-primary-foreground md:pb-20 md:pt-16">
    <div aria-hidden className="pointer-events-none absolute -right-20 top-8 h-72 w-72 rounded-full border border-champagne/20"/>
