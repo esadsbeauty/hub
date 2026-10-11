@@ -465,7 +465,7 @@ export function CrmPage() {
     });
   };
   return (
-    <PageContainer>
+    <PageContainer className="space-y-3 md:space-y-2">
       <MobileCrmView
         businessMode={businessMode}
         companies={filtered}
@@ -492,7 +492,6 @@ export function CrmPage() {
       <div className="hidden md:contents">
       <PageHeader
         title="CRM"
-        description={b2c?"Leads, clientes e próximos passos.":"Empresas, oportunidades e próximos passos."}
         actions={
           <div className="flex items-center gap-2">
             <Button onClick={() => setModal("company")}>
@@ -546,7 +545,7 @@ export function CrmPage() {
           </Button>
         </div>
       )}
-      <div className="flex flex-col justify-between gap-3 sm:flex-row">
+      <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
         <div className="flex items-center gap-2">
         <div className="inline-flex rounded-xl border bg-muted/50 p-1">
           <Button
@@ -566,8 +565,10 @@ export function CrmPage() {
         </div>
         </div>
         <Button className="md:hidden" variant="outline" onClick={()=>setMobileSortOpen(true)}><ArrowDownUp size={19}/> Ordenar</Button>
+        <div className="hidden items-center gap-2 md:flex">
+          <div className="w-56 lg:w-72"><SearchInput value={query} onChange={(event)=>{setQuery(event.target.value);sessionStorage.setItem("crm-query",event.target.value)}} placeholder="Buscar lead ou contato…" /></div>
         <Select
-          className="hidden md:block md:w-52"
+          className="w-44"
           value={sort}
           onChange={(event) => {
             const value = event.target.value;
@@ -589,21 +590,14 @@ export function CrmPage() {
           <option value="followup">Próximo follow-up</option>
           <option value="priority">Prioridade</option>
         </Select>
+        </div>
       </div>
       <div className="space-y-3 md:hidden"><SearchInput value={query} onChange={(event) => { setQuery(event.target.value); sessionStorage.setItem("crm-query", event.target.value); }} placeholder="Buscar lead ou contato…"/><Button className="w-full" variant="outline" aria-label="Abrir filtros" onClick={()=>setMobileFiltersOpen(true)}><SlidersHorizontal size={20}/> Filtros{activeFilters > 0 && <span className="grid h-7 min-w-7 place-items-center rounded-full bg-primary px-2 text-sm text-primary-foreground">{activeFilters}</span>}</Button>{activeFilters>0&&<p className="text-sm text-muted-foreground">{activeFilters} filtro(s) ativo(s)</p>}</div>
-      <div className="hidden flex-wrap gap-2 md:flex" role="group" aria-label="Filtros rápidos de atendimento">
-        {quickCrmOptions.map(item=><button key={item.id} type="button" aria-pressed={quickFilter===item.id} onClick={()=>setQuickFilter(item.id)} className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${quickFilter===item.id?"border-primary bg-primary text-primary-foreground":"bg-card hover:bg-muted"}`}>{item.label}</button>)}
+      <div className="hidden flex-wrap gap-1.5 md:flex" role="group" aria-label="Filtros rápidos de atendimento">
+        {quickCrmOptions.map(item=><button key={item.id} type="button" aria-pressed={quickFilter===item.id} onClick={()=>setQuickFilter(item.id)} className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${quickFilter===item.id?"border-primary bg-primary text-primary-foreground":"bg-card hover:bg-muted"}`}>{item.label}</button>)}
       </div>
-      <details className="hidden rounded-2xl border bg-card p-3 md:block"><summary className="cursor-pointer text-sm font-semibold">Filtros avançados {activeFilters>0?`(${activeFilters} ativos)`:""}</summary>
+      <details className="hidden rounded-xl border bg-card px-3 py-2 md:block"><summary className="cursor-pointer text-xs font-semibold">Filtros avançados {activeFilters>0?`(${activeFilters} ativos)`:""}</summary>
       <FilterBar className="mt-3 flex flex-wrap">
-        <SearchInput
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            sessionStorage.setItem("crm-query", event.target.value);
-          }}
-          placeholder={b2c?"Buscar lead, telefone, WhatsApp ou e-mail...":"Buscar empresa, contato, telefone, email..."}
-        />
         <FilterSelect
           value={filters.owner}
           label="Responsável"
