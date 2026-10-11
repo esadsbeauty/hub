@@ -236,7 +236,11 @@ function MobileOpportunityCard({
             <OpportunityStatusBadge opportunity={item} stages={stages} />
           </div>
 
-          {task && <NextActionStatus opportunity={item} stages={stages} task={task}/>} 
+          <NextActionStatus opportunity={item} stages={stages} task={task}/>
+          <div className="mt-2 space-y-1 text-left text-xs text-muted-foreground">
+            <p>Último contato: {lastContact ? formatDateTime(lastContact.createdAt) : "Não registrado"}</p>
+            <p>Próxima tarefa: {task ? task.title : "Nenhuma tarefa cadastrada"}</p>
+          </div> 
         </button>
 
         <div className="mt-3 grid grid-cols-3 gap-2 border-t pt-3">
