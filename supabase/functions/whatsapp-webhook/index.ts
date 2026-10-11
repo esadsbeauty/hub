@@ -203,6 +203,70 @@ async function registerPaidTrafficLead(
   return true;
 }
 
+function isEsadsDiagnosticStarter(message: any) {
+  const text = String(textFromMessage(message) ?? "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+  return text.includes("diagnostico") &&
+    text.includes("esads beauty") &&
+    (text.includes("conclui") || text.includes("acabei de concluir")) &&
+    (text.includes("consultoria") || text.includes("analise"));
+}
+
+async function registerDiagnosticLead(
+  connection: Connection,
+  conversationId: string,
+  message: any,
+  waId: string,
+  contactName: string,
+) {
+  // Restrict the campaign-specific flow to the ESADS Beauty organization.
+  const { data: org } = await supabase.from("organizations")
+    .select("slug").eq("id",connection.organization_id).maybeSingle();
+  if(org?.slug!=="esads-beauty" || !isEsadsDiagnosticStarter(message)) return false;
+
+  const { data, error } = await supabase.rpc("upsert_whatsapp_inbound_lead",{
+    p_organization_id:connection.organization_id,
+    p_name:contactName || waId,
+    p_whatsapp:waId,
+  });
+  if(error || !data?.company_id || !data?.opportunity_id) {
+    console.error("Diagnostic lead CRM upsert failed",{conversationId,code:error?.code,message:error?.message});
+    return false;
+  }
+  // New diagnostics enter Novo Lead; existing opportunities retain their stage.
+  if(data.opportunity_created===true) {
+    const {data:stage}=await supabase.from("pipeline_stages").select("id,pipeline_id")
+      .eq("pipeline_id",data.pipeline_id).eq("is_active",true)
+      .or("slug.eq.novo_lead,name.ilike.Novo Lead").limit(1).maybeSingle();
+    if(stage?.id){
+      const {error:stageError}=await supabase.from("opportunities")
+        .update({stage_id:stage.id,source:"Diagnóstico ESADS Beauty"})
+        .eq("id",data.opportunity_id).eq("organization_id",connection.organization_id)
+        .eq("status","open").is("deleted_at",null);
+      if(stageError) console.error("Diagnostic lead stage update failed",stageError.message);
+    }
+  }
+  // Add the individual contact when a new company was created.
+  if(data.company_created===true) {
+    const {error:contactError}=await supabase.from("contacts").insert({
+      organization_id:connection.organization_id,
+      company_id:data.company_id,
+      name:contactName || waId,
+      whatsapp:waId,
+      is_primary:true,
+    });
+    if(contactError) console.error("Diagnostic contact insert failed",contactError.message);
+  }
+  await linkConversationToCrm(connection,conversationId,data);
+  // Update any pre-existing agent session to point to the active CRM records.
+  await supabase.from("ai_agent_conversations")
+    .update({company_id:data.company_id,opportunity_id:data.opportunity_id})
+    .eq("organization_id",connection.organization_id)
+    .eq("whatsapp_conversation_id",conversationId)
+    .in("status",["active","qualified"]);
+  return true;
+}
+
 async function registerUnavailableWhatsappLead(
   connection: Connection,
   conversationId: string,
@@ -2965,8 +3029,14 @@ async function processStandardMessages(
         contactMap.get(waId) ?? waId,
       );
 
+    // Create or reuse a CRM lead before Regina processes a diagnostic starter.
+    // This is idempotent for redelivered or repeated messages.
+    const diagnosticLeadRegistered = await registerDiagnosticLead(
+      connection,conversation.id,message,waId,contactMap.get(waId)??waId,
+    );
+
     if (
-      !paidTrafficLeadRegistered &&
+      !paidTrafficLeadRegistered && !diagnosticLeadRegistered &&
       isUnavailableInboundStarter(message)
     ) {
       await registerUnavailableWhatsappLead(
