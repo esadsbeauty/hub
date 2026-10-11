@@ -52,7 +52,9 @@ export function useWhatsAppInbox() {
     staleTime: 15_000,
     gcTime: 5 * 60_000,
 
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
+    refetchInterval: 5_000,
+    refetchIntervalInBackground: false,
     refetchOnReconnect: true,
 
     retry: 1,
@@ -71,6 +73,10 @@ export function useWhatsAppInbox() {
 
           seen.add(conversation.id);
           return true;
+        })
+        .sort((a, b) => {
+          const timestamp = (item: typeof a) => new Date(item.lastMessageAt || item.lastMessage?.messageTimestamp || item.lastMessage?.createdAt || 0).getTime() || 0;
+          return timestamp(b) - timestamp(a);
         });
 
       return {
