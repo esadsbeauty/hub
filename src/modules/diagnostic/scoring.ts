@@ -23,7 +23,7 @@ export function calculateDiagnosticResult(answers: DiagnosticAnswers): Diagnosti
   const categoryScores = Object.fromEntries(categories.map(category => [
     category,
     legacy ? legacyPoints[answers[category]] : currentPoints[category as CurrentCategory][answers[category]],
-  ])) as Partial<Record<DiagnosticCategory, number>>;
+  ])) as Record<DiagnosticCategory, number>;
   const ordered = [...categories].sort((a, b) =>
     (categoryScores[a] ?? 0) - (categoryScores[b] ?? 0) || categories.indexOf(a) - categories.indexOf(b)
   );
