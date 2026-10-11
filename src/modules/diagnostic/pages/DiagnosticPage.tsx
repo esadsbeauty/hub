@@ -26,7 +26,7 @@ const track=(name:string,detail:Record<string,unknown>={})=>window.dispatchEvent
 
 export function DiagnosticPage(){
   const {token}=useParams(),navigate=useNavigate();
-  const saved=useMemo(()=>{try{return JSON.parse(sessionStorage.getItem(progressKey)??"null")as{answers:DiagnosticAnswers;index:number;startedAt:string}|null}catch{return null}},[]);
+  const saved=useMemo(()=>{try{const stored=JSON.parse(sessionStorage.getItem(progressKey)??"null")as{answers:DiagnosticAnswers;index:number;startedAt:string}|null;if(!stored||stored.answers?.organization||stored.answers?.metrics||stored.answers?.marketing||stored.answers?.financial_clarity)return null;return {...stored,index:Math.max(0,Math.min(stored.index,diagnosticQuestions.length-1))};}catch{return null}},[]);
   const [step,setStep]=useState<Step>(token?"loading":"landing"),[index,setIndex]=useState(saved?.index??0),[answers,setAnswers]=useState<DiagnosticAnswers>(saved?.answers??{}),[submission,setSubmission]=useState<DiagnosticSubmission>(),[error,setError]=useState("");
   const startedAt=saved?.startedAt??new Date().toISOString();
   useEffect(()=>{captureAttribution();track("diagnostic_viewed");if(token)void diagnosticDataSource.get(token).then(value=>{if(value){setSubmission(value);setStep("thanks");track("diagnostic_result_viewed")}else{setError("Este diagnóstico não está disponível.");setStep("error")}})},[token]);
