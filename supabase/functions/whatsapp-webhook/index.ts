@@ -1643,6 +1643,16 @@ async function getAiCrmRouting(
     };
   }
 
+  // Only the ESADS diagnostic sales flow may start AI qualification from Novo Lead.
+  const {data:initialStage}=await supabase.from("pipeline_stages")
+    .select("slug,pipeline_id").eq("id",opportunity.stage_id).maybeSingle();
+  const {data:salesOrg}=await supabase.from("organizations")
+    .select("slug").eq("id",organizationId).maybeSingle();
+  if(salesOrg?.slug==="esads-beauty" &&
+    initialStage?.slug==="novo_lead") {
+    return {allowed:true,stage:"awaiting",opportunityId:opportunity.id as string};
+  }
+
   if (opportunity.stage_id === awaitingStageId) {
     return {
       allowed: true,
