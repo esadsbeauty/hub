@@ -62,6 +62,7 @@ export function Topbar() {
       <DesktopHeader
         alerts={humanHandoff.alerts}
         growthAlerts={growthAlerts.alerts}
+        priorityCalls={priorityCalls.alerts}
         {...identity}
       />
     </>
@@ -158,10 +159,12 @@ function DesktopHeader({
   signOut,
   alerts,
   growthAlerts,
+  priorityCalls,
 }: ProfileProps & {
   local: boolean;
   alerts: HumanHandoffAlert[];
   growthAlerts: GrowthAlert[];
+  priorityCalls: PriorityCallAlert[];
 }) {
   return (
     <header className="sticky top-0 z-20 hidden border-b border-border/60 bg-background/95 px-5 py-3 backdrop-blur-xl md:block lg:px-8">
@@ -180,6 +183,7 @@ function DesktopHeader({
           <NotificationsBell
             alerts={alerts}
             growthAlerts={growthAlerts}
+            priorityCalls={priorityCalls}
           />
 
           <Profile
