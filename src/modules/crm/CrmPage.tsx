@@ -54,6 +54,8 @@ import { currency, formatDateTime } from "./utils/formatters";
 import { crmTerminology, isB2CMode, useBusinessMode } from "./business-mode";
 import { downloadLeadExport } from "./lead-spreadsheet";
 type View = "kanban" | "list";
+export type QuickCrmFilter = "all" | "calls" | "attending" | "waiting" | "overdue";
+const quickCrmOptions: {id:QuickCrmFilter;label:string}[]=[{id:"all",label:"Todos"},{id:"calls",label:"Ligações"},{id:"attending",label:"Em Atendimento"},{id:"waiting",label:"Aguardando Resposta"},{id:"overdue",label:"Atrasados"}];
 export type CrmSort = "newest" | "oldest" | "name" | "activity" | "followup" | "priority";
 export type CrmFilters = {
   owner: string;
@@ -95,6 +97,7 @@ export function CrmPage() {
   const requestedOpportunityId = searchParams.get("opportunity") ?? "";
   const [view, setView] = useState<View>("kanban");
   const [sort, setSort] = useState<CrmSort>("newest");
+  const [quickFilter,setQuickFilter] = useState<QuickCrmFilter>("all");
   const [filters, setFilters] = useState<CrmFilters>(emptyFilters);
   const [modal, setModal] = useState<
     "company" | "opportunity" | "followup" | "pipeline" | "import" | null
@@ -195,6 +198,16 @@ export function CrmPage() {
   const tasks: Task[] = (data?.tasks ?? []).filter((item) => !item.deletedAt);
   const events: TimelineEvent[] = data?.events ?? [];
   const contacts: CompanyContact[] = data?.contacts ?? [];
+  const matchesQuickFilter=(opportunity:Opportunity)=>{
+    if(quickFilter==="all")return true;
+    const stage=data?.stages.find(item=>item.id===opportunity.stageId)?.name?.toLocaleLowerCase("pt-BR")??"";
+    if(quickFilter==="attending")return stage==="em atendimento";
+    if(quickFilter==="waiting")return stage==="aguardando resposta";
+    const pending=tasks.filter(t=>t.status==="pending"&&!t.deletedAt&&(t.opportunityId===opportunity.id||(!t.opportunityId&&t.companyId===opportunity.companyId)));
+    if(quickFilter==="calls")return pending.some(t=>t.type==="call");
+    return pending.some(t=>t.dueAt&&new Date(t.dueAt).getTime()<Date.now());
+  };
+  const quickCompanyIds=new Set(opportunities.filter(matchesQuickFilter).map(o=>o.companyId));
   const activeFilters = Object.values(filters).filter(
     (item) => item !== "all",
   ).length;
@@ -249,6 +262,7 @@ export function CrmPage() {
           .join(" ")
           .toLowerCase();
         return (
+          (quickFilter==="all"||quickCompanyIds.has(company.id)) &&
           (!normalized || searchable.includes(normalized)) &&
           (requestedStageIds.length === 0 ||
             opportunities.some(
@@ -306,6 +320,7 @@ export function CrmPage() {
     deferredQuery,
     filters,
     sort,
+    quickFilter,
     requestedStageIds.join(","),
   ]);
   if (isLoading)
@@ -455,13 +470,15 @@ export function CrmPage() {
         businessMode={businessMode}
         companies={filtered}
         contacts={contacts}
-        opportunities={visibleOpportunities.filter((item)=>filtered.some((company)=>company.id===item.companyId))}
+        opportunities={visibleOpportunities.filter((item)=>matchesQuickFilter(item)&&filtered.some((company)=>company.id===item.companyId))}
         tasks={tasks}
         stages={visibleCrmStages}
         query={query}
         filters={filters}
         sort={sort}
         activeFilters={activeFilters}
+        quickFilter={quickFilter}
+        onQuickFilterChange={setQuickFilter}
         onQueryChange={setQuery}
         onFiltersChange={updateFilters}
         onSortChange={setSort}
@@ -574,7 +591,11 @@ export function CrmPage() {
         </Select>
       </div>
       <div className="space-y-3 md:hidden"><SearchInput value={query} onChange={(event) => { setQuery(event.target.value); sessionStorage.setItem("crm-query", event.target.value); }} placeholder="Buscar lead ou contato…"/><Button className="w-full" variant="outline" aria-label="Abrir filtros" onClick={()=>setMobileFiltersOpen(true)}><SlidersHorizontal size={20}/> Filtros{activeFilters > 0 && <span className="grid h-7 min-w-7 place-items-center rounded-full bg-primary px-2 text-sm text-primary-foreground">{activeFilters}</span>}</Button>{activeFilters>0&&<p className="text-sm text-muted-foreground">{activeFilters} filtro(s) ativo(s)</p>}</div>
-      <FilterBar className="hidden md:flex">
+      <div className="hidden flex-wrap gap-2 md:flex" role="group" aria-label="Filtros rápidos de atendimento">
+        {quickCrmOptions.map(item=><button key={item.id} type="button" aria-pressed={quickFilter===item.id} onClick={()=>setQuickFilter(item.id)} className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${quickFilter===item.id?"border-primary bg-primary text-primary-foreground":"bg-card hover:bg-muted"}`}>{item.label}</button>)}
+      </div>
+      <details className="hidden rounded-2xl border bg-card p-3 md:block"><summary className="cursor-pointer text-sm font-semibold">Filtros avançados {activeFilters>0?`(${activeFilters} ativos)`:""}</summary>
+      <FilterBar className="mt-3 flex flex-wrap">
         <SearchInput
           value={query}
           onChange={(event) => {
@@ -668,7 +689,7 @@ export function CrmPage() {
             <FilterX size={15} /> Limpar ({activeFilters})
           </Button>
         )}
-      </FilterBar>
+      </FilterBar></details>
       <Modal open={mobileFiltersOpen} title="Filtrar CRM" onClose={()=>setMobileFiltersOpen(false)}>
         <div className="grid gap-5">
           <MobileFilterField label="Responsável"><FilterSelect value={filters.owner} label="Todos os responsáveis" values={companies.map((item) => item.owner)} onChange={(owner) => updateFilters({ ...filters, owner })}/></MobileFilterField>
@@ -690,7 +711,7 @@ export function CrmPage() {
         <OpportunityKanban
           businessMode={businessMode}
           opportunities={visibleOpportunities.filter((item) =>
-            filtered.some((company) => company.id === item.companyId),
+            matchesQuickFilter(item) && filtered.some((company) => company.id === item.companyId),
           )}
           stages={visibleCrmStages}
           companyById={companyById}
