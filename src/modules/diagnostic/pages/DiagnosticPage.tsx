@@ -21,27 +21,59 @@ import { BlogCard } from "@/modules/blog/components/blog-card";
 import { diagnosticRecommendedPosts } from "@/modules/blog/funnel";
 import { publicEventNames, trackPublicEvent } from "@/shared/analytics/public-events";
 
-type Step="landing"|"quiz"|"analysis"|"capture"|"loading"|"thanks"|"error";
+type Step="landing"|"quiz"|"analysis"|"loading"|"thanks"|"error"|"consultation";
 const progressKey="esads-diagnostic-progress";
+const completedKey="esads-diagnostic-consultation-answers";
+const agencyWhatsapp="5512983101230";
 const track=(name:string,detail:Record<string,unknown>={})=>window.dispatchEvent(new CustomEvent("esads:analytics",{detail:{name,...detail}}));
 
 export function DiagnosticPage(){
   const {token}=useParams(),navigate=useNavigate();
   const saved=useMemo(()=>{try{const stored=JSON.parse(sessionStorage.getItem(progressKey)??"null")as{answers:DiagnosticAnswers;index:number;startedAt:string}|null;if(!stored||stored.answers?.organization||stored.answers?.metrics||stored.answers?.marketing||stored.answers?.financial_clarity)return null;return {...stored,index:Math.max(0,Math.min(stored.index,diagnosticQuestions.length-1))};}catch{return null}},[]);
-  const [step,setStep]=useState<Step>(token?"loading":"landing"),[index,setIndex]=useState(saved?.index??0),[answers,setAnswers]=useState<DiagnosticAnswers>(saved?.answers??{}),[submission,setSubmission]=useState<DiagnosticSubmission>(),[error,setError]=useState("");
+  const [step,setStep]=useState<Step>(token?"loading":window.location.pathname==="/diagnostico/obrigado"?"consultation":"landing"),[index,setIndex]=useState(saved?.index??0),[answers,setAnswers]=useState<DiagnosticAnswers>(saved?.answers??{}),[submission,setSubmission]=useState<DiagnosticSubmission>(),[error,setError]=useState("");
   const startedAt=saved?.startedAt??new Date().toISOString();
   useEffect(()=>{captureAttribution();trackDiagnosticPixel("PageView");track("diagnostic_viewed");if(token)void diagnosticDataSource.get(token).then(value=>{if(value){setSubmission(value);setStep("thanks");track("diagnostic_result_viewed")}else{setError("Este diagnóstico não está disponível.");setStep("error")}})},[token]);
   useEffect(()=>{if(step==="quiz")sessionStorage.setItem(progressKey,JSON.stringify({answers,index,startedAt}))},[answers,index,startedAt,step]);
-  const finishAnalysis=()=>{calculateDiagnosticResult(answers);setStep("capture");track("diagnostic_form_viewed");trackDiagnosticPixelCustom("DiagnosticFormView")};
+  const finishAnalysis=()=>{calculateDiagnosticResult(answers);sessionStorage.setItem(completedKey,JSON.stringify(answers));sessionStorage.removeItem(progressKey);setStep("consultation");navigate("/diagnostico/obrigado",{replace:true});track("diagnostic_quiz_completed");trackDiagnosticPixelCustom("DiagnosticQuizCompleted")};
   const submitted=(value:DiagnosticSubmission)=>{setSubmission(value);sessionStorage.removeItem(progressKey);sessionStorage.removeItem("esads-diagnostic-key");clearAttribution();navigate(`/diagnostico/obrigado/${value.token}`,{replace:true});setStep("thanks");trackPublicEvent(publicEventNames.diagnosticComplete,{bottleneck:value.result.primaryBottleneck});const eventId=`diagnostic-lead-${value.token}`;trackDiagnosticPixel("Lead",{content_name:"diagnostico_esads_beauty"},eventId);sendDiagnosticServerEvent("Lead",eventId,value.token);track("diagnostic_submitted");track("diagnostic_result_viewed")};
   return <div className="min-h-[calc(100dvh-5rem)]">
     {step==="landing"&&<Landing start={()=>{setStep("quiz");trackPublicEvent(publicEventNames.diagnosticStart);trackDiagnosticPixel("ViewContent",{content_name:"diagnostico_esads_beauty"})}}/>}
     {step==="quiz"&&<Quiz index={index} answers={answers} choose={(key)=>{const next={...answers,[diagnosticQuestions[index].key]:key};setAnswers(next);sessionStorage.setItem(progressKey,JSON.stringify({answers:next,index,startedAt}));track("diagnostic_question_answered",{question:index+1})}} advance={()=>index===diagnosticQuestions.length-1?setStep("analysis"):setIndex(value=>value+1)} back={()=>index?setIndex(value=>value-1):setStep("landing")}/>}
     {step==="analysis"&&<Analysis complete={finishAnalysis}/>}
-    {step==="capture"&&<Capture answers={answers} startedAt={startedAt} success={submitted} back={()=>{setIndex(diagnosticQuestions.length-1);setStep("quiz")}}/>}
+
+    {step==="consultation"&&<DiagnosticConsultationThanks/>}
     {step==="loading"&&<Loading/>}{step==="thanks"&&submission&&<ThankYou submission={submission}/>}
     {step==="error"&&<ErrorView message={error} retry={()=>location.assign("/diagnostico")}/>}
   </div>;
+}
+
+function DiagnosticConsultationThanks(){
+  const [message] = useState(() => {
+    let data: DiagnosticAnswers | null = null;
+    try { data = JSON.parse(sessionStorage.getItem(completedKey) ?? "null") as DiagnosticAnswers | null; } catch { /* no session */ }
+    const stage: Record<string,string> = {a:"Estou começando",b:"Já atendo, mas a agenda é instável",c:"Tenho clientes e quero aumentar o faturamento",d:"Tenho boa demanda e quero organizar"};
+    const goal: Record<string,string> = {a:"Atrair mais clientes",b:"Conseguir mais agendamentos",c:"Organizar o atendimento",d:"Aumentar o faturamento com previsibilidade"};
+    return ["Olá! Concluí as 6 perguntas do Diagnóstico ESADS Beauty e gostaria de agendar minha consultoria estratégica para receber minha análise.",data?.business_stage?`Momento: ${stage[data.business_stage]}`:"",data?.primary_need?`Meu objetivo: ${goal[data.primary_need]}`:"","Quais horários vocês têm disponíveis?"].filter(Boolean).join("\\n");
+  });
+  const url=`https://wa.me/${agencyWhatsapp}?text=${encodeURIComponent(message)}`;
+  const openWhatsApp=()=>{track("diagnostic_consultation_requested");trackDiagnosticPixel("Contact",{content_name:"consultoria_esads_beauty"})};
+  return <main className="min-h-[85dvh] bg-[var(--brand-ivory)]">
+    <section className="bg-primary px-5 pb-14 pt-12 text-center text-white md:pb-20 md:pt-20">
+      <div className="mx-auto max-w-2xl"><BrandLogo className="mx-auto h-auto w-40"/>
+        <div className="mx-auto mt-8 grid h-16 w-16 place-items-center rounded-full bg-champagne/20"><Check className="text-champagne" size={32}/></div>
+        <p className="mt-6 text-sm font-bold uppercase tracking-[.16em] text-champagne">Diagnóstico concluído</p>
+        <h1 className="mt-4 text-[clamp(2.1rem,7vw,3.5rem)] font-semibold leading-tight">Suas respostas foram recebidas!</h1>
+        <p className="mx-auto mt-5 max-w-xl text-lg leading-8 text-white/80">Agora falta apenas um passo para receber sua análise personalizada.</p>
+      </div>
+    </section>
+    <section className="mx-auto max-w-2xl px-5 py-10 text-center md:py-14">
+      <h2 className="text-2xl font-semibold md:text-3xl">Agende sua consultoria estratégica</h2>
+      <p className="mt-5 text-base leading-8 text-muted-foreground">Durante a consultoria, nossa equipe vai conversar sobre suas respostas, apresentar os principais pontos de atenção e mostrar oportunidades para atrair mais clientes, melhorar agendamentos e crescer com mais organização.</p>
+      <a href={url} target="_blank" rel="noopener noreferrer" onClick={openWhatsApp} className="mx-auto mt-8 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-6 text-base font-semibold text-white shadow-soft sm:w-auto"><MessageCircle size={20}/>Agendar minha consultoria <ArrowRight size={18}/></a>
+      <p className="mt-4 text-sm text-muted-foreground">Você será direcionada ao WhatsApp da ESADS Beauty para combinar um horário com nossa equipe.</p>
+      <p className="mt-8 text-xs text-muted-foreground">O agendamento depende da disponibilidade. Nenhum horário é reservado automaticamente.</p>
+    </section>
+  </main>;
 }
 
 type LandingCard={title:string;description:string;icon:LucideIcon};
@@ -87,7 +119,7 @@ const mobileSteps=[["01","Responda","6 perguntas rápidas sobre agenda, clientes
 function MobileCta({start,label,dark=false}:{start:()=>void;label:string;dark?:boolean}){return <Button size="lg" className={`min-h-[3.75rem] w-full rounded-2xl text-[18px] shadow-soft transition active:scale-[.985] motion-reduce:transform-none ${dark?"bg-[#F5C451] text-[#181512] hover:bg-[#FFD775]":"bg-[#F5C451] text-[#181512] hover:bg-[#FFD775] shadow-[0_8px_28px_rgba(245,196,81,.35)] animate-[pulse_3s_ease-in-out_infinite] motion-reduce:animate-none"}`} onClick={start}>{label}<ArrowRight size={20}/></Button>}
 function MobileHeading({eyebrow,title,description}:{eyebrow?:string;title:string;description?:string}){return <header>{eyebrow&&<p className="text-[15px] font-bold uppercase tracking-[.15em] text-champagne-dark">{eyebrow}</p>}<h2 className="mt-3 text-[clamp(1.875rem,8.5vw,2.125rem)] font-semibold leading-[1.06] tracking-[-.045em]">{title}</h2>{description&&<p className="mt-5 text-[18px] leading-7 text-muted-foreground">{description}</p>}</header>}
 
-function MobileDiagnosticHero({start,heroRef}:{start:()=>void;heroRef:React.RefObject<HTMLElement|null>}){return <section ref={heroRef} className="relative overflow-hidden px-5 pb-16 pt-8 text-center sm:pt-12"><div aria-hidden className="absolute left-1/2 top-12 h-56 w-56 -translate-x-1/2 rounded-full bg-champagne/10 blur-3xl"/><div className="relative mx-auto max-w-md"><span className="inline-flex rounded-full border border-champagne/35 bg-white/80 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[.08em] text-champagne-dark">Diagnóstico gratuito para estética</span><h1 className="mt-7 text-[clamp(2rem,8.6vw,2.65rem)] font-semibold leading-[1.05] tracking-[-.055em]">Sua estética pode estar perdendo clientes. <span className="text-champagne-dark">Descubra onde e por quê.</span></h1><p className="mx-auto mt-6 max-w-sm text-[16px] leading-7 text-muted-foreground">Responda 6 perguntas rápidas, identifique oportunidades para atrair mais clientes e agendar mais. No final, veja se uma consultoria estratégica faz sentido para seu momento.</p><div className="mt-7"><MobileCta start={start} label="Quero descobrir meu resultado"/><p className="mt-4 text-[12px] text-muted-foreground">Gratuito • Personalizado • Perguntas rápidas</p></div><div className="mx-auto mt-12 max-w-[280px] overflow-hidden rounded-[1.5rem] bg-champagne-soft shadow-soft"><img src="/diagnostico-esads-beauty.png" alt="Profissional de estética apresentando o diagnóstico ESADS Beauty" width="1122" height="1402" decoding="async" loading="lazy" className="aspect-[4/5] h-auto w-full object-cover"/></div><MobileProofStrip/></div></section>}
+function MobileDiagnosticHero({start,heroRef}:{start:()=>void;heroRef:React.RefObject<HTMLElement|null>}){return <section ref={heroRef} className="relative overflow-hidden px-5 pb-16 pt-8 text-center sm:pt-12"><div aria-hidden className="absolute left-1/2 top-12 h-56 w-56 -translate-x-1/2 rounded-full bg-champagne/10 blur-3xl"/><div className="relative mx-auto max-w-md"><span className="inline-flex rounded-full border border-champagne/35 bg-white/80 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[.08em] text-champagne-dark">Diagnóstico gratuito para estética</span><h1 className="mt-7 text-[clamp(2rem,8.6vw,2.65rem)] font-semibold leading-[1.05] tracking-[-.055em]">Sua estética pode estar perdendo clientes. <span className="text-champagne-dark">Descubra onde e por quê.</span></h1><p className="mx-auto mt-6 max-w-sm text-[16px] leading-7 text-muted-foreground">Responda 6 perguntas rápidas, identifique oportunidades para atrair mais clientes e agendar mais. Para receber sua análise completa, solicite uma consultoria estratégica ao finalizar.</p><div className="mt-7"><MobileCta start={start} label="Quero descobrir meu resultado"/><p className="mt-4 text-[12px] text-muted-foreground">Gratuito • Personalizado • Perguntas rápidas</p></div><div className="mx-auto mt-12 max-w-[280px] overflow-hidden rounded-[1.5rem] bg-champagne-soft shadow-soft"><img src="/diagnostico-esads-beauty.png" alt="Profissional de estética apresentando o diagnóstico ESADS Beauty" width="1122" height="1402" decoding="async" loading="lazy" className="aspect-[4/5] h-auto w-full object-cover"/></div><MobileProofStrip/></div></section>}
 function MobileProofStrip(){const proof=[[HeartHandshake,"Feito para estética"],[ScanSearch,"Resultado personalizado"],[Zap,"Em poucos minutos"]]as const;return <div className="mt-10 divide-y divide-black/[.06] rounded-3xl bg-white px-5 text-left shadow-soft">{proof.map(([Icon,label])=><div key={label} className="flex min-h-16 items-center gap-3"><Icon size={20} className="shrink-0 text-champagne-dark"/><span className="text-[16px] font-semibold">{label}</span></div>)}</div>}
 
 function MobilePainSection({start}:{start:()=>void}){return <section className="bg-white px-5 py-24"><MobileHeading eyebrow="Isso parece com você?" title="Você trabalha muito, mas sente que seu negócio poderia estar avançando mais?" description="Talvez o problema não seja falta de esforço, mas falta de clareza sobre o que ajustar primeiro."/><div className="mt-9 rounded-3xl bg-primary p-6 text-primary-foreground shadow-overlay"><ul className="space-y-5">{mobilePains.map(item=><li key={item} className="flex gap-3 text-[17px] leading-6 text-white/80"><span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-champagne/15 text-champagne"><Check size={15}/></span>{item}</li>)}</ul></div><div className="mt-8"><MobileCta start={start} label="Quero descobrir meu principal gargalo"/></div></section>}
@@ -121,7 +153,7 @@ function DesktopLanding({start}:{start:()=>void}) {
       <div className="lp-reveal relative mx-auto grid max-w-6xl items-center gap-12 md:grid-cols-[1.02fr_.98fr] md:text-left">
         <div><BrandLogo className="mb-8 w-36"/><span className="inline-flex rounded-full border border-champagne/30 bg-champagne-soft/70 px-3.5 py-2 text-xs font-bold uppercase tracking-[.14em] text-champagne-dark">Diagnóstico para negócios de estética</span>
         <h1 className="mt-7 max-w-[16ch] text-[clamp(2.8rem,5.2vw,4.5rem)] font-semibold leading-[1.02] tracking-[-.06em]">Descubra o que está travando o <span className="text-champagne-dark">crescimento da sua estética</span></h1>
-        <p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">Em apenas 6 perguntas, descubra o que pode estar limitando sua agenda e seu crescimento. Receba um resultado personalizado e um convite opcional para uma consultoria estratégica.</p>
+        <p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">Em apenas 6 perguntas, descubra o que pode estar limitando sua agenda e seu crescimento. Ao finalizar, você poderá solicitar uma consultoria estratégica para receber sua análise completa.</p>
         <LandingCta start={start} className="mt-10 max-w-sm [&_p]:justify-start"/></div>
         <div className="relative"><div aria-hidden className="absolute inset-8 rounded-full bg-champagne/20 blur-3xl"/><div className="relative aspect-[4/5] overflow-hidden rounded-[2rem] bg-champagne-soft shadow-overlay ring-1 ring-black/5"><img src="/diagnostico-esads-beauty.png" alt="Profissional de estética apresentando o diagnóstico ESADS Beauty" width="1122" height="1402" fetchPriority="high" decoding="async" className="h-full w-full object-cover"/></div></div>
       </div>
