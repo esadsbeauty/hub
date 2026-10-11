@@ -5,11 +5,11 @@ export function initializeDiagnosticPixels() {
   if (typeof window === "undefined" || initialized) return;
   initialized = true;
   if (!window.fbq) {
-    const fbq = function (...args: unknown[]) {
-      const fn = fbq as typeof fbq & { callMethod?: (...args: unknown[]) => void; queue?: unknown[][] };
-      if (fn.callMethod) fn.callMethod(...args);
-      else (fn.queue ??= []).push(args);
-    } as typeof window.fbq & { queue?: unknown[][]; loaded?: boolean; version?: string; callMethod?: (...args: unknown[]) => void };
+    type PixelStub = ((...args: unknown[]) => void) & { queue?: unknown[][]; callMethod?: (...args: unknown[]) => void; loaded?: boolean; version?: string };
+    const fbq: PixelStub = (...args: unknown[]) => {
+      if (fbq.callMethod) fbq.callMethod(...args);
+      else (fbq.queue ??= []).push(args);
+    };
     fbq.queue = [];
     fbq.loaded = true;
     fbq.version = "2.0";
