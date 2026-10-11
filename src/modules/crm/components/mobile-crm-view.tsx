@@ -8,7 +8,7 @@ import { PriorityBadge, TemperatureBadge } from "@/shared/components/data-displa
 import { SearchInput } from "@/shared/components/forms/search-input";
 import { Modal } from "@/shared/components/overlays/modal";
 import type { Company, CompanyContact, Opportunity, PipelineStage, Task, TimelineEvent } from "../types";
-import type { CrmFilters, CrmSort } from "../CrmPage";
+import type { CrmFilters, CrmSort, QuickCrmFilter } from "../CrmPage";
 import { currency, formatDateTime } from "../utils/formatters";
 import { contactWhatsappUrl } from "../utils/contact-links";
 import { crmTerminology, type BusinessMode } from "../business-mode";
@@ -26,6 +26,8 @@ type Props = {
   filters: CrmFilters;
   sort: CrmSort;
   activeFilters: number;
+  quickFilter: QuickCrmFilter;
+  onQuickFilterChange: (value: QuickCrmFilter) => void;
   onQueryChange: (value: string) => void;
   onFiltersChange: (filters: CrmFilters) => void;
   onSortChange: (sort: CrmSort) => void;
@@ -66,6 +68,9 @@ export function MobileCrmView(props: Props) {
         </Button>
       </div>
     </section>
+    <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-2" role="group" aria-label="Filtros rápidos do CRM">
+      {([["all","Todos"],["calls","Ligações"],["attending","Em Atendimento"],["waiting","Aguardando Resposta"],["overdue","Atrasados"]] as [QuickCrmFilter,string][]).map(([id,label])=><button type="button" key={id} aria-pressed={props.quickFilter===id} onClick={()=>props.onQuickFilterChange(id)} className={`shrink-0 rounded-full border px-4 py-2 text-sm font-semibold ${props.quickFilter===id?"border-primary bg-primary text-primary-foreground":"bg-card"}`}>{label}</button>)}
+    </div>
     {view==="kanban"?<MobileKanban {...props} stageFilter={stageFilter}/>:<MobileCompanyList {...props}/>} 
     <FilterSheet open={filterSheet} close={()=>setFilterSheet(false)} stageFilter={stageFilter} onStageFilter={setStageFilter} {...props}/>
     <Modal open={sortSheet} title="Ordenar CRM" onClose={()=>setSortSheet(false)}><div className="space-y-5"><Label htmlFor="mobile-sort">Ordenar {terms.companies.toLowerCase()} por</Label><Select id="mobile-sort" value={props.sort} onChange={event=>props.onSortChange(event.target.value as CrmSort)}>{Object.entries(sortLabel).map(([value,label])=><option key={value} value={value}>{label}</option>)}</Select><Button className="w-full" onClick={()=>setSortSheet(false)}>Aplicar ordenação</Button></div></Modal>
