@@ -24,6 +24,6 @@ export function diagnosticConsultationUrl(input: { name: string; score: number; 
     `Ponto de atenção: ${input.bottleneck}`,
     `Diagnóstico: ${input.sourceUrl}`,
     "Podemos conversar sobre os próximos passos?",
-  ].join("\\n");
+  ].join("\n");
   return `https://wa.me/${whatsapp}?text=${encodeURIComponent(text)}`;
 }
