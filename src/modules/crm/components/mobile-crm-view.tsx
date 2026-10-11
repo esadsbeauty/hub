@@ -69,7 +69,7 @@ export function MobileCrmView(props: Props) {
       </div>
     </section>
     <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-2" role="group" aria-label="Filtros rápidos do CRM">
-      {([["all","Todos"],["calls","Ligações"],["attending","Em Atendimento"],["waiting","Aguardando Resposta"],["overdue","Atrasados"]] as [QuickCrmFilter,string][]).map(([id,label])=><button type="button" key={id} aria-pressed={props.quickFilter===id} onClick={()=>props.onQuickFilterChange(id)} className={`shrink-0 rounded-full border px-4 py-2 text-sm font-semibold ${props.quickFilter===id?"border-primary bg-primary text-primary-foreground":"bg-card"}`}>{label}</button>)}
+      {([["all","Todos"],["calls","Aguardando Ligação"],["attending","Em Atendimento"],["waiting","Aguardando Resposta"],["overdue","Atrasados"]] as [QuickCrmFilter,string][]).map(([id,label])=><button type="button" key={id} aria-pressed={props.quickFilter===id} onClick={()=>props.onQuickFilterChange(id)} className={`shrink-0 rounded-full border px-4 py-2 text-sm font-semibold ${props.quickFilter===id?"border-primary bg-primary text-primary-foreground":"bg-card"}`}>{label}</button>)}
     </div>
     {view==="kanban"?<MobileKanban {...props} stageFilter={stageFilter}/>:<MobileCompanyList {...props}/>} 
     <FilterSheet open={filterSheet} close={()=>setFilterSheet(false)} stageFilter={stageFilter} onStageFilter={setStageFilter} {...props}/>
