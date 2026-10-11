@@ -2,10 +2,11 @@ import { categoryContent } from "./content";
 import { diagnosticQuestions } from "./questions";
 import type { AnswerKey, DiagnosticAnswers, DiagnosticCategory, DiagnosticResult } from "./types";
 
-const currentCategories: DiagnosticCategory[] = ["acquisition", "demand", "service", "follow_up"];
+type CurrentCategory = "acquisition" | "demand" | "service" | "follow_up";
+const currentCategories: CurrentCategory[] = ["acquisition", "demand", "service", "follow_up"];
 const legacyCategories: DiagnosticCategory[] = ["acquisition", "service", "organization", "follow_up", "metrics", "demand", "marketing", "financial_clarity"];
 const legacyPoints: Record<AnswerKey, number> = { a: 0, b: 33.3333, c: 66.6667, d: 100 };
-const currentPoints: Record<(typeof currentCategories)[number], Record<AnswerKey, number>> = {
+const currentPoints: Record<CurrentCategory, Record<AnswerKey, number>> = {
   acquisition: { a: 50, b: 70, c: 85, d: 0 },
   demand: { a: 0, b: 33, c: 67, d: 100 },
   service: { a: 25, b: 50, c: 100, d: 0 },
@@ -21,7 +22,7 @@ export function calculateDiagnosticResult(answers: DiagnosticAnswers): Diagnosti
   const categories = legacy ? legacyCategories : currentCategories;
   const categoryScores = Object.fromEntries(categories.map(category => [
     category,
-    legacy ? legacyPoints[answers[category]] : currentPoints[category][answers[category]],
+    legacy ? legacyPoints[answers[category]] : currentPoints[category as CurrentCategory][answers[category]],
   ])) as Partial<Record<DiagnosticCategory, number>>;
   const ordered = [...categories].sort((a, b) =>
     (categoryScores[a] ?? 0) - (categoryScores[b] ?? 0) || categories.indexOf(a) - categories.indexOf(b)
