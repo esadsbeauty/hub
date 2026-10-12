@@ -490,10 +490,8 @@ export function CrmPage() {
         lastContact={(opportunity)=>lastContactForOpportunity(opportunity,events)}
       />
       <div className="hidden md:contents">
-      <PageHeader
-        title="CRM"
-        actions={
-          <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2 md:min-h-10">
+        <div className="flex items-center gap-2">
             <Button onClick={() => setModal("company")}>
               <Plus size={17} /> <span>{terms.newCompany}</span>
             </Button>
@@ -520,53 +518,9 @@ export function CrmPage() {
                 </button>
               </div>
             </details>
-          </div>
-        }
-      />
-      {requestedStageIds.length > 0 && (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/40 px-3 py-2">
-          <p className="text-sm text-muted-foreground">
-            Exibindo {visibleCrmStages.length === 1 ? "a etapa" : "as etapas"}{" "}
-            <b className="text-foreground">
-              {visibleCrmStages.map((stage) => stage.name).join(", ")}
-            </b>
-          </p>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              const next = new URLSearchParams(searchParams);
-              next.delete("stage");
-              next.delete("stages");
-              setSearchParams(next, { replace: true });
-            }}
-          >
-            Limpar filtro
-          </Button>
         </div>
-      )}
-      <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-2">
-        <div className="inline-flex rounded-xl border bg-muted/50 p-1">
-          <Button
-            size="sm"
-            variant={view === "kanban" ? "default" : "ghost"}
-            onClick={() => setView("kanban")}
-          >
-            <Kanban size={15} /> Kanban
-          </Button>
-          <Button
-            size="sm"
-            variant={view === "list" ? "default" : "ghost"}
-            onClick={() => setView("list")}
-          >
-            <List size={15} /> Lista
-          </Button>
-        </div>
-        </div>
-        <Button className="md:hidden" variant="outline" onClick={()=>setMobileSortOpen(true)}><ArrowDownUp size={19}/> Ordenar</Button>
-        <div className="hidden items-center gap-2 md:flex">
-          <div className="w-56 lg:w-72"><SearchInput value={query} onChange={(event)=>{setQuery(event.target.value);sessionStorage.setItem("crm-query",event.target.value)}} placeholder="Buscar lead ou contato…" /></div>
+        <div className="flex w-full items-center gap-2 md:ml-auto md:w-auto">
+          <div className="min-w-0 flex-1 md:w-64 md:flex-none lg:w-72"><SearchInput value={query} onChange={(event)=>{setQuery(event.target.value);sessionStorage.setItem("crm-query",event.target.value)}} placeholder="Buscar lead ou contato…" /></div>
         <Select
           className="w-44"
           value={sort}
@@ -592,11 +546,53 @@ export function CrmPage() {
         </Select>
         </div>
       </div>
+      {requestedStageIds.length > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/40 px-3 py-2">
+          <p className="text-sm text-muted-foreground">
+            Exibindo {visibleCrmStages.length === 1 ? "a etapa" : "as etapas"}{" "}
+            <b className="text-foreground">
+              {visibleCrmStages.map((stage) => stage.name).join(", ")}
+            </b>
+          </p>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              const next = new URLSearchParams(searchParams);
+              next.delete("stage");
+              next.delete("stages");
+              setSearchParams(next, { replace: true });
+            }}
+          >
+            Limpar filtro
+          </Button>
+        </div>
+      )}
+      <div className="flex items-center gap-2">
+        <div className="inline-flex rounded-xl border bg-muted/50 p-1">
+          <Button
+            size="sm"
+            variant={view === "kanban" ? "default" : "ghost"}
+            onClick={() => setView("kanban")}
+          >
+            <Kanban size={15} /> Kanban
+          </Button>
+          <Button
+            size="sm"
+            variant={view === "list" ? "default" : "ghost"}
+            onClick={() => setView("list")}
+          >
+            <List size={15} /> Lista
+          </Button>
+        </div>
+      </div>
       <div className="space-y-3 md:hidden"><SearchInput value={query} onChange={(event) => { setQuery(event.target.value); sessionStorage.setItem("crm-query", event.target.value); }} placeholder="Buscar lead ou contato…"/><Button className="w-full" variant="outline" aria-label="Abrir filtros" onClick={()=>setMobileFiltersOpen(true)}><SlidersHorizontal size={20}/> Filtros{activeFilters > 0 && <span className="grid h-7 min-w-7 place-items-center rounded-full bg-primary px-2 text-sm text-primary-foreground">{activeFilters}</span>}</Button>{activeFilters>0&&<p className="text-sm text-muted-foreground">{activeFilters} filtro(s) ativo(s)</p>}</div>
-      <div className="hidden flex-wrap gap-1.5 md:flex" role="group" aria-label="Filtros rápidos de atendimento">
+      <details className="hidden rounded-xl border bg-card px-3 py-2 md:block"><summary className="cursor-pointer text-xs font-semibold">Filtros avançados ${activeFilters>0?`(${activeFilters} ativos)`:""}</summary>
+        <div className="mt-3 space-y-3">
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtros rápidos de atendimento">
         {quickCrmOptions.map(item=><button key={item.id} type="button" aria-pressed={quickFilter===item.id} onClick={()=>setQuickFilter(item.id)} className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${quickFilter===item.id?"border-primary bg-primary text-primary-foreground":"bg-card hover:bg-muted"}`}>{item.label}</button>)}
       </div>
-      <details className="hidden rounded-xl border bg-card px-3 py-2 md:block"><summary className="cursor-pointer text-xs font-semibold">Filtros avançados {activeFilters>0?`(${activeFilters} ativos)`:""}</summary>
+
       <FilterBar className="mt-3 flex flex-wrap">
         <FilterSelect
           value={filters.owner}
@@ -683,7 +679,9 @@ export function CrmPage() {
             <FilterX size={15} /> Limpar ({activeFilters})
           </Button>
         )}
-      </FilterBar></details>
+      </FilterBar>
+        </div>
+      </details>
       <Modal open={mobileFiltersOpen} title="Filtrar CRM" onClose={()=>setMobileFiltersOpen(false)}>
         <div className="grid gap-5">
           <MobileFilterField label="Responsável"><FilterSelect value={filters.owner} label="Todos os responsáveis" values={companies.map((item) => item.owner)} onChange={(owner) => updateFilters({ ...filters, owner })}/></MobileFilterField>
@@ -1132,7 +1130,7 @@ function OpportunityKanban({
       <div
         ref={kanbanScrollRef}
         aria-label="Pipeline por etapas"
-        className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-5 md:mx-0 md:h-[calc(100dvh-17rem)] md:min-h-[360px] md:items-stretch md:snap-none md:px-0 md:pb-2 md:[scrollbar-width:none] md:[&::-webkit-scrollbar]:hidden"
+        className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-5 md:mx-0 md:h-[calc(100dvh-14rem)] md:min-h-[300px] md:items-stretch md:snap-none md:px-0 md:pb-2 md:[scrollbar-width:none] md:[&::-webkit-scrollbar]:hidden"
         onScroll={(event) =>
           syncHorizontalScroll(event.currentTarget, stickyScrollRef.current)
         }
@@ -1178,16 +1176,16 @@ function OpportunityKanban({
                         onDragEnd={() => setDragging(undefined)}
                         className="cursor-grab ring-1 ring-black/[.025] transition-shadow hover:shadow-[0_10px_30px_rgba(24,20,16,.08)]"
                       >
-                        <CardContent className="p-5 md:p-4">
+                        <CardContent className="p-5 md:p-3">
                           <button
                             className="w-full text-left"
                             onClick={() => onOpen(item)}
                           >
-                            <h3 className="text-xl font-semibold leading-snug tracking-[-.02em] md:text-sm">{leadName}</h3>
-                            {businessMode==="b2b"&&company?.fantasyName&&<p className="mt-1 text-sm text-muted-foreground md:text-xs">{company.fantasyName}</p>}
-                            {item.title!==leadName&&<p className="mt-2 text-sm text-muted-foreground md:text-xs"><span className="font-medium text-foreground">Interesse:</span> {item.title}</p>}
+                            <h3 className="text-xl font-semibold leading-snug tracking-[-.02em] md:text-sm">{item.title}</h3>
+                            {company?.fantasyName&&company.fantasyName!==item.title&&<p className="mt-1 text-sm text-muted-foreground md:text-xs">{company.fantasyName}</p>}
+                            {leadName!==item.title&&leadName!==company?.fantasyName&&<p className="mt-1 text-sm text-muted-foreground md:text-xs">{leadName}</p>}
                             {phone&&<p className="mt-2 text-sm font-medium md:text-xs">{phone}</p>}
-                            {item.owner&&<p className="mt-2 text-sm text-muted-foreground md:text-xs">Responsável: {item.owner}</p>}
+                            
                             <div className="mt-2 flex flex-wrap items-center gap-1.5">
                               <span className="inline-flex w-fit items-center rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
                                 Origem: {item.source ?? company?.leadSource ?? "Não informada"}
@@ -1196,7 +1194,7 @@ function OpportunityKanban({
                             </div>
                             {task && <NextActionStatus opportunity={item} stages={stages} task={task} compact/>}
                           </button>
-                          {phone&&<button type="button" aria-label="Abrir conversa do WhatsApp" className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#e8f7ee] text-sm font-semibold text-[#176b3a]" onClick={()=>onWhatsApp(item,contact?.id,phone)}>WhatsApp</button>}
+                          
                         </CardContent>
                       </Card>
                     );
