@@ -26,7 +26,6 @@ import {
 import { FilterBar } from "@/shared/components/forms/filter-bar";
 import { SearchInput } from "@/shared/components/forms/search-input";
 import { PageContainer } from "@/shared/components/layout/page-container";
-import { PageHeader } from "@/shared/components/layout/page-header";
 import { Modal } from "@/shared/components/overlays/modal";
 import { useToast } from "@/shared/components/feedback/toast";
 import { CompanyForm } from "./components/company-form";
@@ -1064,7 +1063,6 @@ function MobileFilterField({label,children}:{label:string;children:React.ReactNo
   return <label className="grid gap-2"><span className="text-base font-semibold">{label}</span>{children}</label>;
 }
 function OpportunityKanban({
-  businessMode,
   opportunities,
   stages,
   companyById,
@@ -1073,7 +1071,6 @@ function OpportunityKanban({
   lastContact,
   onMove,
   onOpen,
-  onWhatsApp,
 }: {
   businessMode: import("./business-mode").BusinessMode;
   opportunities: Opportunity[];
