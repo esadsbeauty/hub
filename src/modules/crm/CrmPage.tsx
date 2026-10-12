@@ -1127,7 +1127,7 @@ function OpportunityKanban({
       <div
         ref={kanbanScrollRef}
         aria-label="Pipeline por etapas"
-        className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-5 md:mx-0 md:h-[calc(100dvh-14rem)] md:min-h-[300px] md:items-stretch md:snap-none md:px-0 md:pb-2 md:[scrollbar-width:none] md:[&::-webkit-scrollbar]:hidden"
+        className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-5 md:mx-0 md:h-[calc(100dvh-19rem)] md:min-h-[240px] md:items-stretch md:snap-none md:px-0 md:pb-2 md:[scrollbar-width:none] md:[&::-webkit-scrollbar]:hidden"
         onScroll={(event) =>
           syncHorizontalScroll(event.currentTarget, stickyScrollRef.current)
         }
