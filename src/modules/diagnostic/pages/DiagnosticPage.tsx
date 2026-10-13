@@ -9,6 +9,8 @@ import { categoryContent } from "../content";
 import { diagnosticQuestions } from "../questions";
 import { captureAttribution } from "../attribution";
 import { diagnosticDataSource } from "../data-source";
+import { supabase } from "@/lib/supabase";
+
 import { calculateDiagnosticResult } from "../scoring";
 import type { AnswerKey, DiagnosticAnswers, DiagnosticSubmission } from "../types";
 import { usePublicPosts } from "@/modules/blog/hooks";
@@ -19,6 +21,8 @@ import { publicEventNames, trackPublicEvent } from "@/shared/analytics/public-ev
 type Step="landing"|"quiz"|"analysis"|"loading"|"thanks"|"error"|"consultation";
 const progressKey="esads-diagnostic-progress";
 const completedKey="esads-diagnostic-consultation-answers";
+const completedTokenKey="esads-diagnostic-completed-token";
+const submissionIdKey="esads-diagnostic-submission-id";
 const agencyWhatsapp="5512983101230";
 const track=(name:string,detail:Record<string,unknown>={})=>window.dispatchEvent(new CustomEvent("esads:analytics",{detail:{name,...detail}}));
 
@@ -29,11 +33,32 @@ export function DiagnosticPage(){
   const startedAt=saved?.startedAt??new Date().toISOString();
   useEffect(()=>{captureAttribution();trackDiagnosticPixel("PageView");track("diagnostic_viewed");if(token)void diagnosticDataSource.get(token).then(value=>{if(value){setSubmission(value);setStep("thanks");track("diagnostic_result_viewed")}else{setError("Este diagnóstico não está disponível.");setStep("error")}})},[token]);
   useEffect(()=>{if(step==="quiz")sessionStorage.setItem(progressKey,JSON.stringify({answers,index,startedAt}))},[answers,index,startedAt,step]);
-  const finishAnalysis=()=>{calculateDiagnosticResult(answers);sessionStorage.setItem(completedKey,JSON.stringify(answers));sessionStorage.removeItem(progressKey);setStep("consultation");navigate("/diagnostico/obrigado",{replace:true});track("diagnostic_quiz_completed");trackDiagnosticPixelCustom("DiagnosticQuizCompleted")};
+  const [saving,setSaving]=useState(false);
+  const finishAnalysis=async()=>{
+    if(saving)return;
+    setSaving(true);setError("");
+    try {
+      calculateDiagnosticResult(answers);
+      if(!supabase)throw new Error("Conexão indisponível.");
+      let idem=sessionStorage.getItem(submissionIdKey);
+      if(!idem){idem=crypto.randomUUID();sessionStorage.setItem(submissionIdKey,idem);}
+      const {data,error:saveError}=await supabase.rpc("save_anonymous_diagnostic",{p_data:{
+        idempotency_key:idem,answers,attribution:captureAttribution(),started_at:startedAt,
+      }});
+      if(saveError||!data?.token)throw new Error("Não foi possível salvar as respostas. Tente novamente.");
+      sessionStorage.setItem(completedTokenKey,String(data.token));
+      sessionStorage.setItem(completedKey,JSON.stringify(answers));
+      sessionStorage.removeItem(progressKey);
+      sessionStorage.removeItem(submissionIdKey);
+      setStep("consultation");navigate("/diagnostico/obrigado",{replace:true});
+      track("diagnostic_quiz_completed");trackDiagnosticPixelCustom("DiagnosticQuizCompleted");
+    }catch(cause){setError(cause instanceof Error?cause.message:"Não foi possível salvar o diagnóstico.");}
+    finally{setSaving(false);}
+  };
   return <div className="min-h-[calc(100dvh-5rem)]">
     {step==="landing"&&<Landing start={()=>{setStep("quiz");trackPublicEvent(publicEventNames.diagnosticStart);trackDiagnosticPixel("ViewContent",{content_name:"diagnostico_esads_beauty"})}}/>}
     {step==="quiz"&&<Quiz index={index} answers={answers} choose={(key)=>{const next={...answers,[diagnosticQuestions[index].key]:key};setAnswers(next);sessionStorage.setItem(progressKey,JSON.stringify({answers:next,index,startedAt}));track("diagnostic_question_answered",{question:index+1})}} advance={()=>index===diagnosticQuestions.length-1?setStep("analysis"):setIndex(value=>value+1)} back={()=>index?setIndex(value=>value-1):setStep("landing")}/>}
-    {step==="analysis"&&<Analysis complete={finishAnalysis}/>}
+    {step==="analysis"&&<><Analysis complete={finishAnalysis}/>{(saving||error)&&<p role="status" className="mx-auto max-w-lg px-5 pb-6 text-center text-sm text-foreground">{saving?"Salvando seu diagnóstico…":error}</p>}</>}
 
     {step==="consultation"&&<DiagnosticConsultationThanks/>}
     {step==="loading"&&<Loading/>}{step==="thanks"&&submission&&<ThankYou submission={submission}/>}
@@ -47,7 +72,8 @@ function DiagnosticConsultationThanks(){
     try { data = JSON.parse(sessionStorage.getItem(completedKey) ?? "null") as DiagnosticAnswers | null; } catch { /* no session */ }
     const stage: Record<string,string> = {a:"Estou começando",b:"Já atendo, mas a agenda é instável",c:"Tenho clientes e quero aumentar o faturamento",d:"Tenho boa demanda e quero organizar"};
     const goal: Record<string,string> = {a:"Atrair mais clientes",b:"Conseguir mais agendamentos",c:"Organizar o atendimento",d:"Aumentar o faturamento com previsibilidade"};
-    return ["Olá! Concluí as 6 perguntas do Diagnóstico ESADS Beauty e gostaria de agendar minha consultoria estratégica para receber minha análise.",data?.business_stage?`Momento: ${stage[data.business_stage]}`:"",data?.primary_need?`Meu objetivo: ${goal[data.primary_need]}`:"","Quais horários vocês têm disponíveis?"].filter(Boolean).join("\n");
+    const diagnosticToken=sessionStorage.getItem(completedTokenKey);
+    return ["Olá! Concluí as 6 perguntas do Diagnóstico ESADS Beauty e gostaria de agendar minha consultoria estratégica para receber minha análise.",diagnosticToken?`Código do meu diagnóstico: ${diagnosticToken}`:"",data?.business_stage?`Momento: ${stage[data.business_stage]}`:"",data?.primary_need?`Meu objetivo: ${goal[data.primary_need]}`:"","Quais horários vocês têm disponíveis?"].filter(Boolean).join("\n");
   });
   const url=`https://wa.me/${agencyWhatsapp}?text=${encodeURIComponent(message)}`;
   const openWhatsApp=()=>{track("diagnostic_consultation_requested");trackDiagnosticPixel("Contact",{content_name:"consultoria_esads_beauty"})};
