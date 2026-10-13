@@ -17,6 +17,7 @@ import {
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
+  PlayCircle,
   ShieldCheck,
   Settings,
   UserRoundSearch,
@@ -195,6 +196,19 @@ export function SidebarNavigation({
 
       {primaryItems.slice(1, 4).map(renderLink)}
       {primaryItems.slice(4).map(renderLink)}
+      <a
+        href="https://www.youtube.com/playlist?list=PLemmqdU4QxeQ"
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={onNavigate}
+        title={collapsed ? "Tutoriais" : undefined}
+        aria-label={collapsed ? "Tutoriais" : undefined}
+        className={`${linkClass({ isActive: false })} ${collapsed ? "justify-center px-0" : ""}`}
+      >
+        <PlayCircle size={17} strokeWidth={1.7} />
+        {!collapsed && <span>Tutoriais</span>}
+      </a>
+
 
       <NavGroup
         label="Mais"
