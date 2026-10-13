@@ -2363,6 +2363,48 @@ async function convertProspectingReplyToCrm(
   );
 }
 
+/**
+ * Proteção para abordagens iniciadas pela equipe: não deixar duas assistentes
+ * responderem uma à outra. Mensagens continuam salvas na caixa de entrada.
+ * Sem certeza sobre a origem, não desativamos o atendimento receptivo.
+ */
+async function shouldHoldEsadsProspectingForHuman(
+  organizationId: string,
+  conversationId: string,
+  inboundText: string,
+): Promise<boolean> {
+  if (organizationId !== "c6ee7876-c88b-4419-abba-b2ed4cc54257") {
+    return false;
+  }
+
+  const { data: history, error } = await supabase
+    .from("whatsapp_messages")
+    .select("direction,text_body")
+    .eq("organization_id", organizationId)
+    .eq("conversation_id", conversationId)
+    .order("message_timestamp", { ascending: true })
+    .limit(30);
+
+  if (error || !history) {
+    console.error("Unable to verify prospecting conversation origin", {
+      organizationId, conversationId, code: error?.code,
+    });
+    return true; // Fail closed for this organization.
+  }
+
+  const firstMessage = history[0];
+  if (firstMessage?.direction === "outbound") {
+    return true; // A ESADS iniciou a abordagem.
+  }
+
+  // Respostas típicas de automações de clínicas; só segurar se houver
+  // evidência de oferta/atendimento de procedimento (não por saudação).
+  const lower = inboundText.toLocaleLowerCase("pt-BR");
+  const clinicOffer = /(?:massagem|procedimento|botox|limpeza de pele|seca barriga|drenagem|sess[oõ]es?|tratamento est[eé]tico)/i.test(lower);
+  const serviceIntake = /(?:qual (?:é )?o (?:seu|teu) objetivo|te indicar a melhor op[cç][aã]o|j[aá] te passo (?:o |certinho o )?valor|que bom receber (?:sua|tua) mensagem|se interessou em fazer|quer agendar)/i.test(lower);
+  return clinicOffer && serviceIntake;
+}
+
 async function processAiAgentMessage(
   connection: Connection,
   conversation: Conversation,
@@ -3056,6 +3098,21 @@ async function processStandardMessages(
         waId,
         contactMap.get(waId) ?? waId,
       );
+    }
+
+    // Nas abordagens outbound ou respostas de robôs da clínica, registrar
+    // a mensagem e deixar a conversa para a equipe, sem acionar a Regina.
+    const inboundBody = textFromMessage(message)?.trim() ?? "";
+    if (await shouldHoldEsadsProspectingForHuman(
+      connection.organization_id,
+      conversation.id,
+      inboundBody,
+    )) {
+      console.log("AI held for human: outbound prospecting or clinic auto-reply", {
+        organizationId: connection.organization_id,
+        conversationId: conversation.id,
+      });
+      continue;
     }
 
     // Primeiro inbound de um lead da Prospecção já o transforma em
