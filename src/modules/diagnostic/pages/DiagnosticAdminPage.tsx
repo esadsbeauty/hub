@@ -15,6 +15,7 @@ import {
   type DiagnosticAdminRow,
 } from "../admin-repository";
 import { categoryContent } from "../content";
+import { diagnosticQuestions } from "../questions";
 import type { DiagnosticSubmission } from "../types";
 
 const date = new Intl.DateTimeFormat("pt-BR", {
@@ -88,7 +89,7 @@ export function DiagnosticAdminPage() {
       <PageHeader
         eyebrow="Marketing"
         title="Diagnósticos"
-        description="Leads e resultados recebidos pelo Diagnóstico do Negócio."
+        description="Todas as análises concluídas, com ou sem cadastro ou contato pelo WhatsApp."
         actions={
           <Link
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border px-4 font-semibold"
@@ -159,12 +160,12 @@ export function DiagnosticAdminPage() {
                 </div>
 
                 <p className="mt-1 text-base text-muted-foreground">
-                  {item.name} · {item.whatsapp}
+                  {item.whatsapp ? `${item.name} · ${item.whatsapp}` : "Participante sem identificação"}
                 </p>
 
                 <p className="text-sm text-muted-foreground">
                   {item.email ? `${item.email} · ` : ""}
-                  @{item.instagram}
+                  {item.instagram ? `@${item.instagram}` : "Respostas salvas mesmo sem formulário"}
                 </p>
               </div>
 
@@ -196,6 +197,7 @@ export function DiagnosticAdminPage() {
                   {date.format(new Date(item.completedAt))}
                 </time>
 
+                <details className="w-full md:text-right"><summary className="cursor-pointer text-sm font-semibold">Ver respostas</summary><div className="mt-2 min-w-64 space-y-2 rounded-xl border bg-muted/30 p-3 text-left">{diagnosticQuestions.map(question=><p key={question.key} className="text-xs"><strong>{question.title}</strong><span className="mt-1 block text-muted-foreground">{question.options.find(option=>option.key===item.answers[question.key])?.label ?? "Não informado"}</span></p>)}</div></details>
                 <Button
                   type="button"
                   variant="outline"
