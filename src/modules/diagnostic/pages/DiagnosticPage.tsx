@@ -59,7 +59,7 @@ export function DiagnosticPage(){
   return <div className="min-h-[calc(100dvh-5rem)]">
     {step==="landing"&&<Landing start={()=>{setStep("quiz");trackPublicEvent(publicEventNames.diagnosticStart);trackDiagnosticPixel("ViewContent",{content_name:"diagnostico_esads_beauty"})}}/>}
     {step==="quiz"&&<Quiz index={index} answers={answers} choose={(key)=>{const next={...answers,[diagnosticQuestions[index].key]:key};setAnswers(next);sessionStorage.setItem(progressKey,JSON.stringify({answers:next,index,startedAt}));track("diagnostic_question_answered",{question:index+1})}} advance={()=>index===diagnosticQuestions.length-1?setStep("analysis"):setIndex(value=>value+1)} back={()=>index?setIndex(value=>value-1):setStep("landing")}/>}
-    {step==="analysis"&&<><Analysis complete={finishAnalysis}/>{(saving||error)&&<p role="status" className="mx-auto max-w-lg px-5 pb-6 text-center text-sm text-foreground">{saving?"Salvando seu diagnóstico…":error}</p>}</>}
+    {step==="analysis"&&<><Analysis complete={finishAnalysis}/>{(saving||error)&&<div role="status" className="mx-auto flex max-w-lg flex-col items-center gap-3 px-5 pb-6 text-center text-sm text-foreground"><p>{saving?"Salvando seu diagnóstico…":error}</p>{error&&!saving&&<Button type="button" onClick={()=>void finishAnalysis()}>Tentar salvar novamente</Button>}</div>}</>}
 
     {step==="consultation"&&<DiagnosticConsultationThanks/>}
     {step==="loading"&&<Loading/>}{step==="thanks"&&submission&&<ThankYou submission={submission}/>}
