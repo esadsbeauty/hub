@@ -2405,11 +2405,56 @@ async function shouldHoldEsadsProspectingForHuman(
   return clinicOffer && serviceIntake;
 }
 
+async function routeHybridProspecting(
+ connection: Connection, conversation: Conversation, message: any, waId: string,
+): Promise<"automatic"|"review"|"legacy"> {
+ if(connection.organization_id!=="c6ee7876-c88b-4419-abba-b2ed4cc54257")return "legacy";
+ const {data: settings,error: settingsError}=await supabase.from("prospecting_agent_settings")
+   .select("enabled,automation_mode").eq("organization_id",connection.organization_id).maybeSingle();
+ if(settingsError||settings?.enabled!==true)return "legacy";
+ const {data: history,error: historyError}=await supabase.from("whatsapp_messages")
+  .select("direction,text_body").eq("organization_id",connection.organization_id)
+  .eq("conversation_id",conversation.id).order("message_timestamp",{ascending:true}).limit(30);
+ if(historyError||!history)return "review";
+ const firstOutbound=history[0]?.direction==="outbound";
+ const candidates=prospectingPhoneCandidates(waId);
+ const {data: lead,error:leadError}=candidates.length?await supabase.from("prospecting_leads")
+  .select("id,status").eq("organization_id",connection.organization_id)
+  .in("whatsapp",candidates).in("status",["message_sent","replied","in_conversation"])
+  .limit(1).maybeSingle():{data:null,error:null};
+ if(leadError)return "review";
+ if(!lead&&!firstOutbound)return "legacy"; // inbound normal: Regina Comercial
+ const {data: linked,error:linkedError}=await supabase.from("whatsapp_conversations")
+  .select("opportunity_id").eq("id",conversation.id).eq("organization_id",connection.organization_id).maybeSingle();
+ if(linkedError)return "review";
+ // Um prospect criado no CRM anteriormente ainda é prospect. Sem registro
+ // explícito, uma oportunidade vinculada não deve ser reclassificada.
+ if(!lead&&linked?.opportunity_id)return "review";
+ const text=String(textFromMessage(message)??"").trim();
+ const robot=/(?:ol[aá].{0,70}(?:atendimento|bem.vind|receber sua mensagem)|qual (?:[eé] )?o (?:seu|teu) objetivo|te indicar a melhor op[cç][aã]o|j[aá] te passo.{0,30}valor|quer agendar|promo[cç][aã]o|sess[oõ]es?|(?:massagem|procedimento|botox|drenagem).{0,90}(?:r\$|valor|agend))/i.test(text);
+ const safe=Boolean(lead)&&firstOutbound&&text.length>1&&text.length<=260
+    && !robot && !/https?:\/\/|www\.|(?:^|\s)(?:menu|op[cç][oõ]es|digite [0-9]|responda com|atendimento autom[aá]tico)/i.test(text);
+ if(settings.automation_mode==="approval"||!safe)return "review";
+ return "automatic";
+}
+async function holdProspectingForReview(
+ connection: Connection, conversation: Conversation, message: any, reason: string,
+){
+ const id=String(message?.id??"").trim();
+ if(!id)return;
+ const {error}=await supabase.from("prospecting_agent_reviews").upsert({
+  organization_id:connection.organization_id,whatsapp_conversation_id:conversation.id,
+  inbound_external_message_id:id,inbound_text:String(textFromMessage(message)??"").slice(0,4096),reason,status:"pending",
+ },{onConflict:"organization_id,whatsapp_conversation_id,inbound_external_message_id",ignoreDuplicates:true});
+ if(error)console.error("prospecting_review_enqueue_failed",{code:error.code,conversationId:conversation.id});
+}
+
 async function processAiAgentMessage(
   connection: Connection,
   conversation: Conversation,
   message: any,
   waId: string,
+  forcedProspecting = false,
 ) {
   const directInboundText =
     textFromMessage(message)?.trim();
@@ -2539,10 +2584,11 @@ async function processAiAgentMessage(
     return;
   }
 
-  const crmRouting = await getAiCrmRouting(
-    connection.organization_id,
-    conversation.id,
-  );
+  const crmRouting = forcedProspecting
+    ? {allowed:false,stage:"blocked",opportunityId:null as string|null}
+    : await getAiCrmRouting(
+        connection.organization_id,conversation.id,
+      );
 
   let routingMode: "crm" | "prospecting" =
     "crm";
@@ -2553,7 +2599,13 @@ async function processAiAgentMessage(
   let prospectingPreviousStatus:
     string | null = null;
 
-  if (!crmRouting.allowed) {
+  if (forcedProspecting) {
+    const prospectingRouting=await getAiProspectingRouting(connection.organization_id,waId);
+    if(!prospectingRouting.allowed)return;
+    routingMode="prospecting";
+    prospectingLeadId=prospectingRouting.leadId;
+    prospectingPreviousStatus=prospectingRouting.previousStatus;
+  } else if (!crmRouting.allowed) {
     /*
      * Se já existe oportunidade vinculada, o CRM continua sendo
      * a fonte de verdade. Nunca "furamos" um bloqueio do CRM usando
@@ -3098,6 +3150,16 @@ async function processStandardMessages(
         waId,
         contactMap.get(waId) ?? waId,
       );
+    }
+
+    const hybridRouting=await routeHybridProspecting(connection,conversation,message,waId);
+    if(hybridRouting==="review"){
+      await holdProspectingForReview(connection,conversation,message,"Prospecção: resposta ambígua ou atendimento automático");
+      continue;
+    }
+    if(hybridRouting==="automatic"){
+      await processAiAgentMessage(connection,conversation,message,waId,true);
+      continue;
     }
 
     // Nas abordagens outbound ou respostas de robôs da clínica, registrar
