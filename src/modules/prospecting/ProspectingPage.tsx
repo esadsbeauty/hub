@@ -23,6 +23,7 @@ import { PageContainer } from "@/shared/components/layout/page-container";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { ProspectingListDialog } from "./ProspectingListDialog";
 import { ProspectingAgentPanel } from "./ProspectingAgentPanel";
+import { useAppState } from "@/shared/state/app-state-context";
 import {
   useDeleteProspectingList,
   useGenerateProspectingMessage,
@@ -386,6 +387,7 @@ function LeadMessageEditor({
 }
 
 export function ProspectingPage() {
+  const { organizationId } = useAppState();
   const [
     dialogOpen,
     setDialogOpen,
@@ -639,7 +641,7 @@ export function ProspectingPage() {
 
   return (
     <PageContainer>
-      <ProspectingAgentPanel />
+      {organizationId === "c6ee7876-c88b-4419-abba-b2ed4cc54257" && <ProspectingAgentPanel />}
       <PageHeader
         title="Prospecção"
         description="Organize listas e acompanhe novas oportunidades comerciais."
