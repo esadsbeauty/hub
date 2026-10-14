@@ -93,33 +93,6 @@ const emptyFilters: CrmFilters = {
 export function CrmPage() {
   const [assistantFilter,setAssistantFilter] = useState<AssistantChoice>("all");
   const [assignments,setAssignments] = useState<Record<string,AiAssignment>>({});
-  async function assumeHuman(item: Opportunity) {
-    if (!supabase) return;
-    const {data: links,error:linkError}=await supabase.from("whatsapp_conversations")
-      .select("id").eq("organization_id",item.organizationId)
-      .eq("opportunity_id",item.id).order("updated_at",{ascending:false}).limit(1);
-    if(linkError){alert("Falha ao localizar a conversa.");return;}
-    const conversationId=links?.[0]?.id??null;
-    // Pausar o estado da IA antes de atualizar o card.
-    if(conversationId){
-      const {error:pauseError}=await supabase.from("ai_agent_conversations" as never)
-        .update({status:"paused"} as never).eq("organization_id",item.organizationId)
-        .eq("whatsapp_conversation_id",conversationId);
-      if(pauseError){alert("Não foi possível pausar a assistente.");return;}
-    }
-    const {error}=await supabase.from("crm_ai_assignments" as never).upsert({
-      organization_id:item.organizationId,
-      opportunity_id:item.id,
-      whatsapp_conversation_id:conversationId,
-      lead_origin:/prospec/i.test(item.source??"")?"prospecting":"other",
-      assistant_type:"human",automation_status:"paused",
-    } as never,{onConflict:"organization_id,opportunity_id"});
-    if(error){alert("Assistente pausada, mas não foi possível atualizar o card.");return;}
-    setAssignments(old=>({...old,[item.id]:{
-      opportunity_id:item.id,assistant_type:"human",automation_status:"paused",
-      lead_origin:/prospec/i.test(item.source??"")?"prospecting":"other",
-    }}));
-  }
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { data, isLoading, isError, refetch } = useCrmData();
@@ -551,7 +524,7 @@ export function CrmPage() {
         lastContact={(opportunity)=>lastContactForOpportunity(opportunity,events)}
       />
       <div className="hidden md:contents">
-      <div className="flex flex-wrap items-center justify-end gap-2 md:min-h-10">
+      <div className="flex items-center gap-2 md:min-h-10 md:overflow-x-auto md:pb-1">
         <div className="flex items-center gap-2">
             <Button onClick={() => setModal("company")}>
               <Plus size={17} /> <span>{terms.newCompany}</span>
@@ -580,56 +553,7 @@ export function CrmPage() {
               </div>
             </details>
         </div>
-        <div className="flex w-full items-center gap-2 md:ml-auto md:w-auto">
-          <div className="min-w-0 flex-1 md:w-64 md:flex-none lg:w-72"><SearchInput value={query} onChange={(event)=>{setQuery(event.target.value);sessionStorage.setItem("crm-query",event.target.value)}} placeholder="Buscar lead ou contato…" /></div>
-        <Select
-          className="w-44"
-          value={sort}
-          onChange={(event) => {
-            const value = event.target.value;
-            if (
-              value === "newest" ||
-              value === "oldest" ||
-              value === "name" ||
-              value === "activity" ||
-              value === "followup" ||
-              value === "priority"
-            )
-              setSort(value);
-          }}
-        >
-          <option value="newest">Mais recentes</option>
-          <option value="oldest">Mais antigos</option>
-          <option value="name">Nome</option>
-          <option value="activity">Última atividade</option>
-          <option value="followup">Próximo follow-up</option>
-          <option value="priority">Prioridade</option>
-        </Select>
-        </div>
-      </div>
-      {requestedStageIds.length > 0 && (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/40 px-3 py-2">
-          <p className="text-sm text-muted-foreground">
-            Exibindo {visibleCrmStages.length === 1 ? "a etapa" : "as etapas"}{" "}
-            <b className="text-foreground">
-              {visibleCrmStages.map((stage) => stage.name).join(", ")}
-            </b>
-          </p>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              const next = new URLSearchParams(searchParams);
-              next.delete("stage");
-              next.delete("stages");
-              setSearchParams(next, { replace: true });
-            }}
-          >
-            Limpar filtro
-          </Button>
-        </div>
-      )}
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-1">
         <div className="inline-flex rounded-xl border bg-muted/50 p-1">
           <Button
             size="sm"
@@ -647,9 +571,8 @@ export function CrmPage() {
           </Button>
         </div>
       </div>
-      <div className="space-y-3 md:hidden"><SearchInput value={query} onChange={(event) => { setQuery(event.target.value); sessionStorage.setItem("crm-query", event.target.value); }} placeholder="Buscar lead ou contato…"/><Button className="w-full" variant="outline" aria-label="Abrir filtros" onClick={()=>setMobileFiltersOpen(true)}><SlidersHorizontal size={20}/> Filtros{activeFilters > 0 && <span className="grid h-7 min-w-7 place-items-center rounded-full bg-primary px-2 text-sm text-primary-foreground">{activeFilters}</span>}</Button>{activeFilters>0&&<p className="text-sm text-muted-foreground">{activeFilters} filtro(s) ativo(s)</p>}</div>
-      <details className="hidden rounded-xl border bg-card px-3 py-2 md:block"><summary className="cursor-pointer text-xs font-semibold">Filtros avançados ${activeFilters>0?`(${activeFilters} ativos)`:""}</summary>
-        <div className="mt-3 space-y-3">
+      <details className="relative shrink-0 rounded-xl border bg-card px-3 py-2"><summary className="cursor-pointer text-xs font-semibold">Filtros avançados ${activeFilters>0?`(${activeFilters} ativos)`:""}</summary>
+        <div className="absolute left-0 top-full z-40 mt-2 w-[min(90vw,560px)] rounded-xl border bg-card p-4 shadow-xl space-y-3">
       <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtros rápidos de atendimento">
         {quickCrmOptions.map(item=><button key={item.id} type="button" aria-pressed={quickFilter===item.id} onClick={()=>setQuickFilter(item.id)} className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${quickFilter===item.id?"border-primary bg-primary text-primary-foreground":"bg-card hover:bg-muted"}`}>{item.label}</button>)}
       </div>
@@ -743,6 +666,66 @@ export function CrmPage() {
       </FilterBar>
         </div>
       </details>
+      <div className="flex shrink-0 items-center gap-1">
+        <Bot size={16} className="text-muted-foreground"/>
+        <span className="text-xs font-medium">Atendimento</span>
+        <Select aria-label="Filtrar por assistente" className="h-9 w-[135px]" value={assistantFilter} onChange={event=>setAssistantFilter(event.target.value as AssistantChoice)}>
+          <option value="all">Todas as assistentes</option>
+          <option value="regina">Regina</option>
+          <option value="prospecting">Prospecção</option>
+          <option value="human">Humano</option>
+        </Select>
+      </div>
+        <div className="flex min-w-[200px] flex-1 items-center gap-2 md:ml-auto">
+          <div className="min-w-[130px] flex-1"><SearchInput value={query} onChange={(event)=>{setQuery(event.target.value);sessionStorage.setItem("crm-query",event.target.value)}} placeholder="Buscar lead ou contato…" /></div>
+        <Select
+          className="w-36 shrink-0"
+          value={sort}
+          onChange={(event) => {
+            const value = event.target.value;
+            if (
+              value === "newest" ||
+              value === "oldest" ||
+              value === "name" ||
+              value === "activity" ||
+              value === "followup" ||
+              value === "priority"
+            )
+              setSort(value);
+          }}
+        >
+          <option value="newest">Mais recentes</option>
+          <option value="oldest">Mais antigos</option>
+          <option value="name">Nome</option>
+          <option value="activity">Última atividade</option>
+          <option value="followup">Próximo follow-up</option>
+          <option value="priority">Prioridade</option>
+        </Select>
+        </div>
+      </div>
+      {requestedStageIds.length > 0 && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 bg-muted/40 px-3 py-2">
+          <p className="text-sm text-muted-foreground">
+            Exibindo {visibleCrmStages.length === 1 ? "a etapa" : "as etapas"}{" "}
+            <b className="text-foreground">
+              {visibleCrmStages.map((stage) => stage.name).join(", ")}
+            </b>
+          </p>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              const next = new URLSearchParams(searchParams);
+              next.delete("stage");
+              next.delete("stages");
+              setSearchParams(next, { replace: true });
+            }}
+          >
+            Limpar filtro
+          </Button>
+        </div>
+      )}
+      <div className="space-y-3 md:hidden"><SearchInput value={query} onChange={(event) => { setQuery(event.target.value); sessionStorage.setItem("crm-query", event.target.value); }} placeholder="Buscar lead ou contato…"/><Button className="w-full" variant="outline" aria-label="Abrir filtros" onClick={()=>setMobileFiltersOpen(true)}><SlidersHorizontal size={20}/> Filtros{activeFilters > 0 && <span className="grid h-7 min-w-7 place-items-center rounded-full bg-primary px-2 text-sm text-primary-foreground">{activeFilters}</span>}</Button>{activeFilters>0&&<p className="text-sm text-muted-foreground">{activeFilters} filtro(s) ativo(s)</p>}</div>
       <Modal open={mobileFiltersOpen} title="Filtrar CRM" onClose={()=>setMobileFiltersOpen(false)}>
         <div className="grid gap-5">
           <MobileFilterField label="Responsável"><FilterSelect value={filters.owner} label="Todos os responsáveis" values={companies.map((item) => item.owner)} onChange={(owner) => updateFilters({ ...filters, owner })}/></MobileFilterField>
@@ -760,21 +743,10 @@ export function CrmPage() {
       <Modal open={mobileSortOpen} title="Ordenar CRM" onClose={()=>setMobileSortOpen(false)}>
         <div className="space-y-4"><Label htmlFor="crm-mobile-sort">Ordenar empresas por</Label><Select id="crm-mobile-sort" value={sort} onChange={(event)=>setSort(event.target.value as CrmSort)}><option value="newest">Mais recentes</option><option value="oldest">Mais antigos</option><option value="name">Nome</option><option value="activity">Última atividade</option><option value="followup">Próximo follow-up</option><option value="priority">Prioridade</option></Select><Button className="w-full" onClick={()=>setMobileSortOpen(false)}>Aplicar ordenação</Button></div>
       </Modal>
-      <div className="flex flex-wrap items-center gap-2">
-        <Bot size={16} className="text-muted-foreground"/>
-        <span className="text-xs font-medium">Atendimento:</span>
-        <Select aria-label="Filtrar por assistente" className="h-9 w-auto" value={assistantFilter} onChange={event=>setAssistantFilter(event.target.value as AssistantChoice)}>
-          <option value="all">Todas as assistentes</option>
-          <option value="regina">Regina</option>
-          <option value="prospecting">Prospecção</option>
-          <option value="human">Humano</option>
-        </Select>
-      </div>
       {view === "kanban" ? (
         <OpportunityKanban
           businessMode={businessMode}
           assignments={assignments}
-          onTakeOver={assumeHuman}
           opportunities={visibleOpportunities.filter((item) =>
             matchesQuickFilter(item) && assistantFilteredCompanies.some((company) => company.id === item.companyId)
               && (assistantFilter==="all" || assignments[item.id]?.assistant_type===assistantFilter),
@@ -1140,7 +1112,6 @@ function MobileFilterField({label,children}:{label:string;children:React.ReactNo
 function OpportunityKanban({
   opportunities,
   assignments,
-  onTakeOver,
   stages,
   companyById,
   contacts,
@@ -1152,7 +1123,6 @@ function OpportunityKanban({
   businessMode: import("./business-mode").BusinessMode;
   opportunities: Opportunity[];
   assignments: Record<string,AiAssignment>;
-  onTakeOver: (item:Opportunity)=>Promise<void>;
   stages: PipelineStage[];
   companyById: Map<string, Company>;
   contacts: CompanyContact[];
@@ -1271,9 +1241,6 @@ function OpportunityKanban({
                             </div>
                             {task && <NextActionStatus opportunity={item} stages={stages} task={task} compact/>}
                           </button>
-                          {assignments[item.id]?.assistant_type === "human"
-                            ? <span className="text-xs">Atendimento humano</span>
-                            : <Button size="sm" variant="outline" className="mt-2 w-full" onClick={()=>void onTakeOver(item)}>Assumir atendimento</Button>}
                         </CardContent>
                       </Card>
                     );
