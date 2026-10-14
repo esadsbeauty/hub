@@ -95,13 +95,30 @@ export function CrmPage() {
   const [assignments,setAssignments] = useState<Record<string,AiAssignment>>({});
   async function assumeHuman(item: Opportunity) {
     if (!supabase) return;
+    const {data: links,error:linkError}=await supabase.from("whatsapp_conversations")
+      .select("id").eq("organization_id",item.organizationId)
+      .eq("opportunity_id",item.id).order("updated_at",{ascending:false}).limit(1);
+    if(linkError){alert("Falha ao localizar a conversa.");return;}
+    const conversationId=links?.[0]?.id??null;
+    // Pausar o estado da IA antes de atualizar o card.
+    if(conversationId){
+      const {error:pauseError}=await supabase.from("ai_agent_conversations")
+        .update({status:"paused"}).eq("organization_id",item.organizationId)
+        .eq("whatsapp_conversation_id",conversationId);
+      if(pauseError){alert("Não foi possível pausar a assistente.");return;}
+    }
     const {error}=await supabase.from("crm_ai_assignments" as never).upsert({
-      organization_id: "c6ee7876-c88b-4419-abba-b2ed4cc54257",
-      opportunity_id:item.id, lead_origin:"other",
+      organization_id:item.organizationId,
+      opportunity_id:item.id,
+      whatsapp_conversation_id:conversationId,
+      lead_origin:/prospec/i.test(item.source??"")?"prospecting":"other",
       assistant_type:"human",automation_status:"paused",
     } as never,{onConflict:"organization_id,opportunity_id"});
-    if(error){alert("Não foi possível assumir o atendimento.");return;}
-    window.location.reload();
+    if(error){alert("Assistente pausada, mas não foi possível atualizar o card.");return;}
+    setAssignments(old=>({...old,[item.id]:{
+      opportunity_id:item.id,assistant_type:"human",automation_status:"paused",
+      lead_origin:/prospec/i.test(item.source??"")?"prospecting":"other",
+    }}));
   }
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
