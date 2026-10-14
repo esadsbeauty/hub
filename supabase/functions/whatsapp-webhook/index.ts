@@ -2760,6 +2760,22 @@ async function processAiAgentMessage(
     }
   }
 
+  // Persistir a atribuição sem alterar automaticamente a assistente após
+  // a oportunidade mudar de etapa no pipeline.
+  const assignedOpportunityId = crmRouting.opportunityId ??
+    await getLinkedOpportunityId(connection.organization_id,conversation.id);
+  if(assignedOpportunityId){
+    const {error:assignmentError}=await supabase.from("crm_ai_assignments").upsert({
+      organization_id: connection.organization_id,
+      opportunity_id: assignedOpportunityId,
+      whatsapp_conversation_id: conversation.id,
+      lead_origin: routingMode==="prospecting" ? "prospecting" : "inbound",
+      assistant_type: routingMode==="prospecting" ? "prospecting" : "regina",
+      automation_status:"active",
+    },{onConflict:"organization_id,opportunity_id",ignoreDuplicates:true});
+    if(assignmentError) console.error("crm_ai_assignment_failed",{code:assignmentError.code,conversationId:conversation.id});
+  }
+
   let agentResponse: Response;
 
   try {
