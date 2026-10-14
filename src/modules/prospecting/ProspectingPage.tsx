@@ -22,6 +22,7 @@ import {
 import { PageContainer } from "@/shared/components/layout/page-container";
 import { PageHeader } from "@/shared/components/layout/page-header";
 import { ProspectingListDialog } from "./ProspectingListDialog";
+import { ProspectingAgentPanel } from "./ProspectingAgentPanel";
 import {
   useDeleteProspectingList,
   useGenerateProspectingMessage,
@@ -638,6 +639,7 @@ export function ProspectingPage() {
 
   return (
     <PageContainer>
+      <ProspectingAgentPanel />
       <PageHeader
         title="Prospecção"
         description="Organize listas e acompanhe novas oportunidades comerciais."
