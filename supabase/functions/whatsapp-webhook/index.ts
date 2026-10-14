@@ -1817,6 +1817,7 @@ async function getAiProspectingRouting(
       "message_sent",
       "replied",
       "in_conversation",
+      "opportunity",
     ])
     .order("updated_at", {
       ascending: false,
@@ -3174,6 +3175,8 @@ async function processStandardMessages(
       continue;
     }
     if(hybridRouting==="automatic"){
+      // Somente uma resposta humana segura promove o lead ao CRM.
+      await convertProspectingReplyToCrm(connection,conversation,waId);
       await processAiAgentMessage(connection,conversation,message,waId,true);
       continue;
     }
