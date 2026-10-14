@@ -102,8 +102,8 @@ export function CrmPage() {
     const conversationId=links?.[0]?.id??null;
     // Pausar o estado da IA antes de atualizar o card.
     if(conversationId){
-      const {error:pauseError}=await supabase.from("ai_agent_conversations")
-        .update({status:"paused"}).eq("organization_id",item.organizationId)
+      const {error:pauseError}=await supabase.from("ai_agent_conversations" as never)
+        .update({status:"paused"} as never).eq("organization_id",item.organizationId)
         .eq("whatsapp_conversation_id",conversationId);
       if(pauseError){alert("Não foi possível pausar a assistente.");return;}
     }
