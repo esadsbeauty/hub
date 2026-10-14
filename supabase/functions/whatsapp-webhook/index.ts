@@ -2779,11 +2779,21 @@ async function processAiAgentMessage(
   const assignedOpportunityId = crmRouting.opportunityId ??
     await getLinkedOpportunityId(connection.organization_id,conversation.id);
   if(assignedOpportunityId){
+    const {data:assignmentOpportunity}=await supabase.from("opportunities")
+      .select("source").eq("id",assignedOpportunityId)
+      .eq("organization_id",connection.organization_id).maybeSingle();
+    const normalizedOrigin=String(assignmentOpportunity?.source??"").toLocaleLowerCase("pt-BR");
+    const leadOrigin=routingMode==="prospecting"||normalizedOrigin.includes("prospec")
+      ? "prospecting"
+      : normalizedOrigin.includes("diagn")
+        ? "diagnostic"
+        : /tr[aá]fego|an[uú]ncio|meta|google|paid/i.test(normalizedOrigin)
+          ? "traffic" : "inbound";
     const {error:assignmentError}=await supabase.from("crm_ai_assignments").upsert({
       organization_id: connection.organization_id,
       opportunity_id: assignedOpportunityId,
       whatsapp_conversation_id: conversation.id,
-      lead_origin: routingMode==="prospecting" ? "prospecting" : "inbound",
+      lead_origin: leadOrigin,
       assistant_type: routingMode==="prospecting" ? "prospecting" : "regina",
       automation_status:"active",
     },{onConflict:"organization_id,opportunity_id",ignoreDuplicates:true});
