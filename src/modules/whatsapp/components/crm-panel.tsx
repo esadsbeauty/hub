@@ -245,18 +245,6 @@ export function CrmPanel({
     setNote("");
   }, [opportunity?.id, opportunity?.value]);
 
-  useEffect(()=>{
-    if(!supabase||!conversation){setHumanMode(false);return;}
-    let active=true;
-    void supabase.from("ai_agent_conversations")
-      .select("status")
-      .eq("organization_id",conversation.organizationId)
-      .eq("whatsapp_conversation_id",conversation.id)
-      .order("updated_at",{ascending:false}).limit(1).maybeSingle()
-      .then(({data})=>{if(active)setHumanMode(data?.status==="paused");});
-    return()=>{active=false;};
-  },[conversation?.id,conversation?.organizationId]);
-
   async function takeOver(){
     if(!supabase||!conversation||takingOver)return;
     setTakingOver(true);
