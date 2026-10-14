@@ -245,6 +245,18 @@ export function CrmPanel({
     setNote("");
   }, [opportunity?.id, opportunity?.value]);
 
+  useEffect(()=>{
+    if(!supabase||!conversation){setHumanMode(false);return;}
+    let active=true;
+    void supabase.from("ai_agent_conversations")
+      .select("status")
+      .eq("organization_id",conversation.organizationId)
+      .eq("whatsapp_conversation_id",conversation.id)
+      .order("updated_at",{ascending:false}).limit(1).maybeSingle()
+      .then(({data})=>{if(active)setHumanMode(data?.status==="paused");});
+    return()=>{active=false;};
+  },[conversation?.id,conversation?.organizationId]);
+
   async function takeOver(){
     if(!supabase||!conversation||takingOver)return;
     setTakingOver(true);
@@ -252,8 +264,23 @@ export function CrmPanel({
       .update({status:"paused"} as never)
       .eq("organization_id",conversation.organizationId)
       .eq("whatsapp_conversation_id",conversation.id);
+    if(error){setTakingOver(false);notify({title:"Não foi possível pausar a assistente."});return;}
+    if(opportunity){
+      const {error:assignmentError}=await supabase.from("crm_ai_assignments" as never).upsert({
+        organization_id:conversation.organizationId,
+        opportunity_id:opportunity.id,
+        whatsapp_conversation_id:conversation.id,
+        lead_origin:/prospec/i.test(opportunity.source??"")?"prospecting":"other",
+        assistant_type:"human",
+        automation_status:"paused",
+      } as never,{onConflict:"organization_id,opportunity_id"});
+      if(assignmentError){
+        setTakingOver(false);
+        notify({title:"Assistente pausada, mas falhou a atualização do CRM"});
+        return;
+      }
+    }
     setTakingOver(false);
-    if(error){notify({title:"Não foi possível pausar a assistente."});return;}
     setHumanMode(true);
     notify({title:"Atendimento humano ativado"});
   }
