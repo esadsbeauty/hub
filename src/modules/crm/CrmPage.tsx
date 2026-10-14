@@ -93,6 +93,9 @@ const emptyFilters: CrmFilters = {
 export function CrmPage() {
   const [assistantFilter,setAssistantFilter] = useState<AssistantChoice>("all");
   const [assignments,setAssignments] = useState<Record<string,AiAssignment>>({});
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { data, isLoading, isError, refetch } = useCrmData();
   useEffect(()=>{
     if(!supabase || !data?.opportunities?.length){setAssignments({});return;}
     const ids=data.opportunities.map(item=>item.id);
@@ -110,9 +113,6 @@ export function CrmPage() {
     })();
     return()=>{cancelled=true;};
   },[data?.opportunities]);
-  const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { data, isLoading, isError, refetch } = useCrmData();
   const actions = useCrmActions();
   const businessModeQuery=useBusinessMode();const businessMode=businessModeQuery.data??"b2b";const terms=crmTerminology(businessMode);const b2c=isB2CMode(businessMode);
   const { notify } = useToast();
