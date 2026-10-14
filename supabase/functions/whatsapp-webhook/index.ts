@@ -2585,6 +2585,19 @@ async function processAiAgentMessage(
     return;
   }
 
+  const {data:manualAssignment,error:assignmentLookupError}=await supabase
+    .from("crm_ai_assignments").select("assistant_type,automation_status")
+    .eq("organization_id",connection.organization_id)
+    .eq("whatsapp_conversation_id",conversation.id)
+    .order("updated_at",{ascending:false}).limit(1).maybeSingle();
+  if(assignmentLookupError){
+    console.error("AI assignment routing failed",{code:assignmentLookupError.code,conversationId:conversation.id});
+    return;
+  }
+  if(manualAssignment && (manualAssignment.assistant_type==="human" || manualAssignment.automation_status!=="active")){
+    console.log("AI skipped: automation paused or under human care",{conversationId:conversation.id});
+    return;
+  }
   const crmRouting = forcedProspecting
     ? {allowed:false,stage:"blocked",opportunityId:null as string|null}
     : await getAiCrmRouting(
