@@ -61,7 +61,7 @@ type AiAssignment = {
   lead_origin: string;
 };
 function agentLabel(item?: AiAssignment) {
-  if (!item) return "Não definida";
+  if (!item) return "Sem agente atribuída";
   return item.assistant_type === "prospecting" ? "Prospecção" : item.assistant_type === "regina" ? "Regina" : "Humano";
 }
 type View = "kanban" | "list";
