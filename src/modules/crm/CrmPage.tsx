@@ -353,6 +353,10 @@ export function CrmPage() {
     quickFilter,
     requestedStageIds.join(","),
   ]);
+  const assistantFilteredCompanies = assistantFilter==="all" ? filtered : filtered.filter(company=>
+    opportunities.some(opportunity=>opportunity.companyId===company.id &&
+      assignments[opportunity.id]?.assistant_type===assistantFilter)
+  );
   if (isLoading)
     return (
       <PageContainer>
@@ -498,9 +502,9 @@ export function CrmPage() {
     <PageContainer className="space-y-3 md:space-y-2">
       <MobileCrmView
         businessMode={businessMode}
-        companies={filtered}
+        companies={assistantFilteredCompanies}
         contacts={contacts}
-        opportunities={visibleOpportunities.filter((item)=>matchesQuickFilter(item)&&filtered.some((company)=>company.id===item.companyId))}
+        opportunities={visibleOpportunities.filter((item)=>matchesQuickFilter(item)&&assistantFilteredCompanies.some((company)=>company.id===item.companyId))}
         tasks={tasks}
         stages={visibleCrmStages}
         query={query}
@@ -744,7 +748,7 @@ export function CrmPage() {
           businessMode={businessMode}
           assignments={assignments}
           opportunities={visibleOpportunities.filter((item) =>
-            matchesQuickFilter(item) && filtered.some((company) => company.id === item.companyId)
+            matchesQuickFilter(item) && assistantFilteredCompanies.some((company) => company.id === item.companyId)
               && (assistantFilter==="all" || assignments[item.id]?.assistant_type===assistantFilter),
           )}
           stages={visibleCrmStages}
@@ -774,14 +778,14 @@ export function CrmPage() {
             navigate(`/whatsapp?${params.toString()}`);
           }}
         />
-      ) : filtered.length === 0 ? (
+      ) : assistantFilteredCompanies.length === 0 ? (
         <EmptyState
           title={`Nenhum${b2c ? " lead" : "a empresa"} encontrado${b2c ? "" : "a"}`}
           description="Ajuste a busca ou os filtros para continuar."
         />
       ) : (
-        <><div className="grid gap-4 md:hidden">{filtered.map(company=><button key={company.id} onClick={()=>navigate(`/crm/companies/${company.id}`)} className="rounded-[1.5rem] bg-card p-5 text-left shadow-soft premium-focus"><div className="flex items-start justify-between gap-3"><div><h2 className="text-xl font-semibold tracking-[-.025em]">{company.fantasyName}</h2><p className="mt-1 text-base text-muted-foreground">{contacts.find(item=>item.companyId===company.id&&item.isPrimary)?.name??"Sem contato principal"}</p></div><span className="rounded-full bg-muted px-3 py-1.5 text-sm font-semibold">{openCount(company.id)} abertas</span></div><div className="mt-5 flex flex-wrap gap-2"><TemperatureBadge temperature={company.temperature}/><PriorityBadge priority={company.priority}/></div><div className="mt-5 border-t pt-4 text-base"><p>{company.whatsapp??company.phone??"Contato nÃ£o informado"}</p><p className="mt-2 text-muted-foreground">Próximo passo: {nextTask(company.id)?formatDateTime(nextTask(company.id)?.dueAt):"Nenhum"}</p></div></button>)}</div><div className="hidden md:block"><DataTable<Company>
-          data={filtered}
+        <><div className="grid gap-4 md:hidden">{assistantFilteredCompanies.map(company=><button key={company.id} onClick={()=>navigate(`/crm/companies/${company.id}`)} className="rounded-[1.5rem] bg-card p-5 text-left shadow-soft premium-focus"><div className="flex items-start justify-between gap-3"><div><h2 className="text-xl font-semibold tracking-[-.025em]">{company.fantasyName}</h2><p className="mt-1 text-base text-muted-foreground">{contacts.find(item=>item.companyId===company.id&&item.isPrimary)?.name??"Sem contato principal"}</p></div><span className="rounded-full bg-muted px-3 py-1.5 text-sm font-semibold">{openCount(company.id)} abertas</span></div><div className="mt-5 flex flex-wrap gap-2"><TemperatureBadge temperature={company.temperature}/><PriorityBadge priority={company.priority}/></div><div className="mt-5 border-t pt-4 text-base"><p>{company.whatsapp??company.phone??"Contato nÃ£o informado"}</p><p className="mt-2 text-muted-foreground">Próximo passo: {nextTask(company.id)?formatDateTime(nextTask(company.id)?.dueAt):"Nenhum"}</p></div></button>)}</div><div className="hidden md:block"><DataTable<Company>
+          data={assistantFilteredCompanies}
           onRowClick={(company) => navigate(`/crm/companies/${company.id}`)}
           columns={[
             {
