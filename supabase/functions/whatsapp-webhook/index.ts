@@ -2421,7 +2421,7 @@ async function routeHybridProspecting(
  const candidates=prospectingPhoneCandidates(waId);
  const {data: lead,error:leadError}=candidates.length?await supabase.from("prospecting_leads")
   .select("id,status").eq("organization_id",connection.organization_id)
-  .in("whatsapp",candidates).in("status",["message_sent","replied","in_conversation"])
+  .in("whatsapp",candidates).in("status",["message_sent","replied","in_conversation","opportunity"])
   .limit(1).maybeSingle():{data:null,error:null};
  if(leadError)return "review";
  if(!lead&&!firstOutbound)return "legacy"; // inbound normal: Regina Comercial
