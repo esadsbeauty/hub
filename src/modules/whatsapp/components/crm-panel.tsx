@@ -1,4 +1,3 @@
-import { supabase } from "@/lib/supabase";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -237,50 +236,11 @@ export function CrmPanel({
 
   const [value, setValue] = useState("");
   const [note, setNote] = useState("");
-  const [humanMode,setHumanMode]=useState(false);
-  const [takingOver,setTakingOver]=useState(false);
 
   useEffect(() => {
     setValue(opportunity ? String(opportunity.value ?? 0) : "");
     setNote("");
   }, [opportunity?.id, opportunity?.value]);
-
-  useEffect(()=>{
-    if(!supabase||!conversation){setHumanMode(false);return;}
-    let active=true;
-    void supabase.from("ai_agent_conversations").select("status")
-      .eq("organization_id",conversation.organizationId)
-      .eq("whatsapp_conversation_id",conversation.id)
-      .order("updated_at",{ascending:false}).limit(1).maybeSingle()
-      .then(({data})=>{if(active)setHumanMode(data?.status==="paused"||data?.status==="handoff");});
-    return()=>{active=false;};
-  },[conversation?.id,conversation?.organizationId]);
-
-  async function takeOver(){
-    if(!conversation||!supabase||takingOver)return;
-    setTakingOver(true);
-    try {
-      const {error:pauseError}=await supabase.from("ai_agent_conversations" as never)
-        .update({status:"paused"} as never)
-        .eq("organization_id",conversation.organizationId)
-        .eq("whatsapp_conversation_id",conversation.id);
-      if(pauseError)throw pauseError;
-      if(opportunity){
-        const {error:assignmentError}=await supabase.from("crm_ai_assignments" as never).upsert({
-          organization_id:conversation.organizationId,
-          opportunity_id:opportunity.id,
-          whatsapp_conversation_id:conversation.id,
-          lead_origin:/prospec/i.test(opportunity.source??"")?"prospecting":"other",
-          assistant_type:"human",automation_status:"paused",
-        } as never,{onConflict:"organization_id,opportunity_id"});
-        if(assignmentError)throw assignmentError;
-      }
-      setHumanMode(true);
-      notify({title:"Conversa assumida",description:"Atendimento humano ativado. A assistente foi pausada."});
-    }catch{
-      notify({title:"Falha ao assumir conversa",description:"Não foi possível confirmar a pausa da assistente."});
-    }finally{setTakingOver(false);}
-  }
 
   if (!conversation) return null;
 
@@ -361,13 +321,6 @@ export function CrmPanel({
               <Link to={`/crm/companies/${company.id}?schedule=1`} onClick={onClose} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground">Agendar reunião</Link>
             </div>
           )}
-          <div className="mt-3">
-            {humanMode
-              ? <div className="rounded-xl border bg-muted px-3 py-2 text-sm font-semibold">Atendimento humano ativo</div>
-              : <Button className="w-full" variant="outline" disabled={takingOver} onClick={()=>void takeOver()}>
-                  {takingOver?"Assumindo conversa…":"Assumir conversa"}
-                </Button>}
-          </div>
           <dl className="mt-6 space-y-5">
             <div className="flex gap-3">
               <UserRound className="shrink-0 text-champagne-dark" size={20} />
