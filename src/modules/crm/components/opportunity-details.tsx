@@ -14,6 +14,7 @@ import type { Company, CompanyContact, Opportunity, Pipeline, PipelineStage, Tas
 import { currency, daysSince, formatDateTime } from "../utils/formatters";
 import { contactInstagramUrl, contactTelephoneUrl, contactWhatsappUrl } from "../utils/contact-links";
 import { ActivityTimeline } from "./activity-timeline";
+import { OpportunityAiAssignmentPanel } from "./OpportunityAiAssignmentPanel";
 import { OpportunityValueInput } from "./opportunity-value-input";
 import { crmTerminology, type BusinessMode } from "../business-mode";
 import { NextActionStatus } from "./next-action-status";
@@ -143,6 +144,7 @@ export function OpportunityDetails(props: Props) {
     </section>
     <section><h3 className="text-xs font-bold uppercase tracking-[.14em] text-muted-foreground">Observação rápida</h3><Textarea className="mt-3" value={note} onChange={event=>setNote(event.target.value)} placeholder="Adicionar observação..."/><Button className="mt-2" disabled={!note.trim()||savingNote} onClick={async()=>{setSavingNote(true);try{await props.onSaveNote(note.trim());setNote("")}finally{setSavingNote(false)}}}>{savingNote?"Salvando...":"Salvar observação"}</Button></section>
     <section><h3 className="text-xs font-bold uppercase tracking-[.14em] text-muted-foreground">Comercial</h3><dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">{commercial.map(([label,value])=><div key={label} className="border-b pb-2"><dt className="text-muted-foreground">{label}</dt><dd className="font-semibold">{value||"—"}</dd></div>)}</dl>{opportunity.description&&<p className="mt-3 rounded-xl bg-muted p-3 text-sm">{opportunity.description}</p>}{!b2c&&<p className="mt-3 text-xs text-muted-foreground">{terms.company} vinculada: <b className="text-foreground">{company?.fantasyName??"—"}</b></p>}</section>
+    <OpportunityAiAssignmentPanel opportunityId={opportunity.id} source={opportunity.source ?? company?.leadSource}/>
     <section className="border-t pt-5"><h3 className="text-xs font-bold uppercase tracking-[.14em] text-muted-foreground">Histórico</h3><div className="mt-3"><ActivityTimeline events={activities} compact/></div></section>
     <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={props.onEdit}>Editar negociação</Button><Button variant="outline" onClick={props.onDuplicate}>Duplicar</Button>{opportunity.status==="open"&&<><Button onClick={openWon}>Marcar como ganha</Button><Button variant="outline" onClick={()=>setLossOpen(true)}>Marcar como perdida</Button></>}<Button variant="ghost" onClick={()=>setConfirmArchive(true)}>Arquivar</Button></div>
     {wonOpen&&<section className="space-y-4 rounded-2xl border p-4">
