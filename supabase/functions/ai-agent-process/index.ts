@@ -749,7 +749,24 @@ MODO ATUAL: CRM / QUALIFICAÇÃO
 Siga normalmente as regras comerciais, de qualificação e CRM configuradas.
 `;
 
+    const {data: prospectingSettings} = isProspectingMode
+      ? await admin.from("prospecting_agent_settings")
+          .select("agent_name,system_instructions,enabled")
+          .eq("organization_id",organizationId).maybeSingle()
+      : {data:null};
+    const specialInstructions=isProspectingMode && prospectingSettings?.enabled===true
+      ? `AGENTE EXCLUSIVA DE PROSPECÇÃO: ${prospectingSettings.agent_name || "Assistente de Prospecção"}.
+Estas instruções são separadas da Regina Comercial:
+${prospectingSettings.system_instructions || ""}
+Você representa a ESADS oferecendo soluções comerciais para a clínica. Você NÃO é paciente,
+não quer comprar tratamentos e NÃO pode responder como cliente da clínica.
+Mantenha o contexto da primeira abordagem humana, sem apresentação inicial ou
+qualificação receptiva do CRM. Se houver automação de clínica ou mensagem
+incoerente, não dê sequência à conversa.`
+      : "";
+
     const instructions = `
+${specialInstructions}
 ${personalizedSystemPrompt}
 
 ${modeInstructions}
