@@ -1,3 +1,4 @@
+import { supabase } from "@/lib/supabase";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -236,12 +237,26 @@ export function CrmPanel({
 
   const [value, setValue] = useState("");
   const [note, setNote] = useState("");
+  const [takingOver,setTakingOver]=useState(false);
+  const [humanMode,setHumanMode]=useState(false);
 
   useEffect(() => {
     setValue(opportunity ? String(opportunity.value ?? 0) : "");
     setNote("");
   }, [opportunity?.id, opportunity?.value]);
 
+  async function takeOver(){
+    if(!supabase||!conversation||takingOver)return;
+    setTakingOver(true);
+    const {error}=await supabase.from("ai_agent_conversations" as never)
+      .update({status:"paused"} as never)
+      .eq("organization_id",conversation.organizationId)
+      .eq("whatsapp_conversation_id",conversation.id);
+    setTakingOver(false);
+    if(error){notify({title:"Não foi possível pausar a assistente."});return;}
+    setHumanMode(true);
+    notify({title:"Atendimento humano ativado"});
+  }
   if (!conversation) return null;
 
   const saveValue = async () => {
@@ -321,6 +336,11 @@ export function CrmPanel({
               <Link to={`/crm/companies/${company.id}?schedule=1`} onClick={onClose} className="inline-flex min-h-11 items-center justify-center rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground">Agendar reunião</Link>
             </div>
           )}
+          <div className="mt-3">
+            {humanMode
+              ? <p className="rounded-xl border bg-muted px-3 py-2 text-sm">Atendimento humano ativo</p>
+              : <Button className="w-full" variant="outline" disabled={takingOver} onClick={()=>void takeOver()}>{takingOver?"Assumindo…":"Assumir conversa"}</Button>}
+          </div>
           <dl className="mt-6 space-y-5">
             <div className="flex gap-3">
               <UserRound className="shrink-0 text-champagne-dark" size={20} />
