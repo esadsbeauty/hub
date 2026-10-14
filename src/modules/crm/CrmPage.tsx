@@ -93,6 +93,16 @@ const emptyFilters: CrmFilters = {
 export function CrmPage() {
   const [assistantFilter,setAssistantFilter] = useState<AssistantChoice>("all");
   const [assignments,setAssignments] = useState<Record<string,AiAssignment>>({});
+  async function assumeHuman(item: Opportunity) {
+    if (!supabase) return;
+    const {error}=await supabase.from("crm_ai_assignments" as never).upsert({
+      organization_id: "c6ee7876-c88b-4419-abba-b2ed4cc54257",
+      opportunity_id:item.id, lead_origin:"other",
+      assistant_type:"human",automation_status:"paused",
+    } as never,{onConflict:"organization_id,opportunity_id"});
+    if(error){alert("Não foi possível assumir o atendimento.");return;}
+    window.location.reload();
+  }
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { data, isLoading, isError, refetch } = useCrmData();
@@ -747,6 +757,7 @@ export function CrmPage() {
         <OpportunityKanban
           businessMode={businessMode}
           assignments={assignments}
+          onTakeOver={assumeHuman}
           opportunities={visibleOpportunities.filter((item) =>
             matchesQuickFilter(item) && assistantFilteredCompanies.some((company) => company.id === item.companyId)
               && (assistantFilter==="all" || assignments[item.id]?.assistant_type===assistantFilter),
@@ -1112,6 +1123,7 @@ function MobileFilterField({label,children}:{label:string;children:React.ReactNo
 function OpportunityKanban({
   opportunities,
   assignments,
+  onTakeOver,
   stages,
   companyById,
   contacts,
@@ -1123,6 +1135,7 @@ function OpportunityKanban({
   businessMode: import("./business-mode").BusinessMode;
   opportunities: Opportunity[];
   assignments: Record<string,AiAssignment>;
+  onTakeOver: (item:Opportunity)=>Promise<void>;
   stages: PipelineStage[];
   companyById: Map<string, Company>;
   contacts: CompanyContact[];
@@ -1241,7 +1254,9 @@ function OpportunityKanban({
                             </div>
                             {task && <NextActionStatus opportunity={item} stages={stages} task={task} compact/>}
                           </button>
-                          
+                          {assignments[item.id]?.assistant_type === "human"
+                            ? <span className="text-xs">Atendimento humano</span>
+                            : <Button size="sm" variant="outline" className="mt-2 w-full" onClick={()=>void onTakeOver(item)}>Assumir atendimento</Button>}
                         </CardContent>
                       </Card>
                     );
