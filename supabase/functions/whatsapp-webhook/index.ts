@@ -2910,6 +2910,29 @@ async function processAiAgentMessage(
   }
 
   for (let index = 0; index < aiMessages.length; index++) {
+    // Revalidar antes de CADA envio: o humano pode assumir enquanto
+    // a IA está gerando ou entre mensagens de uma mesma resposta.
+    const {data:currentState,error:stateError}=await supabase.from("ai_agent_conversations")
+      .select("status").eq("organization_id",connection.organization_id)
+      .eq("whatsapp_conversation_id",conversation.id)
+      .order("updated_at",{ascending:false}).limit(1).maybeSingle();
+    const {data:currentAssignment,error:currentAssignmentError}=await supabase
+      .from("crm_ai_assignments").select("assistant_type,automation_status")
+      .eq("organization_id",connection.organization_id)
+      .eq("whatsapp_conversation_id",conversation.id)
+      .order("updated_at",{ascending:false}).limit(1).maybeSingle();
+    if(stateError||currentAssignmentError||
+      currentState?.status==="paused"||currentState?.status==="handoff"||
+      currentAssignment?.assistant_type==="human"||
+      (currentAssignment&&currentAssignment.automation_status!=="active")){
+      console.log("AI send canceled: human takeover or pause",{conversationId:conversation.id,index});
+      return;
+    }
+    const currentRouting=await getAiCrmRouting(connection.organization_id,conversation.id);
+    if(currentRouting.opportunityId && !currentRouting.allowed){
+      console.log("AI send canceled: CRM stage changed",{conversationId:conversation.id,index});
+      return;
+    }
     const sent = await sendAiWhatsAppMessage(
       connection,
       conversation.id,
