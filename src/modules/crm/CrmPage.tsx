@@ -8,6 +8,7 @@ import {
   ArrowDownUp,
   Plus,
   SlidersHorizontal,
+  Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -52,6 +53,17 @@ import type {
 import { currency, formatDateTime } from "./utils/formatters";
 import { crmTerminology, isB2CMode, useBusinessMode } from "./business-mode";
 import { downloadLeadExport } from "./lead-spreadsheet";
+type AssistantChoice = "all" | "regina" | "prospecting" | "human";
+type AiAssignment = {
+  opportunity_id: string;
+  assistant_type: "regina" | "prospecting" | "human";
+  automation_status: "active" | "paused" | "review";
+  lead_origin: string;
+};
+function agentLabel(item?: AiAssignment) {
+  if (!item) return "Não definida";
+  return item.assistant_type === "prospecting" ? "Prospecção" : item.assistant_type === "regina" ? "Regina" : "Humano";
+}
 type View = "kanban" | "list";
 export type QuickCrmFilter = "all" | "calls" | "attending" | "waiting" | "overdue";
 const quickCrmOptions: {id:QuickCrmFilter;label:string}[]=[{id:"all",label:"Todos"},{id:"calls",label:"Aguardando Ligação"},{id:"attending",label:"Em Atendimento"},{id:"waiting",label:"Aguardando Resposta"},{id:"overdue",label:"Atrasados"}];
@@ -79,6 +91,25 @@ const emptyFilters: CrmFilters = {
   created: "all",
 };
 export function CrmPage() {
+  const [assistantFilter,setAssistantFilter] = useState<AssistantChoice>("all");
+  const [assignments,setAssignments] = useState<Record<string,AiAssignment>>({});
+  useEffect(()=>{
+    if(!supabase || !data?.opportunities?.length){setAssignments({});return;}
+    const ids=data.opportunities.map(item=>item.id);
+    let cancelled=false;
+    void (async()=>{
+      const all:AiAssignment[]=[];
+      for(let index=0;index<ids.length;index+=100){
+        const {data:rows,error}=await supabase!.from("crm_ai_assignments" as never)
+          .select("opportunity_id,assistant_type,automation_status,lead_origin")
+          .in("opportunity_id",ids.slice(index,index+100));
+        if(error){console.warn("Não foi possível carregar assistentes do CRM",error.code);return;}
+        all.push(...((rows??[]) as AiAssignment[]));
+      }
+      if(!cancelled)setAssignments(Object.fromEntries(all.map(item=>[item.opportunity_id,item])));
+    })();
+    return()=>{cancelled=true;};
+  },[data?.opportunities]);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { data, isLoading, isError, refetch } = useCrmData();
@@ -698,11 +729,23 @@ export function CrmPage() {
       <Modal open={mobileSortOpen} title="Ordenar CRM" onClose={()=>setMobileSortOpen(false)}>
         <div className="space-y-4"><Label htmlFor="crm-mobile-sort">Ordenar empresas por</Label><Select id="crm-mobile-sort" value={sort} onChange={(event)=>setSort(event.target.value as CrmSort)}><option value="newest">Mais recentes</option><option value="oldest">Mais antigos</option><option value="name">Nome</option><option value="activity">Última atividade</option><option value="followup">Próximo follow-up</option><option value="priority">Prioridade</option></Select><Button className="w-full" onClick={()=>setMobileSortOpen(false)}>Aplicar ordenação</Button></div>
       </Modal>
+      <div className="flex flex-wrap items-center gap-2">
+        <Bot size={16} className="text-muted-foreground"/>
+        <span className="text-xs font-medium">Atendimento:</span>
+        <Select aria-label="Filtrar por assistente" className="h-9 w-auto" value={assistantFilter} onChange={event=>setAssistantFilter(event.target.value as AssistantChoice)}>
+          <option value="all">Todas as assistentes</option>
+          <option value="regina">Regina</option>
+          <option value="prospecting">Prospecção</option>
+          <option value="human">Humano</option>
+        </Select>
+      </div>
       {view === "kanban" ? (
         <OpportunityKanban
           businessMode={businessMode}
+          assignments={assignments}
           opportunities={visibleOpportunities.filter((item) =>
-            matchesQuickFilter(item) && filtered.some((company) => company.id === item.companyId),
+            matchesQuickFilter(item) && filtered.some((company) => company.id === item.companyId)
+              && (assistantFilter==="all" || assignments[item.id]?.assistant_type===assistantFilter),
           )}
           stages={visibleCrmStages}
           companyById={companyById}
@@ -1064,6 +1107,7 @@ function MobileFilterField({label,children}:{label:string;children:React.ReactNo
 }
 function OpportunityKanban({
   opportunities,
+  assignments,
   stages,
   companyById,
   contacts,
@@ -1074,6 +1118,7 @@ function OpportunityKanban({
 }: {
   businessMode: import("./business-mode").BusinessMode;
   opportunities: Opportunity[];
+  assignments: Record<string,AiAssignment>;
   stages: PipelineStage[];
   companyById: Map<string, Company>;
   contacts: CompanyContact[];
@@ -1187,6 +1232,7 @@ function OpportunityKanban({
                               <span className="inline-flex w-fit items-center rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
                                 Origem: {item.source ?? company?.leadSource ?? "Não informada"}
                               </span>
+                              <span className="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs" title="Assistente responsável pelo atendimento"><Bot size={12}/>{agentLabel(assignments[item.id])}</span>
                               <OpportunityStatusBadge opportunity={item} stages={stages} compact />
                             </div>
                             {task && <NextActionStatus opportunity={item} stages={stages} task={task} compact/>}
