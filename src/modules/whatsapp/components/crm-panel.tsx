@@ -245,24 +245,6 @@ export function CrmPanel({
     setNote("");
   }, [opportunity?.id, opportunity?.value]);
 
-  useEffect(() => {
-    const conversationId=conversation?.id;
-    const organizationId=conversation?.organizationId;
-    if(!supabase||!conversationId||!organizationId)return;
-    let mounted=true;
-    async function readState(){
-      const client=supabase;
-      if(!client)return;
-      const result=await client.from("ai_agent_conversations" as never).select("status")
-        .eq("organization_id",organizationId).eq("whatsapp_conversation_id",conversationId)
-        .limit(1).maybeSingle();
-      const row=result.data as unknown as {status?:string}|null;
-      if(mounted && !result.error)setHumanMode(["paused","handoff","closed"].includes(String(row?.status??"")));
-    }
-    void readState();
-    return ()=>{mounted=false;};
-  },[conversation?.id,conversation?.organizationId]);
-
   async function takeOver(){
     if(!supabase||!conversation||takingOver)return;
     setTakingOver(true);
