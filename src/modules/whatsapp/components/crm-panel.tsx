@@ -245,6 +245,27 @@ export function CrmPanel({
     setNote("");
   }, [opportunity?.id, opportunity?.value]);
 
+  useEffect(() => {
+    const conversationId = conversation?.id;
+    const organizationId = conversation?.organizationId;
+    const client = supabase;
+    setHumanMode(false);
+    if (!client || !conversationId || !organizationId) return;
+    let active = true;
+    void client.from("ai_agent_conversations")
+      .select("status")
+      .eq("organization_id",organizationId)
+      .eq("whatsapp_conversation_id",conversationId)
+      .order("created_at",{ascending:false})
+      .limit(1).maybeSingle()
+      .then(({data,error}) => {
+        if (active && !error) {
+          setHumanMode(["paused","handoff","closed"].includes(String(data?.status ?? "")));
+        }
+      });
+    return () => { active = false; };
+  }, [conversation?.id,conversation?.organizationId]);
+
   async function takeOver(){
     if(!supabase||!conversation||takingOver)return;
     setTakingOver(true);
