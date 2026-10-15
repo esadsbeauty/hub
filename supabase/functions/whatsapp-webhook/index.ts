@@ -2685,22 +2685,23 @@ async function processAiAgentMessage(
       conversation.id,
     );
 
-  const shouldResetCrmRound =
-    routingMode === "crm" &&
-    crmRouting.stage === "awaiting" &&
-    (
-      !latestAiConversation ||
-      !latestAiConversation.last_ai_message_at ||
-      ["handoff", "paused", "closed"].includes(
-        String(
-          latestAiConversation.status ?? "",
-        ),
-      )
-    );
+  // Nunca reiniciar uma conversa existente por mensagem recebida.
+  // Reinícios devem ocorrer apenas quando uma NOVA rodada for criada explicitamente.
+  // Um handoff, pausa ou fechamento sempre prevalece sobre a etapa "Novo Lead".
+  if (latestAiConversation && ["handoff","paused","closed"].includes(
+    String(latestAiConversation.status ?? "")
+  )) {
+    console.log("AI skipped: conversation already handed off or paused",{
+      conversationId:conversation.id,status:latestAiConversation.status,
+    });
+    return;
+  }
+  const shouldResetCrmRound = false;
 
   const shouldResetProspectingRound =
     routingMode === "prospecting" &&
-    prospectingPreviousStatus === "message_sent";
+    prospectingPreviousStatus === "message_sent" &&
+    !latestAiConversation;
 
   if (
     shouldResetCrmRound ||
