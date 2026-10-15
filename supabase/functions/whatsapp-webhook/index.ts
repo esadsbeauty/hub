@@ -1484,7 +1484,8 @@ async function shouldSkipAiAutomation(
       },
     );
 
-    return false;
+    // Na dúvida, nunca enviar mensagem automática.
+    return true;
   }
 
   return (
