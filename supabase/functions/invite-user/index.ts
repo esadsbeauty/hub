@@ -1,39 +1,69 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const allowedOrigin = Deno.env.get("APP_ORIGIN") ?? "";
+const configuredOrigin = Deno.env.get("APP_ORIGIN") ?? "";
 
-const headers = {
-  "Access-Control-Allow-Origin": allowedOrigin,
-  "Access-Control-Allow-Headers": "authorization, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Content-Type": "application/json",
+const isAllowedOrigin = (origin: string) => {
+  if (!origin) return false;
+  if (configuredOrigin && origin === configuredOrigin) return true;
+
+  try {
+    const url = new URL(origin);
+    return (
+      (url.hostname === "localhost" || url.hostname === "127.0.0.1") &&
+      (url.protocol === "http:" || url.protocol === "https:")
+    );
+  } catch {
+    return false;
+  }
 };
 
-const reply = (status: number, body: Record<string, unknown>) =>
+const responseHeaders = (origin: string) => ({
+  "Access-Control-Allow-Origin": isAllowedOrigin(origin)
+    ? origin
+    : configuredOrigin,
+  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info, x-supabase-api-version",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Content-Type": "application/json",
+  "Vary": "Origin",
+});
+
+const reply = (
+  status: number,
+  body: Record<string, unknown>,
+  origin: string,
+) =>
   new Response(JSON.stringify(body), {
     status,
-    headers,
+    headers: responseHeaders(origin),
   });
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 Deno.serve(async (request) => {
+  const requestOrigin = request.headers.get("origin") ?? "";
+
   if (request.method === "OPTIONS") {
-    return new Response("ok", { headers });
+    return new Response("ok", {
+      headers: responseHeaders(requestOrigin),
+    });
   }
 
   if (request.method !== "POST") {
     return reply(405, {
       code: "method_not_allowed",
       message: "Método não permitido.",
-    });
+    }, requestOrigin);
   }
 
-  if (!allowedOrigin || request.headers.get("origin") !== allowedOrigin) {
-    return reply(403, {
-      code: "origin_denied",
-      message: "Origem não autorizada.",
-    });
+  if (!isAllowedOrigin(requestOrigin)) {
+    return reply(
+      403,
+      {
+        code: "origin_denied",
+        message: "Origem não autorizada.",
+      },
+      requestOrigin,
+    );
   }
 
   const authorization = request.headers.get("authorization");
@@ -42,7 +72,7 @@ Deno.serve(async (request) => {
     return reply(401, {
       code: "invalid_session",
       message: "Sessão inválida.",
-    });
+    }, requestOrigin);
   }
 
   const url = Deno.env.get("SUPABASE_URL");
@@ -53,7 +83,7 @@ Deno.serve(async (request) => {
     return reply(503, {
       code: "not_configured",
       message: "Gestão de usuários ainda não está configurada.",
-    });
+    }, requestOrigin);
   }
 
   const userClient = createClient(url, anon, {
@@ -71,7 +101,7 @@ Deno.serve(async (request) => {
     return reply(401, {
       code: "invalid_session",
       message: "Sessão inválida.",
-    });
+    }, requestOrigin);
   }
 
   const admin = createClient(url, serviceRole, {
@@ -101,7 +131,7 @@ Deno.serve(async (request) => {
     return reply(403, {
       code: "permission_denied",
       message: "Você não possui permissão para gerenciar usuários.",
-    });
+    }, requestOrigin);
   }
 
   const { data: organizationId, error: organizationError } =
@@ -111,7 +141,7 @@ Deno.serve(async (request) => {
     return reply(403, {
       code: "permission_denied",
       message: "Você não possui permissão para gerenciar usuários.",
-    });
+    }, requestOrigin);
   }
 
   // CONVITE
@@ -128,7 +158,7 @@ Deno.serve(async (request) => {
       return reply(400, {
         code: "invalid_input",
         message: "Preencha nome, email e função.",
-      });
+      }, requestOrigin);
     }
 
     const { data: role } = await admin
@@ -146,7 +176,7 @@ Deno.serve(async (request) => {
       return reply(400, {
         code: "invalid_role",
         message: "Função inválida para convite.",
-      });
+      }, requestOrigin);
     }
 
     const { data: existingProfile } = await admin
@@ -167,14 +197,14 @@ Deno.serve(async (request) => {
         return reply(409, {
           code: "member_exists",
           message: "Este usuário já faz parte da equipe.",
-        });
+        }, requestOrigin);
       }
 
       if (membership?.status === "invited") {
         return reply(409, {
           code: "invite_pending",
           message: "Este email já possui um convite pendente.",
-        });
+        }, requestOrigin);
       }
     }
 
@@ -182,14 +212,34 @@ Deno.serve(async (request) => {
       data: {
         name,
       },
-      redirectTo: `${allowedOrigin}/aceitar-convite`,
+      redirectTo: `${configuredOrigin}/aceitar-convite`,
     });
 
     if (invited.error) {
-      return reply(400, {
-        code: "invite_failed",
-        message: "Não foi possível enviar o convite.",
+      console.error("invite_user_failed", {
+        organizationId,
+        email,
+        status: invited.error.status,
+        name: invited.error.name,
+        message: invited.error.message,
       });
+
+      const normalized = invited.error.message.toLowerCase();
+      const message =
+        normalized.includes("already") || normalized.includes("registered")
+          ? "Este e-mail já possui uma conta. Use outro e-mail ou vincule o usuário existente."
+          : normalized.includes("rate")
+            ? "O limite temporário de envio de convites foi atingido. Tente novamente em alguns minutos."
+            : "Não foi possível enviar o convite pelo serviço de autenticação.";
+
+      return reply(
+        400,
+        {
+          code: "invite_failed",
+          message,
+        },
+        requestOrigin,
+      );
     }
 
     const targetUserId =
@@ -200,7 +250,7 @@ Deno.serve(async (request) => {
         code: "invite_reconciliation_required",
         message:
           "Convite enviado, mas a vinculação precisa ser reconciliada.",
-      });
+      }, requestOrigin);
     }
 
     await admin
@@ -226,12 +276,12 @@ Deno.serve(async (request) => {
         code: "invite_reconciliation_required",
         message:
           "Convite enviado. Tente reenviar para concluir a vinculação.",
-      });
+      }, requestOrigin);
     }
 
     return reply(200, {
       message: "Convite enviado.",
-    });
+    }, requestOrigin);
   }
 
   // ALTERAÇÃO DE E-MAIL
@@ -240,7 +290,7 @@ Deno.serve(async (request) => {
       return reply(400, {
         code: "invalid_member",
         message: "Usuário inválido.",
-      });
+      }, requestOrigin);
     }
 
     const email = payload.email?.trim().toLowerCase();
@@ -249,7 +299,7 @@ Deno.serve(async (request) => {
       return reply(400, {
         code: "invalid_email",
         message: "Informe um e-mail válido.",
-      });
+      }, requestOrigin);
     }
 
     const { data: member } = await admin
@@ -263,7 +313,7 @@ Deno.serve(async (request) => {
       return reply(404, {
         code: "member_not_found",
         message: "Usuário não encontrado.",
-      });
+      }, requestOrigin);
     }
 
     const currentEmail = (
@@ -273,7 +323,7 @@ Deno.serve(async (request) => {
     if (currentEmail === email) {
       return reply(200, {
         message: "O e-mail informado já está cadastrado.",
-      });
+      }, requestOrigin);
     }
 
     const { data: existingProfile } = await admin
@@ -287,7 +337,7 @@ Deno.serve(async (request) => {
       return reply(409, {
         code: "email_in_use",
         message: "Este e-mail já está sendo utilizado por outro usuário.",
-      });
+      }, requestOrigin);
     }
 
     const authUpdate = await admin.auth.admin.updateUserById(
@@ -302,7 +352,7 @@ Deno.serve(async (request) => {
       return reply(400, {
         code: "auth_email_update_failed",
         message: "Não foi possível alterar o e-mail de acesso.",
-      });
+      }, requestOrigin);
     }
 
     const { error: profileError } = await admin
@@ -317,12 +367,12 @@ Deno.serve(async (request) => {
         code: "profile_email_update_failed",
         message:
           "O e-mail de acesso foi alterado, mas o perfil precisa ser sincronizado.",
-      });
+      }, requestOrigin);
     }
 
     return reply(200, {
       message: "E-mail atualizado com sucesso.",
-    });
+    }, requestOrigin);
   }
 
   // REENVIAR OU CANCELAR CONVITE
@@ -331,7 +381,7 @@ Deno.serve(async (request) => {
       return reply(400, {
         code: "invalid_member",
         message: "Usuário inválido.",
-      });
+      }, requestOrigin);
     }
 
     const { data: member } = await admin
@@ -345,7 +395,7 @@ Deno.serve(async (request) => {
       return reply(409, {
         code: "invite_not_pending",
         message: "Este convite não está mais pendente.",
-      });
+      }, requestOrigin);
     }
 
     const email = (
@@ -356,7 +406,7 @@ Deno.serve(async (request) => {
       const resent = await admin.auth.admin.inviteUserByEmail(
         email,
         {
-          redirectTo: `${allowedOrigin}/aceitar-convite`,
+          redirectTo: `${configuredOrigin}/aceitar-convite`,
         },
       );
 
@@ -364,7 +414,7 @@ Deno.serve(async (request) => {
         return reply(400, {
           code: "resend_failed",
           message: "Não foi possível reenviar o convite.",
-        });
+        }, requestOrigin);
       }
     }
 
@@ -384,7 +434,7 @@ Deno.serve(async (request) => {
         code: "operation_denied",
         message:
           "Você não possui permissão para realizar esta ação.",
-      });
+      }, requestOrigin);
     }
 
     return reply(200, {
@@ -392,11 +442,11 @@ Deno.serve(async (request) => {
         action === "resend"
           ? "Convite reenviado."
           : "Convite cancelado.",
-    });
+    }, requestOrigin);
   }
 
   return reply(400, {
     code: "invalid_action",
     message: "Ação inválida.",
-  });
+  }, requestOrigin);
 });

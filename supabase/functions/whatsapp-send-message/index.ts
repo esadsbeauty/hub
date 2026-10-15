@@ -24,6 +24,10 @@ type Input = {
   organizationId?: string;
   conversationId?: string;
   text?: string;
+  mediaPath?: string;
+  mediaMimeType?: string;
+  mediaFileName?: string;
+  replyToExternalMessageId?: string;
 };
 
 type Authorization = {
@@ -170,16 +174,44 @@ Deno.serve(async (request) => {
   const text =
     body.text?.trim() ?? "";
 
+  const mediaPath =
+    body.mediaPath?.trim() ?? "";
+
+  const mediaMimeType =
+    body.mediaMimeType?.trim().toLowerCase() ?? "";
+
+  const mediaFileName =
+    body.mediaFileName?.trim() ?? "";
+
+  const replyToExternalMessageId =
+    body.replyToExternalMessageId?.trim() ?? "";
+
+  const hasText = Boolean(text);
+  const hasMedia = Boolean(mediaPath);
+
   if (
     !organizationId ||
     !conversationId ||
-    !text ||
+    (!hasText && !hasMedia) ||
     text.length > maxTextLength
   ) {
     return reply(
       422,
       "invalid_message",
-      `Mensagem inválida. Informe um texto de até ${maxTextLength} caracteres.`,
+      `Mensagem inválida. Informe um texto de até ${maxTextLength} caracteres ou um arquivo válido.`,
+    );
+  }
+
+  if (
+    hasMedia &&
+    !mediaPath.startsWith(
+      `${organizationId}/${conversationId}/outgoing/`,
+    )
+  ) {
+    return reply(
+      422,
+      "invalid_media_path",
+      "Arquivo inválido para esta conversa.",
     );
   }
 
@@ -392,32 +424,191 @@ Deno.serve(async (request) => {
   }
 
   let metaResponse: Response;
+  let outboundMessageType = "text";
+  let persistedMediaId: string | null = null;
+  let persistedMediaSize: number | null = null;
 
   try {
-    metaResponse = await fetch(
-      `https://graph.facebook.com/v26.0/${encodeURIComponent(
-        String(connection.phone_number_id),
-      )}/messages`,
-      {
-        method: "POST",
-        headers: {
-          Authorization:
-            `Bearer ${accessToken}`,
-          "Content-Type":
-            "application/json",
-        },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          recipient_type: "individual",
-          to: conversation.wa_id,
-          type: "text",
-          text: {
-            preview_url: false,
-            body: text,
+    if (hasMedia) {
+      const stored = await admin.storage
+        .from("whatsapp-media")
+        .download(mediaPath);
+
+      if (stored.error || !stored.data) {
+        console.error(
+          "Failed to load outbound WhatsApp media",
+          {
+            conversationId,
+            organizationId,
+            mediaPath,
+            message: stored.error?.message,
           },
-        }),
-      },
-    );
+        );
+
+        return reply(
+          422,
+          "media_not_found",
+          "Não foi possível carregar o arquivo selecionado.",
+        );
+      }
+
+      persistedMediaSize = stored.data.size;
+
+      const effectiveMimeType =
+        mediaMimeType ||
+        stored.data.type ||
+        "application/octet-stream";
+
+      const isAudio =
+        effectiveMimeType.startsWith("audio/") &&
+        effectiveMimeType !== "audio/webm";
+
+      const isImage =
+        effectiveMimeType.startsWith("image/");
+
+      outboundMessageType =
+        isAudio
+          ? "audio"
+          : isImage
+            ? "image"
+            : "document";
+
+      const uploadForm = new FormData();
+      uploadForm.set("messaging_product", "whatsapp");
+      uploadForm.set(
+        "file",
+        new File(
+          [stored.data],
+          mediaFileName || "arquivo",
+          { type: effectiveMimeType },
+        ),
+      );
+
+      const uploadResponse = await fetch(
+        `https://graph.facebook.com/v26.0/${encodeURIComponent(
+          String(connection.phone_number_id),
+        )}/media`,
+        {
+          method: "POST",
+          headers: {
+            Authorization:
+              `Bearer ${accessToken}`,
+          },
+          body: uploadForm,
+        },
+      );
+
+      const uploadPayload =
+        await uploadResponse
+          .json()
+          .catch(() => ({})) as {
+            id?: string;
+            error?: {
+              code?: number;
+              message?: string;
+            };
+          };
+
+      if (!uploadResponse.ok || !uploadPayload.id) {
+        console.error(
+          "WhatsApp Cloud API rejected media upload",
+          {
+            conversationId,
+            organizationId,
+            status: uploadResponse.status,
+            providerCode:
+              uploadPayload.error?.code,
+            providerMessage:
+              uploadPayload.error?.message,
+          },
+        );
+
+        return reply(
+          502,
+          "media_upload_rejected",
+          effectiveMimeType === "audio/webm"
+            ? "Este navegador gravou o áudio em um formato que o WhatsApp não aceita como áudio. Tente anexar um áudio MP3, M4A, AAC, AMR ou OGG."
+            : "Não foi possível enviar este arquivo pelo WhatsApp.",
+        );
+      }
+
+      persistedMediaId = uploadPayload.id;
+
+      const mediaPayload: Record<string, unknown> = {
+        id: uploadPayload.id,
+      };
+
+      if (
+        outboundMessageType === "document" &&
+        mediaFileName
+      ) {
+        mediaPayload.filename = mediaFileName;
+      }
+
+      metaResponse = await fetch(
+        `https://graph.facebook.com/v26.0/${encodeURIComponent(
+          String(connection.phone_number_id),
+        )}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization:
+              `Bearer ${accessToken}`,
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            messaging_product: "whatsapp",
+            recipient_type: "individual",
+            to: conversation.wa_id,
+            ...(replyToExternalMessageId
+              ? {
+                  context: {
+                    message_id:
+                      replyToExternalMessageId,
+                  },
+                }
+              : {}),
+            type: outboundMessageType,
+            [outboundMessageType]:
+              mediaPayload,
+          }),
+        },
+      );
+    } else {
+      metaResponse = await fetch(
+        `https://graph.facebook.com/v26.0/${encodeURIComponent(
+          String(connection.phone_number_id),
+        )}/messages`,
+        {
+          method: "POST",
+          headers: {
+            Authorization:
+              `Bearer ${accessToken}`,
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            messaging_product: "whatsapp",
+            recipient_type: "individual",
+            to: conversation.wa_id,
+            ...(replyToExternalMessageId
+              ? {
+                  context: {
+                    message_id:
+                      replyToExternalMessageId,
+                  },
+                }
+              : {}),
+            type: "text",
+            text: {
+              preview_url: false,
+              body: text,
+            },
+          }),
+        },
+      );
+    }
   } catch (error) {
     console.error(
       "WhatsApp Cloud API request failed",
@@ -511,15 +702,39 @@ Deno.serve(async (request) => {
         external_message_id:
           externalMessageId,
         direction: "outbound",
-        message_type: "text",
-        text_body: text,
+        message_type:
+          outboundMessageType,
+        text_body:
+          outboundMessageType === "text"
+            ? text
+            : null,
         message_timestamp: sentAt,
+        media_id:
+          persistedMediaId,
+        media_path:
+          hasMedia ? mediaPath : null,
+        media_mime_type:
+          hasMedia
+            ? mediaMimeType || null
+            : null,
+        media_file_name:
+          hasMedia
+            ? mediaFileName || null
+            : null,
+        media_size_bytes:
+          hasMedia
+            ? persistedMediaSize
+            : null,
+        reply_to_external_message_id:
+          replyToExternalMessageId || null,
+        delivery_status: "sent",
         raw_payload: {
           messages: [
             {
               id: externalMessageId,
             },
           ],
+          source: "inbox",
         },
       })
       .select("id")
