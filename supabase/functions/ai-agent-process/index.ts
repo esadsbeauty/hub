@@ -379,6 +379,22 @@ Deno.serve(async (request) => {
     conversation = data;
   }
 
+  // Never process a message for a conversation already owned by a human
+  // or transferred to the team. A new commercial round must be explicit.
+  if (["paused", "handoff", "closed"].includes(String(conversation.status ?? ""))) {
+    return jsonResponse(409, {code:"conversation_not_automated",message:"Atendimento humano ou transferência em andamento."});
+  }
+  if (payload.whatsapp_conversation_id) {
+    const {data:ownership,error:ownershipError}=await admin.from("crm_ai_assignments")
+      .select("assistant_type,automation_status")
+      .eq("organization_id",organizationId)
+      .eq("whatsapp_conversation_id",payload.whatsapp_conversation_id)
+      .order("updated_at",{ascending:false}).limit(1).maybeSingle();
+    if (ownershipError || (ownership && (ownership.assistant_type==="human" || ownership.automation_status!=="active"))) {
+      return jsonResponse(409,{code:"conversation_not_automated",message:"Conversa reservada ao atendimento humano."});
+    }
+  }
+
   /*
    * Quando a conversa veio da Prospecção e já foi convertida em uma NOVA
    * oportunidade do CRM, usamos apenas o histórico da rodada atual.
@@ -1034,7 +1050,7 @@ Responda à nova mensagem considerando todo o contexto acima.
 
     const now = new Date().toISOString();
 
-    const { error: conversationUpdateError } = await admin
+    const { data: updatedConversation, error: conversationUpdateError } = await admin
       .from("ai_agent_conversations")
       .update({
         qualification_data: mergedQualification,
@@ -1046,12 +1062,18 @@ Responda à nova mensagem considerando todo o contexto acima.
         last_ai_message_at: now,
         updated_at: now,
       })
-      .eq("id", conversation.id);
+      .eq("id", conversation.id)
+      .in("status",["active","qualified"])
+      .select("id");
 
     if (conversationUpdateError) {
       throw new Error(
         `conversation_update_failed:${conversationUpdateError.message}`,
       );
+    }
+
+    if (!updatedConversation?.length) {
+      return jsonResponse(409,{code:"conversation_not_automated",message:"O atendimento foi assumido durante a geração da resposta."});
     }
 
     let crmSyncResult: unknown = null;
