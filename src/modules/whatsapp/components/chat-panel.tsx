@@ -364,18 +364,18 @@ export function ChatPanel({
           encoderBitRate: 24000,
           numberOfChannels: 1,
         });
-        let encodedAudio: ArrayBuffer | null = null;
+        const encodedChunks: ArrayBuffer[] = [];
         opus.ondataavailable = (buffer: ArrayBuffer) => {
-          encodedAudio = buffer;
+          encodedChunks.push(buffer);
         };
         opus.onstop = () => {
           recorderRef.current = null;
           setRecording(false);
-          if (!encodedAudio || encodedAudio.byteLength === 0) {
+          if (!encodedChunks.length || encodedChunks.every((chunk) => chunk.byteLength === 0)) {
             setError("O áudio ficou vazio. Tente gravar novamente.");
             return;
           }
-          const file = new File([encodedAudio], `audio-${Date.now()}.ogg`, {
+          const file = new File(encodedChunks, `audio-${Date.now()}.ogg`, {
             type: "audio/ogg",
           });
           void sendMediaFile(file);
