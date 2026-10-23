@@ -1,4 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
+import OpusRecorder from "opus-recorder";
+import opusWorkerUrl from "opus-recorder/dist/encoderWorker.min.js?url";
 import { ArrowLeft, Check, CheckCheck, FileText, Info, LoaderCircle, Mic, Paperclip, Reply, RotateCcw, Send, Square, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -216,7 +218,7 @@ export function ChatPanel({
   const [recording, setRecording] = useState(false);
   const [replyingTo, setReplyingTo] = useState<WhatsAppMessage | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recorderRef = useRef<{ state: string; stop: () => void } | null>(null);
   const recorderChunksRef = useRef<Blob[]>([]);
   const recorderStreamRef = useRef<MediaStream | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
@@ -354,9 +356,47 @@ export function ChatPanel({
       ].find((type) => MediaRecorder.isTypeSupported(type));
 
       if (!compatibleMimeType) {
-        throw new Error(
-          "Este navegador não grava no formato OGG compatível com o WhatsApp. Para evitar áudios que aparecem enviados mas falham, use um navegador com suporte a OGG/Opus ou anexe um arquivo OGG/Opus ou MP3.",
-        );
+        // Chrome does not normally implement MediaRecorder OGG. Encode OGG/Opus
+        // directly with an embedded WebAssembly worker instead of renaming MP4.
+        const opus = new OpusRecorder({
+          encoderPath: opusWorkerUrl,
+          encoderApplication: 2048,
+          encoderBitRate: 24000,
+          numberOfChannels: 1,
+        });
+        let encodedAudio: ArrayBuffer | null = null;
+        opus.ondataavailable = (buffer: ArrayBuffer) => {
+          encodedAudio = buffer;
+        };
+        opus.onstop = () => {
+          recorderRef.current = null;
+          setRecording(false);
+          if (!encodedAudio || encodedAudio.byteLength === 0) {
+            setError("O áudio ficou vazio. Tente gravar novamente.");
+            return;
+          }
+          const file = new File([encodedAudio], `audio-${Date.now()}.ogg`, {
+            type: "audio/ogg",
+          });
+          void sendMediaFile(file);
+        };
+        const wrapper = {
+          state: "recording",
+          stop: () => {
+            wrapper.state = "inactive";
+            opus.stop();
+          },
+        };
+        recorderRef.current = wrapper;
+        try {
+          await opus.start();
+          setRecording(true);
+        } catch (error) {
+          recorderRef.current = null;
+          opus.close();
+          throw error;
+        }
+        return;
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
