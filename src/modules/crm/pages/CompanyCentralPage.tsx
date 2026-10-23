@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Edit, NotebookPen, Plus, Trash2, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import {
   FollowUpQuickForm,
 } from "../components/simple-forms";
 import { OpportunityForm } from "../components/opportunity-form";
+import { TaskForm } from "../components/task-form";
 import { OpportunityDetails } from "../components/opportunity-details";
 import {
   CompanyBadges,
@@ -56,11 +57,13 @@ export function CompanyCentralPage() {
     | "contact"
     | "opportunity"
     | "followup"
+    | "meeting"
     | "interaction"
     | "note"
     | null
   >(null);
   const [note, setNote] = useState("");
+  useEffect(() => { if (searchParams.get("schedule") === "1") setModal("meeting"); }, [searchParams]);
   const [selected, setSelected] = useState<Opportunity>();
   const [editingOpportunity, setEditingOpportunity] = useState<Opportunity>();
   const [editingContact, setEditingContact] = useState<CompanyContact>();
@@ -168,6 +171,9 @@ export function CompanyCentralPage() {
               </Button>
               <Button onClick={() => openOpportunityModal()}>
                 <Plus size={15} /> Nova oportunidade
+              </Button>
+              <Button variant="outline" onClick={() => setModal("meeting")}>
+                Agendar reunião
               </Button>
               <Button variant="outline" onClick={() => setModal("followup")}>
                 Novo follow-up
@@ -305,6 +311,34 @@ export function CompanyCentralPage() {
             success(
               editingContact ? "Contato atualizado" : "Contato adicionado",
             );
+          }}
+        />
+      </Modal>
+      <Modal
+        open={modal === "meeting"}
+        title="Agendar reunião"
+        onClose={() => setModal(null)}
+      >
+        <p className="mb-4 text-sm text-muted-foreground">
+          O compromisso será vinculado a este cliente e aparecerá na Agenda e no CRM.
+        </p>
+        <TaskForm
+          key={`meeting-${id}`}
+          initialType="meeting"
+          companyId={id}
+          opportunityId={related.opportunities.find(item => item.status === "open")?.id}
+          companies={data.companies.filter(item => !item.deletedAt)}
+          opportunities={data.opportunities.filter(item => !item.deletedAt)}
+          profiles={data.profiles}
+          onCancel={() => setModal(null)}
+          onSubmit={async form => {
+            try {
+              await actions.createTask.mutateAsync(form);
+              setModal(null);
+              success("Reunião agendada");
+            } catch (error) {
+              notify({title:"Não foi possível agendar",description:error instanceof Error ? error.message : "Tente novamente."});
+            }
           }}
         />
       </Modal>

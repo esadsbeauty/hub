@@ -65,14 +65,19 @@ export async function listDiagnosticSubmissions(): Promise<
     throw new Error("Supabase não configurado.");
   }
 
-  const { data, error } = await supabase.rpc("list_diagnostic_submissions", {
-    page_limit: 100,
-    page_offset: 0,
-  });
-
-  if (error) {
-    throw new Error("Não foi possível carregar os diagnósticos.");
+  const all: DiagnosticAdminRow[] = [];
+  const pageSize = 200;
+  let pageOffset = 0;
+  while (true) {
+    const { data, error } = await supabase.rpc("list_diagnostic_submissions", {
+      page_limit: pageSize,
+      page_offset: pageOffset,
+    });
+    if (error) throw new Error("Não foi possível carregar os diagnósticos.");
+    const rows = (data ?? []) as unknown as DiagnosticAdminRow[];
+    all.push(...rows);
+    if (rows.length < pageSize) break;
+    pageOffset += pageSize;
   }
-
-  return (data ?? []) as unknown as DiagnosticAdminRow[];
+  return all;
 }

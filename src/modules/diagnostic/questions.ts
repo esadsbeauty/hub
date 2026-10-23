@@ -1,14 +1,76 @@
-import type{DiagnosticQuestion}from"./types";
-const options=(labels:string[])=>labels.map((label,index)=>({key:(['a','b','c','d'] as const)[index],label}));
-export const diagnosticQuestions:DiagnosticQuestion[]=[
-{key:"acquisition",category:"acquisition",title:"Hoje, como as pessoas descobrem o seu trabalho?",options:options(["Ainda estou começando e quase ninguém conhece meu trabalho","Principalmente através de indicações","Pelo Instagram e outras redes sociais","Já uso algumas formas diferentes para conseguir novos clientes"])},
-{key:"service",category:"service",title:"Quando alguém chama você no Instagram ou WhatsApp querendo saber mais sobre um serviço, como costuma ser?",options:options(["Ainda recebo poucas mensagens","Respondo quando consigo","Tento responder rapidamente","Já tenho uma forma organizada de atender essas pessoas"])},
-{key:"organization",category:"organization",title:"Onde você guarda os contatos das pessoas que demonstraram interesse nos seus serviços?",options:options(["Ficam somente nas conversas do WhatsApp ou Instagram","Uso agenda, caderno ou bloco de notas","Uso uma planilha","Tenho uma forma organizada de acompanhar esses contatos"])},
-{key:"follow_up",category:"follow_up",title:"Quando uma pessoa pergunta o preço, demonstra interesse e depois desaparece, o que você costuma fazer?",options:options(["Normalmente não entro mais em contato","Às vezes lembro e mando outra mensagem","Costumo chamar novamente","Tenho o hábito de acompanhar essas pessoas até ter uma resposta"])},
-{key:"metrics",category:"metrics",title:"Hoje você sabe aproximadamente quantas pessoas pedem informações e quantas realmente viram clientes?",options:options(["Não faço ideia","Tenho apenas uma noção","Às vezes acompanho","Sim, costumo acompanhar isso"])},
-{key:"demand",category:"demand",title:"Como está sua agenda atualmente?",options:options(["Estou começando e ainda tenho poucos atendimentos","Tenho bastante horário disponível","Tenho alguns dias bons e outros mais parados","Minha agenda já possui uma boa frequência de clientes"])},
-{key:"business_stage",category:"business_stage",title:"Qual dessas opções representa melhor o momento do seu negócio?",options:options(["Estou começando agora","Já tenho alguns clientes, mas ainda é muito instável","Já tenho uma clientela e quero crescer","Já tenho bastante movimento e quero organizar melhor o negócio"])},
-{key:"marketing",category:"marketing",title:"Como está a divulgação do seu trabalho hoje?",options:options(["Quase não divulgo","Posto de vez em quando","Tento manter meu Instagram ativo","Tenho uma rotina para divulgar meus serviços e atrair clientes"])},
-{key:"financial_clarity",category:"financial_clarity",title:"Você sabe quanto precisa faturar por mês para manter o negócio funcionando e ainda ter lucro?",options:options(["Ainda não sei","Tenho uma ideia","Já fiz algumas contas","Sim, tenho uma meta definida"])},
-{key:"primary_need",category:"primary_need",title:"Se você pudesse melhorar uma coisa no seu negócio hoje, qual seria?",options:options(["Conseguir mais clientes","Fazer mais pessoas que pedem informação realmente agendarem","Organizar melhor meus clientes, contatos e rotina","Faturar mais e deixar meu negócio mais estável"])},
+import type { DiagnosticQuestion } from "./types";
+
+const options = (labels: string[]) =>
+  labels.map((label, index) => ({
+    key: (["a", "b", "c", "d"] as const)[index],
+    label,
+  }));
+
+export const diagnosticQuestions: DiagnosticQuestion[] = [
+  {
+    key: "business_stage",
+    category: "business_stage",
+    title: "Qual dessas situações melhor descreve seu negócio hoje?",
+    options: options([
+      "Estou começando e quero conquistar minhas primeiras clientes.",
+      "Já atendo, mas minha agenda ainda é instável.",
+      "Tenho clientes frequentes, mas quero aumentar meu faturamento.",
+      "Tenho uma boa demanda e quero crescer com mais organização.",
+    ]),
+  },
+  {
+    key: "acquisition",
+    category: "acquisition",
+    title: "De onde vem a maior parte das suas novas clientes?",
+    options: options([
+      "Indicações de outras clientes.",
+      "Instagram e redes sociais, sem anúncios.",
+      "Anúncios pagos no Instagram ou Google.",
+      "Não tenho uma forma constante de atrair clientes.",
+    ]),
+  },
+  {
+    key: "demand",
+    category: "demand",
+    title: "Como está sua agenda na maioria das semanas?",
+    options: options([
+      "Tenho muitos horários vagos.",
+      "Algumas semanas são boas, outras são bem paradas.",
+      "Tenho um movimento constante, mas ainda posso atender mais.",
+      "Minha agenda está quase sempre cheia.",
+    ]),
+  },
+  {
+    key: "service",
+    category: "service",
+    title: "Quando alguém pede informações ou valores, o que costuma acontecer?",
+    options: options([
+      "Muitas pessoas perguntam, mas poucas agendam.",
+      "Algumas agendam, mas muitas param de responder.",
+      "A maioria das interessadas acaba agendando.",
+      "Não sei quantas interessadas realmente agendam.",
+    ]),
+  },
+  {
+    key: "follow_up",
+    category: "follow_up",
+    title: "O que você faz quando uma possível cliente demonstra interesse, mas não agenda?",
+    options: options([
+      "Normalmente espero ela entrar em contato novamente.",
+      "Às vezes mando outra mensagem, quando lembro.",
+      "Faço contato novamente de forma organizada.",
+      "Tenho um processo ou sistema para acompanhar essas pessoas.",
+    ]),
+  },
+  {
+    key: "primary_need",
+    category: "primary_need",
+    title: "Se pudesse melhorar uma coisa no seu negócio nos próximos 3 meses, qual seria?",
+    options: options([
+      "Atrair mais clientes novas.",
+      "Conseguir mais agendamentos com os contatos que já recebo.",
+      "Organizar meu atendimento para não perder oportunidades.",
+      "Aumentar meu faturamento e crescer com mais previsibilidade.",
+    ]),
+  },
 ];

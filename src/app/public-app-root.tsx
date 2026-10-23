@@ -21,6 +21,7 @@ export default function PublicAppRoot() {
             <Route path="/blog/:slug" element={<BlogPostPage />} />
             <Route path="/diagnostico" element={<DiagnosticPage />} />
             <Route path="/diagnostico/resultado/:token" element={<DiagnosticPage />} />
+            <Route path="/diagnostico/obrigado" element={<DiagnosticPage />} />
             <Route path="/diagnostico/obrigado/:token" element={<DiagnosticPage />} />
 
             <Route path="/politica-de-privacidade" element={<PrivacyPolicyPage />} />

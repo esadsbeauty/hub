@@ -10,6 +10,12 @@ import { SubscriptionPastDueBanner } from "@/modules/subscription/SubscriptionPa
 const SIDEBAR_STORAGE_KEY = "esads-sidebar-collapsed";
 
 export function AppLayout() {
+  const [mobileChatOpen, setMobileChatOpen] = useState(false);
+  useEffect(() => {
+    const update = (event: Event) => setMobileChatOpen(Boolean((event as CustomEvent<{open:boolean}>).detail?.open));
+    window.addEventListener("esads:whatsapp-chat-visibility", update);
+    return () => window.removeEventListener("esads:whatsapp-chat-visibility", update);
+  }, []);
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
 
@@ -35,16 +41,16 @@ export function AppLayout() {
           collapsed ? "lg:pl-20" : "lg:pl-64"
         }`}
       >
-        <Topbar />
+        <div className={mobileChatOpen ? "max-md:hidden" : ""}><Topbar /></div>
 
-        <TenantContextBanner />
-        <SubscriptionPastDueBanner />
+        <div className={mobileChatOpen ? "max-md:hidden" : ""}><TenantContextBanner /></div>
+        <div className={mobileChatOpen ? "max-md:hidden" : ""}><SubscriptionPastDueBanner /></div>
 
-        <main className="min-h-[calc(100dvh-4rem)] px-4 py-6 pb-32 min-[430px]:px-5 md:px-6 md:py-8 lg:px-8 lg:pb-8">
+        <main className={`min-h-[calc(100dvh-4rem)] px-4 py-6 pb-32 min-[430px]:px-5 md:px-6 md:py-8 lg:px-8 lg:pb-8 ${mobileChatOpen ? "max-md:!h-[100dvh] max-md:!min-h-0 max-md:!overflow-hidden max-md:!p-0" : ""}`}>
           <Outlet />
         </main>
 
-        <MobileNavigation />
+        {!mobileChatOpen && <MobileNavigation />}
       </div>
     </div>
   );
