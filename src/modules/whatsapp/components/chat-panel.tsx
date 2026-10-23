@@ -345,14 +345,17 @@ export function ChatPanel({
         throw new Error("Este navegador não permite gravar áudio por aqui.");
       }
 
+      // OGG/Opus is the format already confirmed to be delivered by Meta.
+      // Do not use the browser's MP4 recorder as an automatic fallback:
+      // our outbound MP4 recordings have consistently failed delivery.
       const compatibleMimeType = [
-        "audio/mp4",
         "audio/ogg;codecs=opus",
+        "audio/ogg",
       ].find((type) => MediaRecorder.isTypeSupported(type));
 
       if (!compatibleMimeType) {
         throw new Error(
-          "Seu navegador não oferece um formato de gravação compatível com o WhatsApp. Use o botão de anexo para enviar um áudio MP3, M4A, AAC, AMR ou OGG.",
+          "Este navegador não grava no formato OGG compatível com o WhatsApp. Para evitar áudios que aparecem enviados mas falham, use um navegador com suporte a OGG/Opus ou anexe um arquivo OGG/Opus ou MP3.",
         );
       }
 
