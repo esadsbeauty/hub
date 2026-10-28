@@ -11,6 +11,26 @@ const SIDEBAR_STORAGE_KEY = "esads-sidebar-collapsed";
 
 export function AppLayout() {
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
+  // Dismiss native dropdown menus when tapping outside (including on mobile).
+  useEffect(() => {
+    const dismiss = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      document.querySelectorAll<HTMLDetailsElement>('details[data-dismiss-on-outside][open]')
+        .forEach(menu => { if (!menu.contains(target)) menu.open = false; });
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      document.querySelectorAll<HTMLDetailsElement>('details[data-dismiss-on-outside][open]')
+        .forEach(menu => { menu.open = false; });
+    };
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", dismiss);
+      document.removeEventListener("keydown", escape);
+    };
+  }, []);
   useEffect(() => {
     const update = (event: Event) => setMobileChatOpen(Boolean((event as CustomEvent<{open:boolean}>).detail?.open));
     window.addEventListener("esads:whatsapp-chat-visibility", update);
