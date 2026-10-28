@@ -10,6 +10,7 @@ import {
   MessageCircle,
   Megaphone,
   Plus,
+  PlayCircle,
   ShieldCheck,
   Settings,
   UserPlus,
@@ -218,6 +219,19 @@ export function MobileNavigation() {
                     Prospecção
                   </Link>
                 )}
+
+              {sheet === "more" && (
+                <a
+                  href="https://www.youtube.com/playlist?list=PLemmqdU4QxeQ"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setSheet(null)}
+                  className="premium-focus flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold active:bg-muted"
+                >
+                  <PlayCircle size={21} />
+                  Tutoriais
+                </a>
+              )}
 
               {sheet === "more" &&
                 isPlatformAdmin && (
