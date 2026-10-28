@@ -1,10 +1,7 @@
 import { useState } from "react";
 import {
   BarChart3,
-  BookOpen,
-  Building2,
   Calendar,
-  ClipboardCheck,
   Gift,
   Handshake,
   Home,
@@ -13,10 +10,10 @@ import {
   MessageCircle,
   Megaphone,
   Plus,
+  PlayCircle,
   ShieldCheck,
   Settings,
   UserPlus,
-  UserRoundSearch,
   Users,
   Wallet,
 } from "lucide-react";
@@ -55,6 +52,18 @@ const more = [
     permission: "crm.view" as const,
   },
   {
+    to: "/relatorios",
+    label: "Relatórios",
+    icon: BarChart3,
+    permission: "reports.view" as const,
+  },
+  {
+    to: "/configuracoes",
+    label: "Configurações",
+    icon: Settings,
+    permission: "settings.view" as const,
+  },
+  {
     to: "/clientes",
     label: "Clientes",
     icon: Users,
@@ -67,47 +76,23 @@ const more = [
     permission: "finance.view" as const,
   },
   {
-    to: "/indique-e-ganhe",
-    label: "Indique e Ganhe",
-    icon: Gift,
-    permission: "settings.view" as const,
-  },
-  {
     to: "/marketing",
     label: "Marketing",
     icon: Megaphone,
     permission: "marketing.view" as const,
   },
   {
-    to: "/marketing/diagnosticos",
-    label: "Diagnósticos",
-    icon: ClipboardCheck,
-    permission: "marketing.view" as const,
-  },
-  {
-    to: "/marketing/blog",
-    label: "Blog",
-    icon: BookOpen,
-    permission: "blog.view" as const,
-  },
-  {
-    to: "/relatorios",
-    label: "Relatórios",
-    icon: BarChart3,
-    permission: "reports.view" as const,
-  },
-  {
-    to: "/configuracoes",
-    label: "Configurações",
-    icon: Settings,
+    to: "/indique-e-ganhe",
+    label: "Indique e Ganhe",
+    icon: Gift,
     permission: "settings.view" as const,
   },
 ];
 
 const actions = [
   {
-    label: "Nova empresa",
-    detail: "Cadastre um lead com nome e contato",
+    label: "Novo lead",
+    detail: "Cadastre nome e contato",
     to: "/crm?new=company&quick=1",
     icon: UserPlus,
   },
@@ -235,6 +220,19 @@ export function MobileNavigation() {
                   </Link>
                 )}
 
+              {sheet === "more" && (
+                <a
+                  href="https://www.youtube.com/playlist?list=PLemmqdU4QxeQ"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setSheet(null)}
+                  className="premium-focus flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold active:bg-muted"
+                >
+                  <PlayCircle size={21} />
+                  Tutoriais
+                </a>
+              )}
+
               {sheet === "more" &&
                 isPlatformAdmin && (
                   <Link
@@ -244,42 +242,6 @@ export function MobileNavigation() {
                   >
                     <ShieldCheck size={24} />
                     Plataforma
-                  </Link>
-                )}
-
-              {sheet === "more" &&
-                isPlatformAdmin && (
-                  <Link
-                    onClick={() => setSheet(null)}
-                    className="premium-focus flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold active:bg-muted"
-                    to="/plataforma/leads"
-                  >
-                    <UserRoundSearch size={24} />
-                    Leads do Produto
-                  </Link>
-                )}
-
-              {sheet === "more" &&
-                isPlatformAdmin && (
-                  <Link
-                    onClick={() => setSheet(null)}
-                    className="premium-focus flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold active:bg-muted"
-                    to="/plataforma/indicacoes"
-                  >
-                    <Gift size={24} />
-                    Indicações
-                  </Link>
-                )}
-
-              {sheet === "more" &&
-                isPlatformAdmin && (
-                  <Link
-                    onClick={() => setSheet(null)}
-                    className="premium-focus flex min-h-14 items-center gap-3 rounded-2xl px-3 text-base font-semibold active:bg-muted"
-                    to="/plataforma/organizacoes"
-                  >
-                    <Building2 size={24} />
-                    Organizações
                   </Link>
                 )}
 

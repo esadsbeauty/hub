@@ -40,10 +40,7 @@ const tabs: { value: ReportTab; label: string }[] = [
   { value: "pipeline", label: "Pipeline" },
   { value: "conversion", label: "Conversão" },
   { value: "sales", label: "Vendas" },
-  { value: "owners", label: "Responsáveis" },
   { value: "sources", label: "Origens" },
-  { value: "losses", label: "Perdas" },
-  { value: "activities", label: "Atividades" },
 ];
 const percentage = new Intl.NumberFormat("pt-BR", {
   style: "percent",

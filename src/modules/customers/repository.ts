@@ -29,6 +29,8 @@ async function reconciled(): Promise<CustomerData> {
 
 export const customerRepository: CustomerRepository = {
   list: reconciled,
+  async updatePartnership(accountId,input) { const data=await reconciled(); const item=data.accounts.find(x=>x.id===accountId); if(!item) throw new Error("Cliente não encontrado."); Object.assign(item,input,{updatedAt:now()}); write(data); },
+  async updateCustomerService(serviceId,input) { const data=await reconciled(); const item=data.customerServices.find(x=>x.id===serviceId); if(!item) throw new Error("Serviço não encontrado."); Object.assign(item,input,{updatedAt:now()}); write(data); },
   async createService(input) { const data = await reconciled(); const item = { id: id(), organizationId: ORG, ...input, isActive: true, createdAt: now(), updatedAt: now() }; data.services.push(item); write(data); return item; },
   async addCustomerService(input) { const data = await reconciled(); const item = { id: id(), organizationId: ORG, ...input, status: "pending" as const, createdAt: now(), updatedAt: now() }; data.customerServices.push(item); write(data); return item; },
   async startOnboarding(input) { const data = await reconciled(); const item = { id: id(), organizationId: ORG, ...input, status: "in_progress" as const, startedAt: now(), createdAt: now(), updatedAt: now() }; data.onboardings.push(item); const account = data.accounts.find((entry) => entry.id === input.customerAccountId); if (account) account.status = "onboarding"; write(data); return item; },

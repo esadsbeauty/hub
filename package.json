@@ -30,7 +30,8 @@
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
     "xlsx": "^0.18.5",
-    "zod": "^4.1.5"
+    "zod": "^4.1.5",
+    "opus-recorder": "8.0.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.34.0",

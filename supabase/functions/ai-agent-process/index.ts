@@ -205,6 +205,23 @@ Deno.serve(async (request) => {
     },
   });
 
+  if (mode === "crm" && !payload.test_mode) {
+    const { data: feature, error: featureError } = await admin
+      .from("organization_features")
+      .select("enabled")
+      .eq("organization_id", organizationId)
+      .eq("feature_key", "ai_commercial_assistant")
+      .eq("enabled", true)
+      .maybeSingle();
+
+    if (featureError || feature?.enabled !== true) {
+      return jsonResponse(403, {
+        code: "commercial_assistant_feature_disabled",
+        message: "A Assistente Comercial não está habilitada para esta organização.",
+      });
+    }
+  }
+
   const { data: agent, error: agentError } = await admin
     .from("ai_agents")
     .select("*")
@@ -360,6 +377,22 @@ Deno.serve(async (request) => {
     }
 
     conversation = data;
+  }
+
+  // Never process a message for a conversation already owned by a human
+  // or transferred to the team. A new commercial round must be explicit.
+  if (["paused", "handoff", "closed"].includes(String(conversation.status ?? ""))) {
+    return jsonResponse(409, {code:"conversation_not_automated",message:"Atendimento humano ou transferência em andamento."});
+  }
+  if (payload.whatsapp_conversation_id) {
+    const {data:ownership,error:ownershipError}=await admin.from("crm_ai_assignments")
+      .select("assistant_type,automation_status")
+      .eq("organization_id",organizationId)
+      .eq("whatsapp_conversation_id",payload.whatsapp_conversation_id)
+      .order("updated_at",{ascending:false}).limit(1).maybeSingle();
+    if (ownershipError || (ownership && (ownership.assistant_type==="human" || ownership.automation_status!=="active"))) {
+      return jsonResponse(409,{code:"conversation_not_automated",message:"Conversa reservada ao atendimento humano."});
+    }
   }
 
   /*
@@ -732,7 +765,24 @@ MODO ATUAL: CRM / QUALIFICAÇÃO
 Siga normalmente as regras comerciais, de qualificação e CRM configuradas.
 `;
 
+    const {data: prospectingSettings} = isProspectingMode
+      ? await admin.from("prospecting_agent_settings")
+          .select("agent_name,system_instructions,enabled")
+          .eq("organization_id",organizationId).maybeSingle()
+      : {data:null};
+    const specialInstructions=isProspectingMode && prospectingSettings?.enabled===true
+      ? `AGENTE EXCLUSIVA DE PROSPECÇÃO: ${prospectingSettings.agent_name || "Assistente de Prospecção"}.
+Estas instruções são separadas da Regina Comercial:
+${prospectingSettings.system_instructions || ""}
+Você representa a ESADS oferecendo soluções comerciais para a clínica. Você NÃO é paciente,
+não quer comprar tratamentos e NÃO pode responder como cliente da clínica.
+Mantenha o contexto da primeira abordagem humana, sem apresentação inicial ou
+qualificação receptiva do CRM. Se houver automação de clínica ou mensagem
+incoerente, não dê sequência à conversa.`
+      : "";
+
     const instructions = `
+${specialInstructions}
 ${personalizedSystemPrompt}
 
 ${modeInstructions}
@@ -1000,7 +1050,7 @@ Responda à nova mensagem considerando todo o contexto acima.
 
     const now = new Date().toISOString();
 
-    const { error: conversationUpdateError } = await admin
+    const { data: updatedConversation, error: conversationUpdateError } = await admin
       .from("ai_agent_conversations")
       .update({
         qualification_data: mergedQualification,
@@ -1012,12 +1062,18 @@ Responda à nova mensagem considerando todo o contexto acima.
         last_ai_message_at: now,
         updated_at: now,
       })
-      .eq("id", conversation.id);
+      .eq("id", conversation.id)
+      .in("status",["active","qualified"])
+      .select("id");
 
     if (conversationUpdateError) {
       throw new Error(
         `conversation_update_failed:${conversationUpdateError.message}`,
       );
+    }
+
+    if (!updatedConversation?.length) {
+      return jsonResponse(409,{code:"conversation_not_automated",message:"O atendimento foi assumido durante a geração da resposta."});
     }
 
     let crmSyncResult: unknown = null;

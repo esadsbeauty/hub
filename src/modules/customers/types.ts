@@ -6,7 +6,7 @@ export type ContractStatus = "draft" | "sent" | "signed" | "active" | "expired" 
 export type BillingType = "one_time" | "recurring" | "custom";
 export type BillingInterval = "monthly" | "quarterly" | "yearly" | "one_time" | "custom";
 
-export type CustomerAccount = { id: string; organizationId: string; companyId: string; status: CustomerStatus; clientSince: string; ownerId?: string; successOwnerId?: string; sourceOpportunityId?: string; cancellationReason?: string; cancellationNotes?: string; cancelledAt?: string; createdAt: string; updatedAt: string };
+export type CustomerAccount = { id: string; organizationId: string; companyId: string; status: CustomerStatus; clientSince: string; driveFolderUrl?: string; renewalReminderDays?: number; ownerId?: string; successOwnerId?: string; sourceOpportunityId?: string; cancellationReason?: string; cancellationNotes?: string; cancelledAt?: string; createdAt: string; updatedAt: string };
 export type Service = { id: string; organizationId: string; name: string; description?: string; category?: string; defaultPrice?: number; billingType: BillingType; isActive: boolean; createdAt: string; updatedAt: string };
 export type CustomerService = { id: string; organizationId: string; customerAccountId: string; serviceId: string; sourceOpportunityId?: string; status: ServiceStatus; startDate?: string; endDate?: string; agreedPrice?: number; billingType: BillingType; billingInterval: BillingInterval; ownerId?: string; notes?: string; createdAt: string; updatedAt: string; cancelledAt?: string };
 export type Onboarding = { id: string; organizationId: string; customerAccountId: string; customerServiceId?: string; sourceOpportunityId?: string; title: string; status: OnboardingStatus; ownerId?: string; startedAt?: string; dueAt?: string; completedAt?: string; createdAt: string; updatedAt: string };
@@ -19,3 +19,6 @@ export type CustomerServiceInput = Omit<CustomerService, "id" | "organizationId"
 export type OnboardingInput = Pick<Onboarding, "customerAccountId" | "title"> & Partial<Pick<Onboarding, "customerServiceId" | "sourceOpportunityId" | "ownerId" | "dueAt">>;
 export type OnboardingStepInput = Pick<OnboardingStep, "onboardingId" | "title"> & Partial<Pick<OnboardingStep, "description" | "assignedTo" | "dueAt" | "blockedBy">> & { createTask?: boolean };
 export type ContractInput = Omit<Contract, "id" | "organizationId" | "contractNumber" | "createdAt" | "updatedAt" | "cancelledAt" | "signedAt" | "status">;
+
+export type CustomerPartnershipInput = { driveFolderUrl?: string; renewalReminderDays?: number; clientSince?: string };
+export type CustomerServiceUpdate = { startDate?: string; endDate?: string | null; agreedPrice?: number | null; status?: ServiceStatus; notes?: string | null; billingInterval?: BillingInterval };

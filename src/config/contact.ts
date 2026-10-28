@@ -13,3 +13,17 @@ export function diagnosticWhatsappUrl(name: string, score: number) {
 
   return `https://wa.me/${whatsapp}?text=${encodeURIComponent(text)}`;
 }
+/** Convite de consultoria após diagnóstico; apenas inicia uma conversa, não agenda automaticamente. */
+export function diagnosticConsultationUrl(input: { name: string; score: number; stage: string; need: string; bottleneck: string; sourceUrl: string }) {
+  const text = [
+    "Olá! Concluí o diagnóstico da ESADS Beauty e tenho interesse em uma consultoria estratégica para entender como melhorar meu negócio.",
+    `Nome: ${input.name}`,
+    `Resultado: ${input.score}/100`,
+    `Momento do negócio: ${input.stage}`,
+    `Objetivo: ${input.need}`,
+    `Ponto de atenção: ${input.bottleneck}`,
+    `Diagnóstico: ${input.sourceUrl}`,
+    "Podemos conversar sobre os próximos passos?",
+  ].join("\n");
+  return `https://wa.me/${whatsapp}?text=${encodeURIComponent(text)}`;
+}
