@@ -205,7 +205,7 @@ function Profile({
   signOut,
 }: ProfileProps) {
   return (
-    <details data-dismiss-on-outside className="relative">
+    <details data-dismiss-on-outside className="relative z-[60]">
       <summary
         aria-label="Abrir menu do perfil"
         className="cursor-pointer list-none rounded-full shadow-soft"
@@ -217,7 +217,7 @@ function Profile({
         />
       </summary>
 
-      <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-card p-3 shadow-overlay">
+      <div className="absolute right-0 top-full z-[80] mt-2 w-56 max-w-[calc(100vw-2rem)] rounded-2xl border bg-card p-3 shadow-overlay">
         <p className="truncate text-sm font-semibold">
           {name ?? "Equipe ESADS"}
         </p>
