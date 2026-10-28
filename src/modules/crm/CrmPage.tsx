@@ -530,7 +530,7 @@ export function CrmPage() {
               <Plus size={17} /> <span>{terms.newCompany}</span>
             </Button>
 
-            <details className="relative hidden md:block">
+            <details data-dismiss-on-outside className="relative hidden md:block">
               <summary className="cursor-pointer list-none rounded-xl border border-border/70 bg-card px-3 py-2 text-sm font-medium hover:bg-muted">
                 Mais ações
               </summary>
@@ -571,7 +571,7 @@ export function CrmPage() {
           </Button>
         </div>
       </div>
-      <details className="relative shrink-0 rounded-xl border bg-card px-3 py-2"><summary className="cursor-pointer text-xs font-semibold">Filtros avançados ${activeFilters>0?`(${activeFilters} ativos)`:""}</summary>
+      <details data-dismiss-on-outside className="relative shrink-0 rounded-xl border bg-card px-3 py-2"><summary className="cursor-pointer text-xs font-semibold">Filtros avançados ${activeFilters>0?`(${activeFilters} ativos)`:""}</summary>
         <div className="absolute left-0 top-full z-40 mt-2 w-[min(90vw,560px)] rounded-xl border bg-card p-4 shadow-xl space-y-3">
       <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtros rápidos de atendimento">
         {quickCrmOptions.map(item=><button key={item.id} type="button" aria-pressed={quickFilter===item.id} onClick={()=>setQuickFilter(item.id)} className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors ${quickFilter===item.id?"border-primary bg-primary text-primary-foreground":"bg-card hover:bg-muted"}`}>{item.label}</button>)}
