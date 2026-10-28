@@ -20,7 +20,7 @@ export function TenantSwitcher() {
     try { await state.switchOrganization(id); setQuery(""); }
     finally { setSwitching(false); }
   };
-  return <details className="group relative min-w-0">
+  return <details data-dismiss-on-outside className="group relative min-w-0">
     <summary className="flex min-h-11 max-w-[22rem] cursor-pointer list-none items-center gap-2 rounded-xl border bg-card px-3 text-left shadow-soft premium-focus">
       <Building2 className="shrink-0 text-champagne-dark" size={18}/>
       <span className="min-w-0 flex-1"><span className="block text-[10px] font-bold uppercase tracking-[.12em] text-muted-foreground">Organização atual</span><span className="block truncate text-sm font-semibold">{state.organizationName}</span></span>
