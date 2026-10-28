@@ -205,7 +205,7 @@ function Profile({
   signOut,
 }: ProfileProps) {
   return (
-    <details className="relative">
+    <details data-dismiss-on-outside className="relative">
       <summary
         aria-label="Abrir menu do perfil"
         className="cursor-pointer list-none rounded-full shadow-soft"
