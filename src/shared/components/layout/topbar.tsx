@@ -1,7 +1,7 @@
 import { Bell, Search } from "lucide-react";
 import { useAppState } from "@/shared/state/app-state-context";
 import { usePriorityCallAlerts, type PriorityCallAlert } from "@/modules/notifications/use-priority-call-alerts";
-import { useMemo, useState, useEffect, type FormEvent } from "react";
+import { useMemo, useState, useEffect, useRef, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -277,6 +277,17 @@ function NotificationsBell({
   const {organizationId}=useAppState();
   const navigate=useNavigate();
   const [open,setOpen]=useState(false);
+  const notificationMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !notificationMenuRef.current?.contains(event.target)) setOpen(false);
+    };
+    const onEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    document.addEventListener("pointerdown", onOutside);
+    document.addEventListener("keydown", onEscape);
+    return () => { document.removeEventListener("pointerdown", onOutside); document.removeEventListener("keydown", onEscape); };
+  }, [open]);
   const [readIds,setReadIds]=useState<string[]>([]);
   const storageKey=`esads-notifications-read:${organizationId}`;
   useEffect(()=>{
@@ -297,7 +308,7 @@ function NotificationsBell({
     setReadIds(next);
     window.dispatchEvent(new Event("esads:notifications-read"));
   };
-  return <div className="relative">
+  return <div ref={notificationMenuRef} className="relative">
     <Button variant="ghost" size="sm" aria-label="Notificações" aria-expanded={open} onClick={()=>setOpen(v=>!v)} className={pending.length?"relative":undefined}>
       <Bell size={mobile?21:20} className={pending.some(a=>a.kind==="call")?"text-destructive":pending.length?"text-amber-700":undefined}/>
       {pending.length>0&&<span className="absolute -right-0.5 -top-0.5 grid min-h-5 min-w-5 place-items-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">{pending.length>9?"9+":pending.length}</span>}
