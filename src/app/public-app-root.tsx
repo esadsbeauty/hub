@@ -4,6 +4,7 @@ import { PublicLayout } from "@/layouts/public-layout";
 import { BlogIndexPage } from "@/modules/blog/pages/BlogIndexPage";
 import { BlogPostPage } from "@/modules/blog/pages/BlogPostPage";
 import { DiagnosticPage } from "@/modules/diagnostic/pages/DiagnosticPage";
+import { CalculatorPage } from "@/modules/calculator/pages/CalculatorPage";
 import { DataDeletionPage } from "@/modules/legal/pages/DataDeletionPage";
 import { PrivacyPolicyPage } from "@/modules/legal/pages/PrivacyPolicyPage";
 import { TermsOfUsePage } from "@/modules/legal/pages/TermsOfUsePage";
@@ -20,6 +21,7 @@ export default function PublicAppRoot() {
             <Route path="/blog" element={<BlogIndexPage />} />
             <Route path="/blog/:slug" element={<BlogPostPage />} />
             <Route path="/diagnostico" element={<DiagnosticPage />} />
+            <Route path="/calculadora" element={<CalculatorPage />} />
             <Route path="/diagnostico/resultado/:token" element={<DiagnosticPage />} />
             <Route path="/diagnostico/obrigado/:token" element={<DiagnosticPage />} />
 
