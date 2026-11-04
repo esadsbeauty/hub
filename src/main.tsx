@@ -11,7 +11,7 @@ const isReferralLanding =
 
 const isPublicRoute =
   isReferralLanding ||
-  /^\/(?:sistema|blog|diagnostico|privacidade|termos|politica-de-privacidade|termos-de-uso|exclusao-de-dados)(?:\/|$)/.test(
+  /^\/(?:sistema|blog|diagnostico|calculadora|privacidade|termos|politica-de-privacidade|termos-de-uso|exclusao-de-dados)(?:\/|$)/.test(
     window.location.pathname,
   );
 
